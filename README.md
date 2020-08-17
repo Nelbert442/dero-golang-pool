@@ -1,3 +1,4 @@
 # dero-golang-pool
+Golang Mining Pool for DERO
 
-DERO Mining Pool written in Golang
+Default Frontend Stats (powershell): (invoke-webrequest -uri 'http://127.0.0.1:8082/stats').Content | ConvertFrom-Json

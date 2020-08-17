@@ -1,0 +1,70 @@
+{
+	"address": "dEToUEe3q57XoqLgbuDE7DUmoB6byMtNBWtz85DmLAHAC8wSpetw4ggLVE4nB3KRMRhnFdxRT3fnh9geaAMmGrhP2UDY18gVNr",
+	"bypassAddressValidation": false,
+	"bypassShareValidation": false,
+
+	"threads": 1,
+
+	"estimationWindow": "27s",
+	"luckWindow": "24h",
+	"largeLuckWindow": "72h",
+
+	"blockRefreshInterval": "450ms",
+
+	"stratum": {
+		"timeout": "15m",
+
+		"listen": [
+			{
+				"host": "0.0.0.0",
+				"port": 1111,
+				"diff": 1000,
+				"maxConn": 32768
+			},
+			{
+				"host": "0.0.0.0",
+				"port": 3333,
+				"diff": 3000,
+				"maxConn": 32768
+			},
+			{
+				"host": "0.0.0.0",
+				"port": 5555,
+				"diff": 5000,
+				"maxConn": 32768
+			}
+		]
+	},
+
+	"frontend": {
+		"enabled": true,
+		"listen": "0.0.0.0:8082",
+		"login": "admin",
+		"password": "",
+		"hideIP": false
+	},
+
+	"upstreamCheckInterval": "5s",
+
+	"upstream": [
+		{
+			"name": "Derod",
+			"host": "derodaemon.nelbert442.com",
+			"port": 20206,
+			"timeout": "10s"
+		}
+	],
+
+	"redis": {
+		"enabled": true,
+		"host": "127.0.0.1",
+		"port": 6379,
+		"password": "",
+		"DB": 0
+	},
+
+	"newrelicEnabled": false,
+	"newrelicName": "MyStratum",
+	"newrelicKey": "SECRET_KEY",
+	"newrelicVerbose": false
+}
