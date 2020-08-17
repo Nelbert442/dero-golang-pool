@@ -1,15 +1,20 @@
 package astrobwtutil
 
-import "github.com/deroproject/derosuite/globals"
+import (
+	"log"
+	"strings"
 
-var wallet_address string
+	"github.com/deroproject/derosuite/address"
+)
 
-func ValidateAddress(addr string) bool {
-	a, err := globals.ParseValidateAddress(addr)
+// Leverage NewAddress in derosuite: https://github.com/deroproject/derosuite/blob/master/address/address.go#L111
+func ValidateAddress(str string) bool {
+	_, err := address.NewAddress(strings.TrimSpace(str))
 	if err != nil {
+		log.Printf("Address validation failed for '%s': %s", str, err)
 		return false
 	}
-	wallet_address = a.String()
+
 	return true
 }
 

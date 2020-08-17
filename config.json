@@ -1,5 +1,5 @@
 {
-	"address": "dEToUEe3q57XoqLgbuDE7DUmoB6byMtNBWtz85DmLAHAC8wSpetw4ggLVE4nB3KRMRhnFdxRT3fnh9geaAMmGrhP2UDY18gVNr",
+	"address": "dERopdjpGmr2DEwQJdRrKc8M6obca9NQu2EaC2fNe3RNHonYcCfqmjGF7NBEHoB8dpLXWhnjdW7dugFTVhofuKTb4sfzmyBSAj",
 	"bypassAddressValidation": false,
 	"bypassShareValidation": false,
 
@@ -49,7 +49,7 @@
 	"upstream": [
 		{
 			"name": "Derod",
-			"host": "derodaemon.nelbert442.com",
+			"host": "127.0.0.1",
 			"port": 20206,
 			"timeout": "10s"
 		}
@@ -57,7 +57,7 @@
 
 	"redis": {
 		"enabled": true,
-		"host": "127.0.0.1",
+		"host": "172.28.57.128",
 		"port": 6379,
 		"password": "",
 		"DB": 0
