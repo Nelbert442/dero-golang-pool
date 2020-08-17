@@ -136,7 +136,7 @@ func (m *Miner) hashrate(estimationWindow time.Duration) float64 {
 	return float64(totalShares) / float64(boundary)
 }
 
-func (m *Miner) processShare(s *StratumServer, cs *Session, job *Job, t *BlockTemplate, nonce string, result string) bool {
+func (m *Miner) processShare(s *StratumServer, cs *Session, job *Job, t *BlockTemplate, nonce string, result string) (bool, string) {
 	r := s.rpc()
 
 	var diff big.Int
@@ -162,37 +162,40 @@ func (m *Miner) processShare(s *StratumServer, cs *Session, job *Job, t *BlockTe
 		hashBytes, _ = hex.DecodeString(result)
 		copy(powhash[:], hashBytes)
 	} else {
-		//hashBytes, _ = hex.DecodeString(result)
+		hashBytes, _ = hex.DecodeString(result)
 		//hashBytes = astrobwt_optimized.POW_optimized_v2(shareBuff, max_pow_size)
 
 		hash, success := astrobwt.POW_optimized_v2(shareBuff, max_pow_size, &data)
 		if !success {
-			log.Printf("Bad hash from miner (l169) %v@%v", m.id, cs.ip)
+			minerOutput := "Incorrect PoW"
+			log.Printf("Bad hash from miner (l171) %v@%v", m.id, cs.ip)
 			atomic.AddInt64(&m.invalidShares, 1)
-			return false
+			return false, minerOutput
 		}
 
-		hashBytes, _ = hex.DecodeString(result)
+		//hashBytes, _ = hex.DecodeString(shareBuff)
 		copy(powhash[:], hash[:])
 	}
 
-	/*if !s.config.BypassShareValidation && hex.EncodeToString(powhash) != result {
-		log.Printf("Bad hash from miner %v@%v", m.id, cs.ip)
+	if !s.config.BypassShareValidation && hex.EncodeToString(hashBytes) != result {
+		minerOutput := "Bad hash"
+		log.Printf("Bad hash from miner (l182) %v@%v", m.id, cs.ip)
 		atomic.AddInt64(&m.invalidShares, 1)
-		return false
-	}*/
+		return false, minerOutput
+	}
 
 	hashDiff, ok := util.GetHashDifficulty(hashBytes)
 	if !ok {
-		log.Printf("Bad hash from miner (l185) %v@%v", m.id, cs.ip)
+		minerOutput := "Bad hash"
+		log.Printf("Bad hash from miner (l190) %v@%v", m.id, cs.ip)
 		atomic.AddInt64(&m.invalidShares, 1)
-		return false
+		return false, minerOutput
 	}
 
-	//block := hashDiff.Cmp(&diff) >= 0
+	block := hashDiff.Cmp(&diff) >= 0
 
 	//if block {
-	if blockchain.CheckPowHashBig(powhash, &diff) == true {
+	if blockchain.CheckPowHashBig(powhash, &diff) == true && block {
 		blockSubmit, err := r.SubmitBlock(t.Blocktemplate_blob, hex.EncodeToString(shareBuff))
 		var blockSubmitReply *rpc.SubmitBlock_Result
 
@@ -220,15 +223,16 @@ func (m *Miner) processShare(s *StratumServer, cs *Session, job *Job, t *BlockTe
 			// Immediately refresh current BT and send new jobs
 			s.refreshBlockTemplate(true)
 		}
-	} /*else if hashDiff.Cmp(cs.endpoint.difficulty) < 0 {
+	} else if hashDiff.Cmp(cs.endpoint.difficulty) < 0 {
+		minerOutput := "Low difficulty share"
 		log.Printf("Rejected low difficulty share of %v from %v@%v", hashDiff, m.id, cs.ip)
 		atomic.AddInt64(&m.invalidShares, 1)
-		return false
-	}*/
+		return false, minerOutput
+	}
 
 	atomic.AddInt64(&s.roundShares, cs.endpoint.config.Difficulty)
 	atomic.AddInt64(&m.validShares, 1)
 	m.storeShare(cs.endpoint.config.Difficulty)
 	log.Printf("Valid share at difficulty %v/%v", cs.endpoint.config.Difficulty, hashDiff)
-	return true
+	return true, ""
 }

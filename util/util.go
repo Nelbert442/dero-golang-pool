@@ -64,8 +64,7 @@ func ValidateAddress(addy string, poolAddy string) bool {
 		return false
 	}
 
-	//return astrobwtutil.ValidateAddress(addy)
-
+	// Call NewAddress to confirm address validation from "github.com/deroproject/derosuite/address"
 	_, err := address.NewAddress(strings.TrimSpace(addy))
 	if err != nil {
 		log.Printf("Address validation failed for '%s': %s", addy, err)
