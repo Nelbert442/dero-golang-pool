@@ -11,14 +11,14 @@ import (
 
 var noncePattern *regexp.Regexp
 
-const defaultWorkerId = "0"
+const defaultWorkerID = "0"
 
 func init() {
 	noncePattern, _ = regexp.Compile("^[0-9a-f]{8}$")
 }
 
 func (s *StratumServer) handleLoginRPC(cs *Session, params *LoginParams) (*JobReply, *ErrorReply) {
-	address, id := extractWorkerId(params.Login)
+	address, id := extractWorkerID(params.Login)
 	if !s.config.BypassAddressValidation && !util.ValidateAddress(address, s.config.Address) {
 		log.Printf("Invalid address %s used for login by %s", address, cs.ip)
 		return nil, &ErrorReply{Code: -1, Message: "Invalid address used for login"}
@@ -133,10 +133,10 @@ func (s *StratumServer) refreshBlockTemplate(bcast bool) {
 	}
 }
 
-func extractWorkerId(loginWorkerPair string) (string, string) {
+func extractWorkerID(loginWorkerPair string) (string, string) {
 	parts := strings.SplitN(loginWorkerPair, ".", 2)
 	if len(parts) > 1 {
 		return parts[0], parts[1]
 	}
-	return loginWorkerPair, defaultWorkerId
+	return loginWorkerPair, defaultWorkerID
 }

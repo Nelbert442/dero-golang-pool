@@ -54,9 +54,7 @@ func NewMiner(id string, ip string) *Miner {
 }
 
 func (cs *Session) getJob(t *BlockTemplate) *JobReplyData {
-	//height := atomic.SwapInt64(&cs.lastBlockHeight, t.Height)
 	lastBlockHeight := cs.lastBlockHeight
-	//if height == t.Height {
 	if lastBlockHeight == t.Height {
 		return &JobReplyData{}
 	}
@@ -151,14 +149,11 @@ func (m *Miner) processShare(s *StratumServer, cs *Session, job *Job, t *BlockTe
 	nonceBuff, _ := hex.DecodeString(nonce)
 	copy(shareBuff[39:], nonceBuff)
 
-	//var hashBytes, convertedBlob []byte
 	var hashBytes []byte
 
 	if s.config.BypassShareValidation {
 		hashBytes, _ = hex.DecodeString(result)
 	} else {
-		//convertedBlob = astrobwtutil.ConvertBlob(shareBuff)
-		//hashBytes = hashing.Hash(shareBuff, false, t.height)
 		hashBytes, _ = hex.DecodeString(result)
 	}
 
@@ -177,7 +172,6 @@ func (m *Miner) processShare(s *StratumServer, cs *Session, job *Job, t *BlockTe
 	block := hashDiff.Cmp(&diff) >= 0
 
 	if block {
-		//_, err := r.SubmitBlock(hex.EncodeToString(hashBytes))
 		blockSubmit, err := r.SubmitBlock(t.Blocktemplate_blob, hex.EncodeToString(shareBuff))
 		var blockSubmitReply *rpc.SubmitBlock_Result
 
@@ -191,21 +185,15 @@ func (m *Miner) processShare(s *StratumServer, cs *Session, job *Job, t *BlockTe
 			atomic.AddInt64(&r.Rejects, 1)
 			log.Printf("Block rejected at height %d: %v", t.Height, err)
 		} else {
-			//if len(convertedBlob) == 0 {
-			//	convertedBlob = cnutil.ConvertBlob(shareBuff)
-			//}
-			//blockFastHash := hex.EncodeToString(hashing.FastHash(shareBuff))
 			now := util.MakeTimestamp()
 			roundShares := atomic.SwapInt64(&s.roundShares, 0)
 			ratio := float64(roundShares) / float64(int64(t.Difficulty))
 			s.blocksMu.Lock()
-			//s.blockStats[now] = blockEntry{height: int64(t.Height), hash: hex.EncodeToString(shareBuff), variance: ratio}
 			s.blockStats[now] = blockEntry{height: int64(t.Height), hash: blockSubmitReply.BLID, variance: ratio}
 			s.blocksMu.Unlock()
 			atomic.AddInt64(&m.accepts, 1)
 			atomic.AddInt64(&r.Accepts, 1)
 			atomic.StoreInt64(&r.LastSubmissionAt, now)
-			//log.Printf("Block %s found at height %d by miner %v@%v with ratio %.4f", hex.EncodeToString(shareBuff), t.Height, m.id, cs.ip, ratio)
 			log.Printf("Block found at height %d, diff: %v, blid: %s, by miner: %v@%v, ratio: %.4f", t.Height, t.Difficulty, blockSubmitReply.BLID, m.id, cs.ip, ratio)
 
 			// Immediately refresh current BT and send new jobs

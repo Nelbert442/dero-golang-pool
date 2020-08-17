@@ -7,15 +7,6 @@ import (
 	"log"
 )
 
-/*type BlockTemplate struct {
-	diffInt64      int64
-	height         int64
-	difficulty     *big.Int
-	reservedOffset int
-	prevHash       string
-	buffer         []byte
-}*/
-
 type BlockTemplate struct {
 	Blocktemplate_blob string
 	Blockhashing_blob  string
@@ -29,15 +20,14 @@ type BlockTemplate struct {
 	Buffer             []byte
 }
 
-func (b *BlockTemplate) nextBlob(extraNonce uint32, instanceId []byte) string {
+func (b *BlockTemplate) nextBlob(extraNonce uint32, instanceID []byte) string {
 	extraBuff := new(bytes.Buffer)
 	binary.Write(extraBuff, binary.BigEndian, extraNonce)
 
 	blobBuff := make([]byte, len(b.Buffer))
 	copy(blobBuff, b.Buffer)
-	copy(blobBuff[b.Reserved_Offset+4:b.Reserved_Offset+7], instanceId)
+	copy(blobBuff[b.Reserved_Offset+4:b.Reserved_Offset+7], instanceID)
 	copy(blobBuff[b.Reserved_Offset:], extraBuff.Bytes())
-	//blob := cnutil.ConvertBlob(blobBuff)
 	blob := blobBuff
 	return hex.EncodeToString(blob)
 }
@@ -61,14 +51,6 @@ func (s *StratumServer) fetchBlockTemplate() bool {
 	} else {
 		log.Printf("New block to mine on %s at height %v, diff: %v, prev_hash: %s", r.Name, reply.Height, reply.Difficulty, reply.Prev_Hash)
 	}
-	/*newTemplate := BlockTemplate{
-		diffInt64:      reply.Difficulty,
-		difficulty:     big.NewInt(reply.Difficulty),
-		height:         reply.Height,
-		prevHash:       reply.PrevHash,
-		reservedOffset: reply.ReservedOffset,
-	}
-	newTemplate.buffer, _ = hex.DecodeString(reply.Blob)*/
 
 	newTemplate := BlockTemplate{
 		Blocktemplate_blob: reply.Blocktemplate_blob,
@@ -81,8 +63,7 @@ func (s *StratumServer) fetchBlockTemplate() bool {
 		Epoch:              reply.Epoch,
 		Status:             reply.Status,
 	}
-	newTemplate.Buffer, _ = hex.DecodeString(reply.Blockhashing_blob) // Invalid PoW
-	//newTemplate.Buffer, _ = hex.DecodeString(reply.Blocktemplate_blob) // Timestamp in future
+	newTemplate.Buffer, _ = hex.DecodeString(reply.Blockhashing_blob)
 	s.blockTemplate.Store(&newTemplate)
 	return true
 }

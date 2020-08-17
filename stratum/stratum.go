@@ -202,7 +202,7 @@ func (e *Endpoint) Listen(s *StratumServer) {
 		conn.SetKeepAlive(true)
 		ip, _, _ := net.SplitHostPort(conn.RemoteAddr().String())
 		cs := &Session{conn: conn, ip: ip, enc: json.NewEncoder(conn), endpoint: e}
-		n += 1
+		n++
 
 		accept <- n
 		go func() {

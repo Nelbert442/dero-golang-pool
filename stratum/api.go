@@ -10,6 +10,7 @@ import (
 	"git.dero.io/Nelbert442/dero-golang-pool/util"
 )
 
+// StatsIndex pushes stats and surfaces to /stats page
 func (s *StratumServer) StatsIndex(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json; charset=UTF-8")
 	w.WriteHeader(http.StatusOK)
