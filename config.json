@@ -1,5 +1,5 @@
 {
-	"address": "dERopdjpGmr2DEwQJdRrKc8M6obca9NQu2EaC2fNe3RNHonYcCfqmjGF7NBEHoB8dpLXWhnjdW7dugFTVhofuKTb4sfzmyBSAj",
+	"address": "dEToUEe3q57XoqLgbuDE7DUmoB6byMtNBWtz85DmLAHAC8wSpetw4ggLVE4nB3KRMRhnFdxRT3fnh9geaAMmGrhP2UDY18gVNr",
 	"bypassAddressValidation": false,
 	"bypassShareValidation": false,
 
@@ -50,7 +50,7 @@
 		{
 			"name": "Derod",
 			"host": "127.0.0.1",
-			"port": 20206,
+			"port": 30306,
 			"timeout": "10s"
 		}
 	],

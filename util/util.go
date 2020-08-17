@@ -2,6 +2,7 @@ package util
 
 import (
 	"encoding/hex"
+	"log"
 	"math/big"
 	"time"
 	"unicode/utf8"
@@ -43,12 +44,22 @@ func GetHashDifficulty(hashBytes []byte) (*big.Int, bool) {
 }
 
 func ValidateAddress(addy string, poolAddy string) bool {
+	var poolAddyNetwork string
+
 	if len(addy) != len(poolAddy) {
 		return false
 	}
 	prefix, _ := utf8.DecodeRuneInString(addy)
 	poolPrefix, _ := utf8.DecodeRuneInString(poolAddy)
 	if prefix != poolPrefix {
+		return false
+	}
+	addyRune := []rune(addy)
+	poolAddyRune := []rune(poolAddy)
+	poolAddyNetwork = string(poolAddyRune[0:4])
+
+	if string(addyRune[0:4]) != poolAddyNetwork {
+		log.Printf("Invalid address, pool address and supplied address don't match testnet(dETo)/mainnet(dERo). Pool Address is in %s", poolAddyNetwork)
 		return false
 	}
 	return astrobwtutil.ValidateAddress(addy)
