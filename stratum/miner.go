@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/binary"
 	"encoding/hex"
+	"encoding/json"
 	"log"
 	"math/big"
 	"strconv"
@@ -11,6 +12,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"git.dero.io/Nelbert442/dero-golang-pool/rpc"
 	"git.dero.io/Nelbert442/dero-golang-pool/util"
 )
 
@@ -176,9 +178,15 @@ func (m *Miner) processShare(s *StratumServer, cs *Session, job *Job, t *BlockTe
 
 	if block {
 		//_, err := r.SubmitBlock(hex.EncodeToString(hashBytes))
-		_, err := r.SubmitBlock(t.Blocktemplate_blob, hex.EncodeToString(shareBuff))
+		blockSubmit, err := r.SubmitBlock(t.Blocktemplate_blob, hex.EncodeToString(shareBuff))
+		var blockSubmitReply *rpc.SubmitBlock_Result
 
-		if err != nil {
+		if blockSubmit.Result != nil {
+			err = json.Unmarshal(*blockSubmit.Result, &blockSubmitReply)
+		}
+		log.Printf("Block accepted. Hash: %s, Status: %s", blockSubmitReply.BLID, blockSubmitReply.Status)
+
+		if err != nil || blockSubmitReply.Status != "Ok" {
 			atomic.AddInt64(&m.rejects, 1)
 			atomic.AddInt64(&r.Rejects, 1)
 			log.Printf("Block rejected at height %d: %v", t.Height, err)
@@ -192,13 +200,13 @@ func (m *Miner) processShare(s *StratumServer, cs *Session, job *Job, t *BlockTe
 			ratio := float64(roundShares) / float64(int64(t.Difficulty))
 			s.blocksMu.Lock()
 			//s.blockStats[now] = blockEntry{height: int64(t.Height), hash: hex.EncodeToString(shareBuff), variance: ratio}
-			s.blockStats[now] = blockEntry{height: int64(t.Height), hash: result, variance: ratio}
+			s.blockStats[now] = blockEntry{height: int64(t.Height), hash: blockSubmitReply.BLID, variance: ratio}
 			s.blocksMu.Unlock()
 			atomic.AddInt64(&m.accepts, 1)
 			atomic.AddInt64(&r.Accepts, 1)
 			atomic.StoreInt64(&r.LastSubmissionAt, now)
 			//log.Printf("Block %s found at height %d by miner %v@%v with ratio %.4f", hex.EncodeToString(shareBuff), t.Height, m.id, cs.ip, ratio)
-			log.Printf("Block %s found at height %d by miner %v@%v with ratio %.4f", result, t.Height, m.id, cs.ip, ratio)
+			log.Printf("Block found at height %d, diff: %v, blid: %s, by miner: %v@%v, ratio: %.4f", t.Height, t.Difficulty, blockSubmitReply.BLID, m.id, cs.ip, ratio)
 
 			// Immediately refresh current BT and send new jobs
 			s.refreshBlockTemplate(true)

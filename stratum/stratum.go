@@ -378,7 +378,7 @@ func (s *StratumServer) checkUpstreams() {
 	backup := false
 
 	for i, v := range s.upstreams {
-		ok, err := v.Check(8, s.config.Address)
+		ok, err := v.Check(10, s.config.Address)
 		if err != nil {
 			log.Printf("Upstream %v didn't pass check: %v", v.Name, err)
 		}

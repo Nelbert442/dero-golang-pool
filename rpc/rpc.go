@@ -52,6 +52,11 @@ type GetBlockTemplateReply struct {
 	Status             string `json:"status"`
 }
 
+type SubmitBlock_Result struct {
+	BLID   string `json:"blid"`
+	Status string `json:"status"`
+}
+
 type GetInfoReply struct {
 	IncomingConnections int64  `json:"incoming_connections_count"`
 	OutgoingConnections int64  `json:"outgoing_connections_count"`

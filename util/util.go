@@ -4,10 +4,11 @@ import (
 	"encoding/hex"
 	"log"
 	"math/big"
+	"strings"
 	"time"
 	"unicode/utf8"
 
-	"git.dero.io/Nelbert442/dero-golang-pool/astrobwtutil"
+	"github.com/deroproject/derosuite/address"
 )
 
 var Diff1 = StringToBig("0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF")
@@ -62,7 +63,16 @@ func ValidateAddress(addy string, poolAddy string) bool {
 		log.Printf("Invalid address, pool address and supplied address don't match testnet(dETo)/mainnet(dERo). Pool Address is in %s", poolAddyNetwork)
 		return false
 	}
-	return astrobwtutil.ValidateAddress(addy)
+
+	//return astrobwtutil.ValidateAddress(addy)
+
+	_, err := address.NewAddress(strings.TrimSpace(addy))
+	if err != nil {
+		log.Printf("Address validation failed for '%s': %s", addy, err)
+		return false
+	}
+
+	return true
 }
 
 func reverse(src []byte) []byte {
