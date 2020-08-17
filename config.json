@@ -1,7 +1,7 @@
 {
 	"address": "dEToUEe3q57XoqLgbuDE7DUmoB6byMtNBWtz85DmLAHAC8wSpetw4ggLVE4nB3KRMRhnFdxRT3fnh9geaAMmGrhP2UDY18gVNr",
 	"bypassAddressValidation": false,
-	"bypassShareValidation": false,
+	"bypassShareValidation": true,
 
 	"threads": 1,
 

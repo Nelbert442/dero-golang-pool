@@ -14,6 +14,10 @@ import (
 
 	"git.dero.io/Nelbert442/dero-golang-pool/rpc"
 	"git.dero.io/Nelbert442/dero-golang-pool/util"
+
+	"github.com/deroproject/derosuite/astrobwt"
+	"github.com/deroproject/derosuite/blockchain"
+	"github.com/deroproject/derosuite/crypto"
 )
 
 type Job struct {
@@ -150,28 +154,45 @@ func (m *Miner) processShare(s *StratumServer, cs *Session, job *Job, t *BlockTe
 	copy(shareBuff[39:], nonceBuff)
 
 	var hashBytes []byte
+	var powhash crypto.Hash
+	var data astrobwt.Data
+	var max_pow_size int = 819200 //astrobwt.MAX_LENGTH
 
 	if s.config.BypassShareValidation {
 		hashBytes, _ = hex.DecodeString(result)
+		copy(powhash[:], hashBytes)
 	} else {
+		//hashBytes, _ = hex.DecodeString(result)
+		//hashBytes = astrobwt_optimized.POW_optimized_v2(shareBuff, max_pow_size)
+
+		hash, success := astrobwt.POW_optimized_v2(shareBuff, max_pow_size, &data)
+		if !success {
+			log.Printf("Bad hash from miner (l169) %v@%v", m.id, cs.ip)
+			atomic.AddInt64(&m.invalidShares, 1)
+			return false
+		}
+
 		hashBytes, _ = hex.DecodeString(result)
+		copy(powhash[:], hash[:])
 	}
 
-	if !s.config.BypassShareValidation && hex.EncodeToString(hashBytes) != result {
+	/*if !s.config.BypassShareValidation && hex.EncodeToString(powhash) != result {
 		log.Printf("Bad hash from miner %v@%v", m.id, cs.ip)
 		atomic.AddInt64(&m.invalidShares, 1)
 		return false
-	}
+	}*/
 
 	hashDiff, ok := util.GetHashDifficulty(hashBytes)
 	if !ok {
-		log.Printf("Bad hash from miner %v@%v", m.id, cs.ip)
+		log.Printf("Bad hash from miner (l185) %v@%v", m.id, cs.ip)
 		atomic.AddInt64(&m.invalidShares, 1)
 		return false
 	}
-	block := hashDiff.Cmp(&diff) >= 0
 
-	if block {
+	//block := hashDiff.Cmp(&diff) >= 0
+
+	//if block {
+	if blockchain.CheckPowHashBig(powhash, &diff) == true {
 		blockSubmit, err := r.SubmitBlock(t.Blocktemplate_blob, hex.EncodeToString(shareBuff))
 		var blockSubmitReply *rpc.SubmitBlock_Result
 
@@ -180,7 +201,7 @@ func (m *Miner) processShare(s *StratumServer, cs *Session, job *Job, t *BlockTe
 		}
 		log.Printf("Block accepted. Hash: %s, Status: %s", blockSubmitReply.BLID, blockSubmitReply.Status)
 
-		if err != nil || blockSubmitReply.Status != "Ok" {
+		if err != nil || blockSubmitReply.Status != "OK" {
 			atomic.AddInt64(&m.rejects, 1)
 			atomic.AddInt64(&r.Rejects, 1)
 			log.Printf("Block rejected at height %d: %v", t.Height, err)
@@ -199,11 +220,11 @@ func (m *Miner) processShare(s *StratumServer, cs *Session, job *Job, t *BlockTe
 			// Immediately refresh current BT and send new jobs
 			s.refreshBlockTemplate(true)
 		}
-	} else if hashDiff.Cmp(cs.endpoint.difficulty) < 0 {
+	} /*else if hashDiff.Cmp(cs.endpoint.difficulty) < 0 {
 		log.Printf("Rejected low difficulty share of %v from %v@%v", hashDiff, m.id, cs.ip)
 		atomic.AddInt64(&m.invalidShares, 1)
 		return false
-	}
+	}*/
 
 	atomic.AddInt64(&s.roundShares, cs.endpoint.config.Difficulty)
 	atomic.AddInt64(&m.validShares, 1)
