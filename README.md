@@ -149,4 +149,4 @@ Default Frontend Stats (powershell):
 Credits
 ---------
 
-* [sammy007](//github.com/sammy007) - Developer on monero-stratum project from which current project is forked.
+* [sammy007](https://github.com/sammy007) - Developer on [monero-stratum](https://github.com/sammy007/monero-stratum) project from which current project is forked.
