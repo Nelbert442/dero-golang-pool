@@ -4,6 +4,7 @@
 	"bypassShareValidation": false,
 
 	"threads": 1,
+	"algo": "astrobwt",
 
 	"estimationWindow": "27s",
 	"luckWindow": "24h",
@@ -57,7 +58,7 @@
 
 	"redis": {
 		"enabled": true,
-		"host": "172.27.119.77",
+		"host": "172.28.89.248",
 		"port": 6379,
 		"password": "",
 		"DB": 0

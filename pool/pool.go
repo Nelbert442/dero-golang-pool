@@ -12,6 +12,7 @@ type Config struct {
 	LuckWindow              string     `json:"luckWindow"`
 	LargeLuckWindow         string     `json:"largeLuckWindow"`
 	Threads                 int        `json:"threads"`
+	Algo                    string     `json:"algo"`
 	Frontend                Frontend   `json:"frontend"`
 	Redis                   Redis      `json:"redis"`
 	NewrelicName            string     `json:"newrelicName"`

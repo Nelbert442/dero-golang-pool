@@ -43,6 +43,8 @@ type Miner struct {
 	ip string
 }
 
+//var cfg pool.Config
+
 func (job *Job) submit(nonce string) bool {
 	job.Lock()
 	defer job.Unlock()
@@ -138,10 +140,13 @@ func (m *Miner) hashrate(estimationWindow time.Duration) float64 {
 }
 
 func (m *Miner) processShare(s *StratumServer, cs *Session, job *Job, t *BlockTemplate, nonce string, result string) (bool, string) {
-	r := s.rpc()
 
+	// Var definitions
+	var hashBytes []byte
+	var powhash crypto.Hash
 	var diff big.Int
 	diff.SetUint64(t.Difficulty)
+	r := s.rpc()
 
 	shareBuff := make([]byte, len(t.Buffer))
 	copy(shareBuff, t.Buffer)
@@ -154,32 +159,36 @@ func (m *Miner) processShare(s *StratumServer, cs *Session, job *Job, t *BlockTe
 	nonceBuff, _ := hex.DecodeString(nonce)
 	copy(shareBuff[39:], nonceBuff)
 
-	var hashBytes []byte
-	var powhash crypto.Hash
-	var data astrobwt.Data
-	var max_pow_size int = 819200 //astrobwt.MAX_LENGTH
+	switch s.algo {
+	case "astrobwt":
+		var data astrobwt.Data
+		var max_pow_size int = 819200 //astrobwt.MAX_LENGTH
 
-	if s.config.BypassShareValidation {
-		hashBytes, _ = hex.DecodeString(result)
-		copy(powhash[:], hashBytes)
-	} else {
-		hashBytes, _ = hex.DecodeString(result)
-		//hashBytes = astrobwt_optimized.POW_optimized_v2(shareBuff, max_pow_size)
+		if s.config.BypassShareValidation {
+			hashBytes, _ = hex.DecodeString(result)
+			copy(powhash[:], hashBytes)
+		} else {
+			hashBytes, _ = hex.DecodeString(result)
 
-		hash, success := astrobwt.POW_optimized_v2(shareBuff, max_pow_size, &data)
-		if !success || hash[len(hash)-1] != 0 {
-			fmt.Printf("[IncorrectPoW-171] %+v\n", shareBuff)
-			fmt.Printf("[IncorrectPoW-172] %+v\n", hash)
-			minerOutput := "Incorrect PoW"
-			log.Printf("Bad hash from miner (l174) %v@%v", m.id, cs.ip)
-			atomic.AddInt64(&m.invalidShares, 1)
-			return false, minerOutput
+			hash, success := astrobwt.POW_optimized_v2(shareBuff, max_pow_size, &data)
+			if !success || hash[len(hash)-1] != 0 {
+				fmt.Printf("[IncorrectPoW-171] %+v\n", shareBuff)
+				fmt.Printf("[IncorrectPoW-172] %+v\n", hash)
+				minerOutput := "Incorrect PoW"
+				log.Printf("Bad hash from miner (l174) %v@%v", m.id, cs.ip)
+				atomic.AddInt64(&m.invalidShares, 1)
+				return false, minerOutput
+			}
+
+			fmt.Printf("[processShare-179] %+v\n", hash)
+
+			copy(powhash[:], hash[:])
 		}
-
-		fmt.Printf("[processShare-179] %+v\n", hash)
-
-		//hashBytes, _ = hex.DecodeString(shareBuff)
-		copy(powhash[:], hash[:])
+	default:
+		// Handle when no algo is defined or unhandled algo is defined, let miner know issues (properly gets sent back in job detail rejection message)
+		minerOutput := "Rejected share, no pool algo defined. Contact pool owner."
+		log.Printf("Rejected share, no pool algo defined (%s). Contact pool owner - from %v@%v", s.algo, m.id, cs.ip)
+		return false, minerOutput
 	}
 
 	if !s.config.BypassShareValidation && hex.EncodeToString(hashBytes) != result {
@@ -201,9 +210,9 @@ func (m *Miner) processShare(s *StratumServer, cs *Session, job *Job, t *BlockTe
 		return false, minerOutput
 	}
 
+	// May be redundant, or use instead of CheckPowHashBig in future.
 	block := hashDiff.Cmp(&diff) >= 0
 
-	//if block {
 	if blockchain.CheckPowHashBig(powhash, &diff) == true && block {
 		blockSubmit, err := r.SubmitBlock(t.Blocktemplate_blob, hex.EncodeToString(shareBuff))
 		var blockSubmitReply *rpc.SubmitBlock_Result

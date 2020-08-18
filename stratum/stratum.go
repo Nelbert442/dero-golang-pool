@@ -33,6 +33,7 @@ type StratumServer struct {
 	blocksMu         sync.RWMutex
 	sessionsMu       sync.RWMutex
 	sessions         map[*Session]struct{}
+	algo             string
 }
 
 type blockEntry struct {
@@ -81,6 +82,7 @@ func NewStratum(cfg *pool.Config) *StratumServer {
 
 	stratum.miners = NewMinersMap()
 	stratum.sessions = make(map[*Session]struct{})
+	stratum.algo = cfg.Algo
 
 	timeout, _ := time.ParseDuration(cfg.Stratum.Timeout)
 	stratum.timeout = timeout
