@@ -58,11 +58,20 @@ type SubmitBlock_Result struct {
 }
 
 type GetInfoReply struct {
-	IncomingConnections int64  `json:"incoming_connections_count"`
-	OutgoingConnections int64  `json:"outgoing_connections_count"`
-	Height              int64  `json:"height"`
-	TxPoolSize          int64  `json:"tx_pool_size"`
-	Status              string `json:"status"`
+	Difficulty         int64   `json:"difficulty"`
+	Stableheight       int64   `json:"stableheight"`
+	Topoheight         int64   `json:"topoheight"`
+	Averageblocktime50 float32 `json:"averageblocktime50"`
+	Target             int64   `json:"target"`
+	Testnet            bool    `json:"testnet"`
+	TopBlockHash       string  `json:"top_block_hash"`
+	DynamicFeePerKB    int64   `json:"dynamic_fee_per_kb"`
+	TotalSupply        int64   `json:"total_supply"`
+	MedianBlockSize    int64   `json:"median_block_Size"`
+	Version            string  `json:"version"`
+	Height             int64   `json:"height"`
+	TxPoolSize         int64   `json:"tx_pool_size"`
+	Status             string  `json:"status"`
 }
 
 type JSONRpcResp struct {
