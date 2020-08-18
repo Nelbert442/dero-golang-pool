@@ -57,7 +57,7 @@
 
 	"redis": {
 		"enabled": true,
-		"host": "172.28.57.128",
+		"host": "172.27.119.77",
 		"port": 6379,
 		"password": "",
 		"DB": 0

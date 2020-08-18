@@ -1,6 +1,7 @@
 package stratum
 
 import (
+	"fmt"
 	"log"
 	"regexp"
 	"strings"
@@ -19,6 +20,7 @@ func init() {
 
 func (s *StratumServer) handleLoginRPC(cs *Session, params *LoginParams) (*JobReply, *ErrorReply) {
 	address, id := extractWorkerID(params.Login)
+	//fmt.Printf("%+v\n", params)
 	if !s.config.BypassAddressValidation && !util.ValidateAddress(address, s.config.Address) {
 		log.Printf("Invalid address %s used for login by %s", address, cs.ip)
 		return nil, &ErrorReply{Code: -1, Message: "Invalid address used for login"}
@@ -115,6 +117,7 @@ func (s *StratumServer) broadcastNewJobs() {
 		go func(cs *Session) {
 			reply := cs.getJob(t)
 			err := cs.pushMessage("job", &reply)
+			fmt.Printf("[Job Broadcast] %+v\n", reply)
 			<-bcast
 			if err != nil {
 				log.Printf("Job transmit error to %s: %v", cs.ip, err)

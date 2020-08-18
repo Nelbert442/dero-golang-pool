@@ -5,6 +5,7 @@ import (
 	"encoding/binary"
 	"encoding/hex"
 	"encoding/json"
+	"fmt"
 	"log"
 	"math/big"
 	"strconv"
@@ -166,28 +167,36 @@ func (m *Miner) processShare(s *StratumServer, cs *Session, job *Job, t *BlockTe
 		//hashBytes = astrobwt_optimized.POW_optimized_v2(shareBuff, max_pow_size)
 
 		hash, success := astrobwt.POW_optimized_v2(shareBuff, max_pow_size, &data)
-		if !success {
+		if !success || hash[len(hash)-1] != 0 {
+			fmt.Printf("[IncorrectPoW-171] %+v\n", shareBuff)
+			fmt.Printf("[IncorrectPoW-172] %+v\n", hash)
 			minerOutput := "Incorrect PoW"
-			log.Printf("Bad hash from miner (l171) %v@%v", m.id, cs.ip)
+			log.Printf("Bad hash from miner (l174) %v@%v", m.id, cs.ip)
 			atomic.AddInt64(&m.invalidShares, 1)
 			return false, minerOutput
 		}
+
+		fmt.Printf("[processShare-179] %+v\n", hash)
 
 		//hashBytes, _ = hex.DecodeString(shareBuff)
 		copy(powhash[:], hash[:])
 	}
 
 	if !s.config.BypassShareValidation && hex.EncodeToString(hashBytes) != result {
+		fmt.Printf("[badhash-186] %+v\n", hex.EncodeToString(hashBytes))
+		fmt.Printf("[badhash-187] %+v\n", result)
 		minerOutput := "Bad hash"
-		log.Printf("Bad hash from miner (l182) %v@%v", m.id, cs.ip)
+		log.Printf("Bad hash from miner (l187) %v@%v", m.id, cs.ip)
 		atomic.AddInt64(&m.invalidShares, 1)
 		return false, minerOutput
 	}
 
 	hashDiff, ok := util.GetHashDifficulty(hashBytes)
 	if !ok {
+		fmt.Printf("[badhash-196] %+v\n", hashDiff)
+		fmt.Printf("[badhash-197] %+v\n", hashBytes)
 		minerOutput := "Bad hash"
-		log.Printf("Bad hash from miner (l190) %v@%v", m.id, cs.ip)
+		log.Printf("Bad hash from miner (l197) %v@%v", m.id, cs.ip)
 		atomic.AddInt64(&m.invalidShares, 1)
 		return false, minerOutput
 	}

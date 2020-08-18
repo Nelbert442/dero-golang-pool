@@ -266,6 +266,7 @@ func (cs *Session) handleMessage(s *StratumServer, e *Endpoint, req *JSONRpcReq)
 	case "login":
 		var params LoginParams
 		err := json.Unmarshal(*req.Params, &params)
+		fmt.Printf("[login] %+v\n", params)
 		if err != nil {
 			log.Println("Unable to parse params")
 			return err
@@ -278,6 +279,7 @@ func (cs *Session) handleMessage(s *StratumServer, e *Endpoint, req *JSONRpcReq)
 	case "getjob":
 		var params GetJobParams
 		err := json.Unmarshal(*req.Params, &params)
+		fmt.Printf("[getJob] %+v\n", params)
 		if err != nil {
 			log.Println("Unable to parse params")
 			return err
@@ -290,6 +292,7 @@ func (cs *Session) handleMessage(s *StratumServer, e *Endpoint, req *JSONRpcReq)
 	case "submit":
 		var params SubmitParams
 		err := json.Unmarshal(*req.Params, &params)
+		fmt.Printf("[submit] %+v\n", params)
 		if err != nil {
 			log.Println("Unable to parse params")
 			return err
