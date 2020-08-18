@@ -1,8 +1,6 @@
 # dero-golang-pool
 Golang Mining Pool for DERO
 
-Default Frontend Stats (powershell): (invoke-webrequest -uri 'http://127.0.0.1:8082/stats').Content | ConvertFrom-Json
-
 #### Requirements
 * Coin daemon (find the coin's repo and build latest version from source)
     * [Derosuite](https://github.com/deroproject/derosuite/releases/latest)
@@ -124,3 +122,31 @@ Explanation for each field:
 	}
 }
 ```
+
+#### 3) Build/Start the pool
+
+Per-run basis:
+
+```bash
+go run main.go
+```
+
+Or build:
+
+```bash
+go build main.go
+```
+
+#### 4) Host the front-end
+
+Once `config.json` has "frontend"."enabled" set to true, it will listen by default locally on :8082. You can use an example below to pull the content, or just poll it directly in a browser:
+
+Default Frontend Stats (powershell):
+```
+(invoke-webrequest -uri 'http://127.0.0.1:8082/stats').Content | ConvertFrom-Json
+```
+
+Credits
+---------
+
+* [sammy007](//github.com/sammy007) - Developer on monero-stratum project from which current project is forked.
