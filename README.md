@@ -28,7 +28,7 @@ go get git.dero.io/Nelbert442/dero-golang-pool
 
 #### 2) Configuration
 
-Copy the `config_examples/COIN.json` file of your choice to `config.json` then overview each options and change any to match your preferred setup.
+Copy the `config_example.json` file of your choice to `config.json` then overview each options and change any to match your preferred setup.
 
 Explanation for each field:
 ```javascript
