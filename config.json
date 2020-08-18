@@ -49,9 +49,17 @@
 
 	"upstream": [
 		{
+			"enabled": true,
 			"name": "Derod",
 			"host": "127.0.0.1",
-			"port": 30306,
+			"port": 20206,
+			"timeout": "10s"
+		},
+		{
+			"enabled": false,
+			"name": "Remote Derod",
+			"host": "derodaemon.nelbert442.com",
+			"port": 20206,
 			"timeout": "10s"
 		}
 	],

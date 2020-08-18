@@ -68,8 +68,16 @@ const (
 func NewStratum(cfg *pool.Config) *StratumServer {
 	stratum := &StratumServer{config: cfg, blockStats: make(map[int64]blockEntry)}
 
-	stratum.upstreams = make([]*rpc.RPCClient, len(cfg.Upstream))
-	for i, v := range cfg.Upstream {
+	// Set stratum.upstreams length based on cfg.Upstream only if they are set enabled: true. We use arr to simulate this and filter out cfg.Upstream objects
+	var arr []pool.Upstream
+	for _, f := range cfg.Upstream {
+		if f.Enabled {
+			arr = append(arr, f)
+		}
+	}
+
+	stratum.upstreams = make([]*rpc.RPCClient, len(arr))
+	for i, v := range arr {
 		client, err := rpc.NewRPCClient(&v)
 		if err != nil {
 			log.Fatal(err)

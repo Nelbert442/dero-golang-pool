@@ -38,6 +38,7 @@ type Upstream struct {
 	Host    string `json:"host"`
 	Port    int    `json:"port"`
 	Timeout string `json:"timeout"`
+	Enabled bool   `json:"enabled"`
 }
 
 type Frontend struct {
