@@ -55,6 +55,9 @@ Explanation for each field:
     /*  Used for block stats */
 	"largeLuckWindow": "72h",
 
+	/* Used for defining how many validated shares to submit in a row before passThru hashing [trusted] */
+	"trustedSharesCount": 30,
+
     /*  Defines how often the upstream (daemon) getblocktemplate is refreshed.
         DERO blockchain is fast and runs on 27 Seconds blocktime. Best practice is to update your mining job at-least every second. 
         Bitcoin pool also updates miner job every 10 seconds and BTC blocktime is 10 mins -Captain [03/08/2020] .

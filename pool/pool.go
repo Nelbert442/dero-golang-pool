@@ -13,6 +13,7 @@ type Config struct {
 	LargeLuckWindow         string     `json:"largeLuckWindow"`
 	Threads                 int        `json:"threads"`
 	Algo                    string     `json:"algo"`
+	TrustedSharesCount      int64      `json:"trustedSharesCount"`
 	Frontend                Frontend   `json:"frontend"`
 	Redis                   Redis      `json:"redis"`
 }

@@ -35,6 +35,7 @@ type Miner struct {
 	validShares   int64
 	invalidShares int64
 	staleShares   int64
+	trustedShares int64
 	accepts       int64
 	rejects       int64
 	shares        map[int64]int64
@@ -42,8 +43,6 @@ type Miner struct {
 	id string
 	ip string
 }
-
-//var cfg pool.Config
 
 func (job *Job) submit(nonce string) bool {
 	job.Lock()
@@ -142,6 +141,7 @@ func (m *Miner) hashrate(estimationWindow time.Duration) float64 {
 func (m *Miner) processShare(s *StratumServer, cs *Session, job *Job, t *BlockTemplate, nonce string, result string) (bool, string) {
 
 	// Var definitions
+	var shareType string
 	var hashBytes []byte
 	var powhash crypto.Hash
 	var diff big.Int
@@ -161,11 +161,20 @@ func (m *Miner) processShare(s *StratumServer, cs *Session, job *Job, t *BlockTe
 
 	switch s.algo {
 	case "astrobwt":
+		if m.trustedShares >= s.trustedSharesCount {
+			shareType = "Trusted"
+		} else {
+			shareType = "Valid"
+		}
+
 		var data astrobwt.Data
 		var max_pow_size int = 819200 //astrobwt.MAX_LENGTH
 
-		if s.config.BypassShareValidation {
+		if s.config.BypassShareValidation || shareType == "Trusted" {
 			hashBytes, _ = hex.DecodeString(result)
+
+			fmt.Printf("[%s Share] %+v\n", shareType, hashBytes)
+
 			copy(powhash[:], hashBytes)
 		} else {
 			hashBytes, _ = hex.DecodeString(result)
@@ -176,11 +185,20 @@ func (m *Miner) processShare(s *StratumServer, cs *Session, job *Job, t *BlockTe
 				fmt.Printf("[IncorrectPoW-172] %+v\n", hash)
 				minerOutput := "Incorrect PoW"
 				log.Printf("Bad hash from miner (l174) %v@%v", m.id, cs.ip)
+
+				if shareType == "Trusted" {
+					log.Printf("[No Trust] Miner is no longer submitting trusted shares: %v@%v", m.id, cs.ip)
+					shareType = "Valid"
+				}
+
 				atomic.AddInt64(&m.invalidShares, 1)
+				atomic.StoreInt64(&m.trustedShares, 0)
 				return false, minerOutput
 			}
 
-			fmt.Printf("[processShare-179] %+v\n", hash)
+			atomic.AddInt64(&m.trustedShares, 1)
+
+			fmt.Printf("[%s Share] %+v\n", shareType, hashBytes)
 
 			copy(powhash[:], hash[:])
 		}
@@ -191,14 +209,15 @@ func (m *Miner) processShare(s *StratumServer, cs *Session, job *Job, t *BlockTe
 		return false, minerOutput
 	}
 
-	if !s.config.BypassShareValidation && hex.EncodeToString(hashBytes) != result {
+	// Since using astrobwt functions, don't believe this is needed for hash validation
+	/*if !s.config.BypassShareValidation && hex.EncodeToString(hashBytes) != result {
 		fmt.Printf("[badhash-186] %+v\n", hex.EncodeToString(hashBytes))
 		fmt.Printf("[badhash-187] %+v\n", result)
 		minerOutput := "Bad hash"
 		log.Printf("Bad hash from miner (l187) %v@%v", m.id, cs.ip)
 		atomic.AddInt64(&m.invalidShares, 1)
 		return false, minerOutput
-	}
+	}*/
 
 	hashDiff, ok := util.GetHashDifficulty(hashBytes)
 	if !ok {
@@ -251,6 +270,6 @@ func (m *Miner) processShare(s *StratumServer, cs *Session, job *Job, t *BlockTe
 	atomic.AddInt64(&s.roundShares, cs.endpoint.config.Difficulty)
 	atomic.AddInt64(&m.validShares, 1)
 	m.storeShare(cs.endpoint.config.Difficulty)
-	log.Printf("Valid share at difficulty %v/%v", cs.endpoint.config.Difficulty, hashDiff)
+	log.Printf("%s share at difficulty %v/%v from %v@%v", shareType, cs.endpoint.config.Difficulty, hashDiff, m.id, cs.ip)
 	return true, ""
 }

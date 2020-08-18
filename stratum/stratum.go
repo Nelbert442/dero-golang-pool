@@ -19,21 +19,22 @@ import (
 )
 
 type StratumServer struct {
-	luckWindow       int64
-	luckLargeWindow  int64
-	roundShares      int64
-	blockStats       map[int64]blockEntry
-	config           *pool.Config
-	miners           MinersMap
-	blockTemplate    atomic.Value
-	upstream         int32
-	upstreams        []*rpc.RPCClient
-	timeout          time.Duration
-	estimationWindow time.Duration
-	blocksMu         sync.RWMutex
-	sessionsMu       sync.RWMutex
-	sessions         map[*Session]struct{}
-	algo             string
+	luckWindow         int64
+	luckLargeWindow    int64
+	roundShares        int64
+	blockStats         map[int64]blockEntry
+	config             *pool.Config
+	miners             MinersMap
+	blockTemplate      atomic.Value
+	upstream           int32
+	upstreams          []*rpc.RPCClient
+	timeout            time.Duration
+	estimationWindow   time.Duration
+	blocksMu           sync.RWMutex
+	sessionsMu         sync.RWMutex
+	sessions           map[*Session]struct{}
+	algo               string
+	trustedSharesCount int64
 }
 
 type blockEntry struct {
@@ -91,6 +92,7 @@ func NewStratum(cfg *pool.Config) *StratumServer {
 	stratum.miners = NewMinersMap()
 	stratum.sessions = make(map[*Session]struct{})
 	stratum.algo = cfg.Algo
+	stratum.trustedSharesCount = cfg.TrustedSharesCount
 
 	timeout, _ := time.ParseDuration(cfg.Stratum.Timeout)
 	stratum.timeout = timeout

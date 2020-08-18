@@ -9,6 +9,7 @@
 	"estimationWindow": "27s",
 	"luckWindow": "24h",
 	"largeLuckWindow": "72h",
+	"trustedSharesCount": 30,
 
 	"blockRefreshInterval": "450ms",
 
