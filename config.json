@@ -52,7 +52,7 @@
 			"enabled": true,
 			"name": "Derod",
 			"host": "127.0.0.1",
-			"port": 20206,
+			"port": 30306,
 			"timeout": "10s"
 		},
 		{
@@ -70,10 +70,5 @@
 		"port": 6379,
 		"password": "",
 		"DB": 0
-	},
-
-	"newrelicEnabled": false,
-	"newrelicName": "MyStratum",
-	"newrelicKey": "SECRET_KEY",
-	"newrelicVerbose": false
+	}
 }

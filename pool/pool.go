@@ -15,10 +15,6 @@ type Config struct {
 	Algo                    string     `json:"algo"`
 	Frontend                Frontend   `json:"frontend"`
 	Redis                   Redis      `json:"redis"`
-	NewrelicName            string     `json:"newrelicName"`
-	NewrelicKey             string     `json:"newrelicKey"`
-	NewrelicVerbose         bool       `json:"newrelicVerbose"`
-	NewrelicEnabled         bool       `json:"newrelicEnabled"`
 }
 
 type Stratum struct {
