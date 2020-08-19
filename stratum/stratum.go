@@ -35,6 +35,7 @@ type StratumServer struct {
 	sessions           map[*Session]struct{}
 	algo               string
 	trustedSharesCount int64
+	backend            *RedisClient
 }
 
 type blockEntry struct {
@@ -69,6 +70,12 @@ const (
 func NewStratum(cfg *pool.Config) *StratumServer {
 	stratum := &StratumServer{config: cfg, blockStats: make(map[int64]blockEntry)}
 
+	// Create new redis client/connection
+	if cfg.Redis.Enabled {
+		backend := NewRedisClient(&cfg.Redis, cfg.Coin)
+		stratum.backend = backend
+	}
+
 	// Set stratum.upstreams length based on cfg.Upstream only if they are set enabled: true. We use arr to simulate this and filter out cfg.Upstream objects
 	var arr []pool.Upstream
 	for _, f := range cfg.Upstream {
@@ -97,13 +104,13 @@ func NewStratum(cfg *pool.Config) *StratumServer {
 	timeout, _ := time.ParseDuration(cfg.Stratum.Timeout)
 	stratum.timeout = timeout
 
-	estimationWindow, _ := time.ParseDuration(cfg.API.EstimationWindow)
-	stratum.estimationWindow = estimationWindow
+	//estimationWindow, _ := time.ParseDuration(cfg.APIConfig.EstimationWindow)
+	//stratum.estimationWindow = estimationWindow
 
-	luckWindow, _ := time.ParseDuration(cfg.API.LuckWindow)
-	stratum.luckWindow = int64(luckWindow / time.Millisecond)
-	largeLuckWindow, _ := time.ParseDuration(cfg.API.LargeLuckWindow)
-	stratum.largeLuckWindow = int64(largeLuckWindow / time.Millisecond)
+	//luckWindow, _ := time.ParseDuration(cfg.API.LuckWindow)
+	//stratum.luckWindow = int64(luckWindow / time.Millisecond)
+	//largeLuckWindow, _ := time.ParseDuration(cfg.API.LargeLuckWindow)
+	//stratum.largeLuckWindow = int64(largeLuckWindow / time.Millisecond)
 
 	refreshIntv, _ := time.ParseDuration(cfg.BlockRefreshInterval)
 	refreshTimer := time.NewTimer(refreshIntv)

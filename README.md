@@ -119,6 +119,13 @@ Explanation for each field:
 		"port": 6379,               // Set port to append to host
 		"password": "",             // Set password for db access
 		"DB": 0                     // Set index of db
+	},
+
+	"unlocker": {
+		"enabled": true,			// Set block unlocker enabled to true, utilized, or false, not utilized
+		"poolFee": 0,				// Set pool fee. This will be taken away from the block reward (paid to the pool addr)
+		"depth": 60,				// Set depth for block unlocks. This value is compared against the core base block depth for validation
+		"interval": "10m"			// Set interval to check for block unlocks. The faster you check, the more noisy/busy that process can get.
 	}
 }
 ```

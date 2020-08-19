@@ -1,19 +1,20 @@
 package pool
 
 type Config struct {
-	Address                 string     `json:"address"`
-	BypassAddressValidation bool       `json:"bypassAddressValidation"`
-	BypassShareValidation   bool       `json:"bypassShareValidation"`
-	Threads                 int        `json:"threads"`
-	Algo                    string     `json:"algo"`
-	Coin                    string     `json:"coin"`
-	TrustedSharesCount      int64      `json:"trustedSharesCount"`
-	BlockRefreshInterval    string     `json:"blockRefreshInterval"`
-	UpstreamCheckInterval   string     `json:"upstreamCheckInterval"`
-	Upstream                []Upstream `json:"upstream"`
-	Stratum                 Stratum    `json:"stratum"`
-	API                     API        `json:"api"`
-	Redis                   Redis      `json:"redis"`
+	Address                 string         `json:"address"`
+	BypassAddressValidation bool           `json:"bypassAddressValidation"`
+	BypassShareValidation   bool           `json:"bypassShareValidation"`
+	Threads                 int            `json:"threads"`
+	Algo                    string         `json:"algo"`
+	Coin                    string         `json:"coin"`
+	TrustedSharesCount      int64          `json:"trustedSharesCount"`
+	BlockRefreshInterval    string         `json:"blockRefreshInterval"`
+	UpstreamCheckInterval   string         `json:"upstreamCheckInterval"`
+	Upstream                []Upstream     `json:"upstream"`
+	Stratum                 Stratum        `json:"stratum"`
+	API                     APIConfig      `json:"api"`
+	Redis                   Redis          `json:"redis"`
+	UnlockerConfig          UnlockerConfig `json:"unlocker"`
 }
 
 type Upstream struct {
@@ -36,15 +37,19 @@ type Port struct {
 	MaxConn    int    `json:"maxConn"`
 }
 
-type API struct {
-	Enabled          bool   `json:"enabled"`
-	Listen           string `json:"listen"`
-	Login            string `json:"login"`
-	Password         string `json:"password"`
-	HideIP           bool   `json:"hideIP"`
-	EstimationWindow string `json:"estimationWindow"`
-	LuckWindow       string `json:"luckWindow"`
-	LargeLuckWindow  string `json:"largeLuckWindow"`
+type APIConfig struct {
+	Enabled              bool   `json:"enabled"`
+	PurgeOnly            bool   `json:"purgeOnly"`
+	PurgeInterval        string `json:"purgeInterval"`
+	Listen               string `json:"listen"`
+	Login                string `json:"login"`
+	Password             string `json:"password"`
+	HideIP               bool   `json:"hideIP"`
+	StatsCollectInterval string `json:"statsCollectInterval"`
+	HashrateWindow       string `json:"hashrateWindow"`
+	HashrateLargeWindow  string `json:"hashrateLargeWindow"`
+	LuckWindow           []int  `json:"luckWindow"`
+	Blocks               int64  `json:"blocks"`
 }
 
 type Redis struct {
@@ -52,5 +57,12 @@ type Redis struct {
 	Host     string `json:"host"`
 	Port     int    `json:"port"`
 	Password string `json:"password"`
-	DB       int    `json:"DB"`
+	DB       int64  `json:"DB"`
+}
+
+type UnlockerConfig struct {
+	Enabled  bool    `json:"enabled"`
+	PoolFee  float64 `json:"poolFee"`
+	Depth    uint64  `json:"depth"`
+	Interval string  `json:"interval"`
 }

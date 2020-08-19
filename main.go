@@ -27,13 +27,14 @@ func startStratum() {
 
 	s := stratum.NewStratum(&cfg)
 	if cfg.API.Enabled {
-		go stratum.StartAPI(&cfg.API, s)
+		a := stratum.NewApiServer(&cfg.API, s)
+		go a.Start()
 	}
-	if cfg.Redis.Enabled {
-		go stratum.NewRedisClient(&cfg.Redis)
+	if cfg.UnlockerConfig.Enabled {
+		unlocker := stratum.NewBlockUnlocker(&cfg.UnlockerConfig, s)
+		go unlocker.StartBlockUnlocker()
 	}
 	s.Listen()
-	//return cfg.Address
 }
 
 func readConfig(cfg *pool.Config) {

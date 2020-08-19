@@ -39,6 +39,7 @@ type Miner struct {
 	accepts       int64
 	rejects       int64
 	shares        map[int64]int64
+	roundShares   map[int64]int64
 	sync.RWMutex
 	id string
 	ip string
