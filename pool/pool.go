@@ -9,6 +9,7 @@ type Config struct {
 	Coin                    string         `json:"coin"`
 	TrustedSharesCount      int64          `json:"trustedSharesCount"`
 	BlockRefreshInterval    string         `json:"blockRefreshInterval"`
+	HashrateExpiration      string         `json:"hashrateExpiration"`
 	UpstreamCheckInterval   string         `json:"upstreamCheckInterval"`
 	Upstream                []Upstream     `json:"upstream"`
 	Stratum                 Stratum        `json:"stratum"`

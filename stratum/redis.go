@@ -27,13 +27,10 @@ type BlockData struct {
 	Timestamp      int64    `json:"timestamp"`
 	Difficulty     int64    `json:"difficulty"`
 	TotalShares    int64    `json:"shares"`
-	Uncle          bool     `json:"uncle"`
-	UncleHeight    int64    `json:"uncleHeight"`
 	Orphan         bool     `json:"orphan"`
 	Hash           string   `json:"hash"`
 	Nonce          string   `json:"-"`
 	PowHash        string   `json:"-"`
-	MixDigest      string   `json:"-"`
 	Reward         *big.Int `json:"-"`
 	ExtraReward    *big.Int `json:"-"`
 	ImmatureReward string   `json:"-"`
@@ -198,14 +195,15 @@ func (redisClient *RedisClient) GetNodeStates() ([]map[string]interface{}, error
 	return v, nil
 }
 
-func (redisClient *RedisClient) checkPoWExist(height int64, params []string) (bool, error) {
+func (redisClient *RedisClient) checkPoWExist(height int64, params *SubmitParams) (bool, error) {
 	// Sweep PoW backlog for previous blocks, we have 3 templates back in RAM
+	tempParams := []string{params.Id, params.JobId, params.Nonce, params.Result}
 	redisClient.client.ZRemRangeByScore(redisClient.formatKey("pow"), "-inf", fmt.Sprint("(", height-8))
-	val, err := redisClient.client.ZAdd(redisClient.formatKey("pow"), redis.Z{Score: float64(height), Member: strings.Join(params, ":")}).Result()
+	val, err := redisClient.client.ZAdd(redisClient.formatKey("pow"), redis.Z{Score: float64(height), Member: strings.Join(tempParams, ":")}).Result()
 	return val == 0, err
 }
 
-func (redisClient *RedisClient) WriteShare(login, id string, params []string, diff int64, height int64, window time.Duration) (bool, error) {
+func (redisClient *RedisClient) WriteShare(login, id string, params *SubmitParams, diff int64, height int64, window time.Duration) (bool, error) {
 	exist, err := redisClient.checkPoWExist(height, params)
 	if err != nil {
 		return false, err
@@ -236,7 +234,7 @@ func (redisClient *RedisClient) writeShare(tx *redis.Multi, ms, ts int64, login,
 	tx.HSet(redisClient.formatKey("miners", login), "lastShare", strconv.FormatInt(ts, 10))
 }
 
-func (redisClient *RedisClient) WriteBlock(login, id string, params []string, diff, roundDiff int64, height int64, window time.Duration, feeReward int64, blockHash string) (bool, error) {
+func (redisClient *RedisClient) WriteBlock(login, id string, params *SubmitParams, diff, roundDiff int64, height int64, window time.Duration, feeReward int64, blockHash string) (bool, error) {
 	exist, err := redisClient.checkPoWExist(height, params)
 	if err != nil {
 		return false, err
@@ -257,8 +255,8 @@ func (redisClient *RedisClient) WriteBlock(login, id string, params []string, di
 		tx.HDel(redisClient.formatKey("stats"), "roundShares")
 		tx.ZIncrBy(redisClient.formatKey("finders"), 1, login)
 		tx.HIncrBy(redisClient.formatKey("miners", login), "blocksFound", 1)
-		tx.Rename(redisClient.formatKey("shares", "roundCurrent"), redisClient.formatRound(int64(height), params[0]))
-		tx.HGetAllMap(redisClient.formatRound(height, params[0]))
+		tx.Rename(redisClient.formatKey("shares", "roundCurrent"), redisClient.formatRound(int64(height), params.Id))
+		tx.HGetAllMap(redisClient.formatRound(height, params.Id))
 		return nil
 	})
 	if err != nil {
@@ -270,7 +268,8 @@ func (redisClient *RedisClient) WriteBlock(login, id string, params []string, di
 			n, _ := strconv.ParseInt(v, 10, 64)
 			totalShares += n
 		}
-		paramsJoined := strings.Join(params, ":")
+		tempParams := []string{params.Id, params.JobId, params.Nonce, params.Result}
+		paramsJoined := strings.Join(tempParams, ":")
 		s := join(blockHash, paramsJoined, ts, roundDiff, totalShares, feeReward)
 		cmd := redisClient.client.ZAdd(redisClient.formatKey("blocks", "candidates"), redis.Z{Score: float64(height), Member: s})
 		return false, cmd.Err()
@@ -494,19 +493,18 @@ func (redisClient *RedisClient) FlushStaleStats(window, largeWindow time.Duratio
 func convertCandidateResults(raw *redis.ZSliceCmd) []*BlockData {
 	var result []*BlockData
 	for _, v := range raw.Val() {
-		// "blockHex:nonce:powHash:mixDigest:timestamp:diff:totalShares:extraReward"
+		// "blockHex:minerID:round:nonce:timestamp:diff:totalShares:extraReward"
 		block := BlockData{}
 		block.Height = int64(v.Score)
 		block.RoundHeight = block.Height
 		fields := strings.Split(v.Member.(string), ":")
 		block.Hash = fields[0]
-		block.Nonce = fields[1]
-		block.PowHash = fields[2]
-		block.MixDigest = fields[3]
-		block.Timestamp, _ = strconv.ParseInt(fields[6], 10, 64)
-		block.Difficulty, _ = strconv.ParseInt(fields[7], 10, 64)
-		block.TotalShares, _ = strconv.ParseInt(fields[8], 10, 64)
-		block.ExtraReward, _ = new(big.Int).SetString(fields[9], 10)
+		block.Nonce = fields[3]
+		block.PowHash = fields[4]
+		block.Timestamp, _ = strconv.ParseInt(fields[5], 10, 64)
+		block.Difficulty, _ = strconv.ParseInt(fields[6], 10, 64)
+		block.TotalShares, _ = strconv.ParseInt(fields[7], 10, 64)
+		//block.ExtraReward, _ = new(big.Int).SetString(fields[9], 10)
 		block.candidateKey = v.Member.(string)
 		result = append(result, &block)
 	}

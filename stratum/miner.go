@@ -139,9 +139,10 @@ func (m *Miner) hashrate(estimationWindow time.Duration) float64 {
 	return float64(totalShares) / float64(boundary)
 }
 
-func (m *Miner) processShare(s *StratumServer, cs *Session, job *Job, t *BlockTemplate, nonce string, result string) (bool, string) {
+func (m *Miner) processShare(s *StratumServer, cs *Session, job *Job, t *BlockTemplate, nonce string, params *SubmitParams) (bool, string) {
 
 	// Var definitions
+	var result string = params.Result
 	var shareType string
 	var hashBytes []byte
 	var powhash crypto.Hash
@@ -260,6 +261,11 @@ func (m *Miner) processShare(s *StratumServer, cs *Session, job *Job, t *BlockTe
 
 			// Immediately refresh current BT and send new jobs
 			s.refreshBlockTemplate(true)
+
+			_, err := s.backend.WriteBlock(params.Id, params.JobId, params, cs.endpoint.config.Difficulty, int64(t.Difficulty), int64(t.Height), s.hashrateExpiration, 0, blockSubmitReply.BLID)
+			if err != nil {
+				log.Println("Failed to insert block data into backend:", err)
+			}
 		}
 	} else if hashDiff.Cmp(cs.endpoint.difficulty) < 0 {
 		minerOutput := "Low difficulty share"
@@ -268,9 +274,17 @@ func (m *Miner) processShare(s *StratumServer, cs *Session, job *Job, t *BlockTe
 		return false, minerOutput
 	}
 
+	// Old store
 	atomic.AddInt64(&s.roundShares, cs.endpoint.config.Difficulty)
 	atomic.AddInt64(&m.validShares, 1)
 	m.storeShare(cs.endpoint.config.Difficulty)
+
+	// New store
+	_, err := s.backend.WriteShare(params.Id, params.JobId, params, cs.endpoint.config.Difficulty, int64(t.Height), s.hashrateExpiration)
+	if err != nil {
+		log.Println("Failed to insert share data into backend:", err)
+	}
+
 	log.Printf("%s share at difficulty %v/%v from %v@%v", shareType, cs.endpoint.config.Difficulty, hashDiff, m.id, cs.ip)
 	return true, ""
 }

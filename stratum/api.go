@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"git.dero.io/Nelbert442/dero-golang-pool/pool"
+	"git.dero.io/Nelbert442/dero-golang-pool/util"
 	"github.com/gorilla/mux"
 )
 
@@ -322,7 +323,7 @@ func (apiServer *ApiServer) StatsIndex(writer http.ResponseWriter, _ *http.Reque
 
 	stats := apiServer.getStats()
 	if stats != nil {
-		reply["now"] = time.Now().UnixNano() / int64(time.Millisecond)
+		reply["now"] = util.MakeTimestamp() / 1000
 		reply["stats"] = stats["stats"]
 		reply["hashrate"] = stats["hashrate"]
 		reply["minersTotal"] = stats["minersTotal"]
@@ -346,7 +347,7 @@ func (apiServer *ApiServer) MinersIndex(writer http.ResponseWriter, _ *http.Requ
 	reply := make(map[string]interface{})
 	stats := apiServer.getStats()
 	if stats != nil {
-		reply["now"] = time.Now().UnixNano() / int64(time.Millisecond)
+		reply["now"] = util.MakeTimestamp() / 1000
 		reply["miners"] = stats["miners"]
 		reply["hashrate"] = stats["hashrate"]
 		reply["minersTotal"] = stats["minersTotal"]
@@ -392,7 +393,7 @@ func (apiServer *ApiServer) AccountIndex(writer http.ResponseWriter, r *http.Req
 	defer apiServer.minersMu.Unlock()
 
 	reply, ok := apiServer.miners[login]
-	now := time.Now().UnixNano() / int64(time.Millisecond)
+	now := util.MakeTimestamp() / 1000
 	cacheIntv := int64(apiServer.statsIntv / time.Millisecond)
 	// Refresh stats if stale
 	if !ok || reply.updatedAt < now-cacheIntv {

@@ -36,6 +36,7 @@ type StratumServer struct {
 	algo               string
 	trustedSharesCount int64
 	backend            *RedisClient
+	hashrateExpiration time.Duration
 }
 
 type blockEntry struct {
@@ -116,6 +117,9 @@ func NewStratum(cfg *pool.Config) *StratumServer {
 	refreshTimer := time.NewTimer(refreshIntv)
 	log.Printf("Set block refresh every %v", refreshIntv)
 
+	hashExpiration, _ := time.ParseDuration(cfg.HashrateExpiration)
+	stratum.hashrateExpiration = hashExpiration
+
 	checkIntv, _ := time.ParseDuration(cfg.UpstreamCheckInterval)
 	checkTimer := time.NewTimer(checkIntv)
 
@@ -149,9 +153,15 @@ func NewStratum(cfg *pool.Config) *StratumServer {
 		for {
 			select {
 			case <-infoTimer.C:
+				currentWork := stratum.currentWork()
 				poll := func(v *rpc.RPCClient) {
+					// Tweaks to input for WriteNodeState from https://github.com/JKKGBE/open-zcash-pool - TODO: cleanup later
+					var diff big.Int
+					diff.SetUint64(currentWork.Difficulty)
+					err2 := stratum.backend.WriteNodeState(cfg.Coin, int64(currentWork.Height), &diff)
+
 					_, err := v.UpdateInfo()
-					if err != nil {
+					if err != nil || err2 != nil {
 						log.Printf("Unable to update info on upstream %s: %v", v.Name, err)
 					}
 				}
@@ -393,6 +403,15 @@ func (s *StratumServer) currentBlockTemplate() *BlockTemplate {
 		return t.(*BlockTemplate)
 	}
 	return nil
+}
+
+func (s *StratumServer) currentWork() *BlockTemplate {
+	work := s.blockTemplate.Load()
+	if work != nil {
+		return work.(*BlockTemplate)
+	} else {
+		return nil
+	}
 }
 
 func (s *StratumServer) checkUpstreams() {
