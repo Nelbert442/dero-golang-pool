@@ -20,7 +20,7 @@ import (
 
 type StratumServer struct {
 	luckWindow         int64
-	luckLargeWindow    int64
+	largeLuckWindow    int64
 	roundShares        int64
 	blockStats         map[int64]blockEntry
 	config             *pool.Config
@@ -97,13 +97,13 @@ func NewStratum(cfg *pool.Config) *StratumServer {
 	timeout, _ := time.ParseDuration(cfg.Stratum.Timeout)
 	stratum.timeout = timeout
 
-	estimationWindow, _ := time.ParseDuration(cfg.EstimationWindow)
+	estimationWindow, _ := time.ParseDuration(cfg.API.EstimationWindow)
 	stratum.estimationWindow = estimationWindow
 
-	luckWindow, _ := time.ParseDuration(cfg.LuckWindow)
+	luckWindow, _ := time.ParseDuration(cfg.API.LuckWindow)
 	stratum.luckWindow = int64(luckWindow / time.Millisecond)
-	luckLargeWindow, _ := time.ParseDuration(cfg.LargeLuckWindow)
-	stratum.luckLargeWindow = int64(luckLargeWindow / time.Millisecond)
+	largeLuckWindow, _ := time.ParseDuration(cfg.API.LargeLuckWindow)
+	stratum.largeLuckWindow = int64(largeLuckWindow / time.Millisecond)
 
 	refreshIntv, _ := time.ParseDuration(cfg.BlockRefreshInterval)
 	refreshTimer := time.NewTimer(refreshIntv)

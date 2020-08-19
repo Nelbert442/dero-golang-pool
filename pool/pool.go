@@ -4,18 +4,24 @@ type Config struct {
 	Address                 string     `json:"address"`
 	BypassAddressValidation bool       `json:"bypassAddressValidation"`
 	BypassShareValidation   bool       `json:"bypassShareValidation"`
-	Stratum                 Stratum    `json:"stratum"`
+	Threads                 int        `json:"threads"`
+	Algo                    string     `json:"algo"`
+	Coin                    string     `json:"coin"`
+	TrustedSharesCount      int64      `json:"trustedSharesCount"`
 	BlockRefreshInterval    string     `json:"blockRefreshInterval"`
 	UpstreamCheckInterval   string     `json:"upstreamCheckInterval"`
 	Upstream                []Upstream `json:"upstream"`
-	EstimationWindow        string     `json:"estimationWindow"`
-	LuckWindow              string     `json:"luckWindow"`
-	LargeLuckWindow         string     `json:"largeLuckWindow"`
-	Threads                 int        `json:"threads"`
-	Algo                    string     `json:"algo"`
-	TrustedSharesCount      int64      `json:"trustedSharesCount"`
-	Frontend                Frontend   `json:"frontend"`
+	Stratum                 Stratum    `json:"stratum"`
+	API                     API        `json:"api"`
 	Redis                   Redis      `json:"redis"`
+}
+
+type Upstream struct {
+	Name    string `json:"name"`
+	Host    string `json:"host"`
+	Port    int    `json:"port"`
+	Timeout string `json:"timeout"`
+	Enabled bool   `json:"enabled"`
 }
 
 type Stratum struct {
@@ -30,20 +36,15 @@ type Port struct {
 	MaxConn    int    `json:"maxConn"`
 }
 
-type Upstream struct {
-	Name    string `json:"name"`
-	Host    string `json:"host"`
-	Port    int    `json:"port"`
-	Timeout string `json:"timeout"`
-	Enabled bool   `json:"enabled"`
-}
-
-type Frontend struct {
-	Enabled  bool   `json:"enabled"`
-	Listen   string `json:"listen"`
-	Login    string `json:"login"`
-	Password string `json:"password"`
-	HideIP   bool   `json:"hideIP"`
+type API struct {
+	Enabled          bool   `json:"enabled"`
+	Listen           string `json:"listen"`
+	Login            string `json:"login"`
+	Password         string `json:"password"`
+	HideIP           bool   `json:"hideIP"`
+	EstimationWindow string `json:"estimationWindow"`
+	LuckWindow       string `json:"luckWindow"`
+	LargeLuckWindow  string `json:"largeLuckWindow"`
 }
 
 type Redis struct {

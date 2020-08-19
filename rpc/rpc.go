@@ -31,15 +31,6 @@ type RPCClient struct {
 	info             atomic.Value
 }
 
-/*type GetBlockTemplateReply struct {
-	Difficulty       int64  `json:"difficulty"`
-	Height           int64  `json:"height"`
-	Blob             string `json:"blocktemplate_blob"`
-	BlockHashingBlob string `json:"blockhashing_blob"`
-	ReservedOffset   int    `json:"reserved_offset"`
-	PrevHash         string `json:"prev_hash"`
-}*/
-
 type GetBlockTemplateReply struct {
 	Blocktemplate_blob string `json:"blocktemplate_blob"`
 	Blockhashing_blob  string `json:"blockhashing_blob"`

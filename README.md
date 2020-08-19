@@ -46,14 +46,8 @@ Explanation for each field:
     /*  Defines algorithm used by pool. References to this switch are in miner.go */
 	"algo": "astrobwt",
 
-    /*  Defines estimation window of a block being mined. Usually set to 'average' block speed */
-	"estimationWindow": "27s",
-
-    /*  Used for block stats */
-	"luckWindow": "24h",
-
-    /*  Used for block stats */
-	"largeLuckWindow": "72h",
+	/* 	Defines coin name, used in redis stores etc. */
+	"coin": "DERO",
 
 	/* Used for defining how many validated shares to submit in a row before passThru hashing [trusted] */
 	"trustedSharesCount": 30,
@@ -63,6 +57,25 @@ Explanation for each field:
         Bitcoin pool also updates miner job every 10 seconds and BTC blocktime is 10 mins -Captain [03/08/2020] .
         Example of 10 second updates for 10 minute blocktimes on BTC. ~10/600 * 27 = 0.45 */
 	"blockRefreshInterval": "450ms",
+
+	"upstreamCheckInterval": "5s",  // How often to poll upstream (daemon) for successful connections
+
+	"upstream": [
+		{
+			"enabled": true,        // Set daemon enabled to true, utilized, or false, not utilized
+			"name": "Derod",        // Set name for daemon connection
+			"host": "127.0.0.1",    // Set address to reach daemon
+			"port": 30306,          // Set port to append to host
+			"timeout": "10s"        // Set timeout value of daemon connections
+		},
+		{
+			"enabled": false,
+			"name": "Remote Derod",
+			"host": "derodaemon.nelbert442.com",
+			"port": 20206,
+			"timeout": "10s"
+		}
+	],
 
 	"stratum": {
 		"timeout": "15m",           // See SetDeadline - https://golang.org/pkg/net/
@@ -89,32 +102,16 @@ Explanation for each field:
 		]
 	},
 
-	"frontend": {
-		"enabled": true,            // Set frontend enabled to true, self-hosted frontend, or false, not hosted
-		"listen": "0.0.0.0:8082",   // Set bind address and port for frontend
-		"login": "admin",           // Set login username for frontend
-		"password": "",             // Set password for frontend
-		"hideIP": false             // Set hideIP on whether or not to show miner IPs on the frontend or not
+	"api": {
+		"enabled": true,            // Set api enabled to true, self-hosted api, or false, not hosted
+		"listen": "0.0.0.0:8082",   // Set bind address and port for api
+		"login": "admin",           // Set login username for api
+		"password": "",             // Set password for api
+		"hideIP": false             // Set hideIP on whether or not to show miner IPs on the api or not
+		"estimationWindow": "27s",	// Defines estimation window of a block being mined. Usually set to 'average' block speed
+		"luckWindow": "24h",		// Used for block stats
+		"largeLuckWindow": "72h",	// Used for block stats
 	},
-
-	"upstreamCheckInterval": "5s",  // How often to poll upstream (daemon) for successful connections
-
-	"upstream": [
-		{
-			"enabled": true,        // Set daemon enabled to true, utilized, or false, not utilized
-			"name": "Derod",        // Set name for daemon connection
-			"host": "127.0.0.1",    // Set address to reach daemon
-			"port": 30306,          // Set port to append to host
-			"timeout": "10s"        // Set timeout value of daemon connections
-		},
-		{
-			"enabled": false,
-			"name": "Remote Derod",
-			"host": "derodaemon.nelbert442.com",
-			"port": 20206,
-			"timeout": "10s"
-		}
-	],
 
 	"redis": {
 		"enabled": true,            // Set redis enabled to true, utilized, or false, not utilized
@@ -140,11 +137,11 @@ Or build:
 go build main.go
 ```
 
-#### 4) Host the front-end
+#### 4) Host the api
 
-Once `config.json` has "frontend"."enabled" set to true, it will listen by default locally on :8082. You can use an example below to pull the content, or just poll it directly in a browser:
+Once `config.json` has "api"."enabled" set to true, it will listen by default locally on :8082. You can use an example below to pull the content, or just poll it directly in a browser:
 
-Default Frontend Stats (powershell):
+Default API Stats (powershell):
 ```
 (invoke-webrequest -uri 'http://127.0.0.1:8082/stats').Content | ConvertFrom-Json
 ```

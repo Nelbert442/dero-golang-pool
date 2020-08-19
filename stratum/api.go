@@ -2,13 +2,33 @@ package stratum
 
 import (
 	"encoding/json"
+	"log"
 	"net/http"
 	"sync/atomic"
 	"time"
 
+	"git.dero.io/Nelbert442/dero-golang-pool/pool"
 	"git.dero.io/Nelbert442/dero-golang-pool/rpc"
 	"git.dero.io/Nelbert442/dero-golang-pool/util"
+	"github.com/goji/httpauth"
+	"github.com/gorilla/mux"
 )
+
+func StartAPI(cfg *pool.API, s *StratumServer) {
+	r := mux.NewRouter()
+	r.HandleFunc("/stats", s.StatsIndex)
+	r.PathPrefix("/").Handler(http.FileServer(http.Dir("./www/")))
+	var err error
+	if len(cfg.Password) > 0 {
+		auth := httpauth.SimpleBasicAuth(cfg.Login, cfg.Password)
+		err = http.ListenAndServe(cfg.Listen, auth(r))
+	} else {
+		err = http.ListenAndServe(cfg.Listen, r)
+	}
+	if err != nil {
+		log.Fatal(err)
+	}
+}
 
 // StatsIndex pushes stats and surfaces to /stats page
 func (s *StratumServer) StatsIndex(w http.ResponseWriter, r *http.Request) {
@@ -88,7 +108,7 @@ func (s *StratumServer) collectMinersStats() (float64, float64, int, []interface
 		stats["invalidShares"] = atomic.LoadInt64(&m.Val.invalidShares)
 		stats["accepts"] = atomic.LoadInt64(&m.Val.accepts)
 		stats["rejects"] = atomic.LoadInt64(&m.Val.rejects)
-		if !s.config.Frontend.HideIP {
+		if !s.config.API.HideIP {
 			stats["ip"] = m.Val.ip
 		}
 
@@ -120,7 +140,7 @@ func (s *StratumServer) getLuckStats() map[string]interface{} {
 			blocksCount++
 			variance += v.variance
 		}
-		if k >= now-int64(s.luckLargeWindow) {
+		if k >= now-int64(s.largeLuckWindow) {
 			totalBlocksCount++
 			totalVariance += v.variance
 		} else {
@@ -136,10 +156,10 @@ func (s *StratumServer) getLuckStats() map[string]interface{} {
 	result := make(map[string]interface{})
 	result["variance"] = variance
 	result["blocksCount"] = blocksCount
-	result["window"] = s.config.LuckWindow
+	result["window"] = s.luckWindow
 	result["totalVariance"] = totalVariance
 	result["totalBlocksCount"] = totalBlocksCount
-	result["largeWindow"] = s.config.LargeLuckWindow
+	result["largeWindow"] = s.largeLuckWindow
 	return result
 }
 
@@ -151,7 +171,7 @@ func (s *StratumServer) getBlocksStats() []interface{} {
 	defer s.blocksMu.Unlock()
 
 	for k, v := range s.blockStats {
-		if k >= now-int64(s.luckLargeWindow) {
+		if k >= now-int64(s.largeLuckWindow) {
 			block := map[string]interface{}{
 				"height":    v.height,
 				"hash":      v.hash,

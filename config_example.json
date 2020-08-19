@@ -5,13 +5,29 @@
 
 	"threads": 1,
 	"algo": "astrobwt",
+	"coin": "DERO",
 
-	"estimationWindow": "27s",
-	"luckWindow": "24h",
-	"largeLuckWindow": "72h",
 	"trustedSharesCount": 30,
-
 	"blockRefreshInterval": "450ms",
+
+	"upstreamCheckInterval": "5s",
+
+	"upstream": [
+		{
+			"enabled": true,
+			"name": "Derod",
+			"host": "127.0.0.1",
+			"port": 30306,
+			"timeout": "10s"
+		},
+		{
+			"enabled": false,
+			"name": "Remote Derod",
+			"host": "derodaemon.nelbert442.com",
+			"port": 20206,
+			"timeout": "10s"
+		}
+	],
 
 	"stratum": {
 		"timeout": "15m",
@@ -38,36 +54,20 @@
 		]
 	},
 
-	"frontend": {
+	"api": {
 		"enabled": true,
 		"listen": "0.0.0.0:8082",
 		"login": "admin",
 		"password": "",
-		"hideIP": false
+		"hideIP": false,
+		"estimationWindow": "27s",
+		"luckWindow": "24h",
+		"largeLuckWindow": "72h"
 	},
-
-	"upstreamCheckInterval": "5s",
-
-	"upstream": [
-		{
-			"enabled": true,
-			"name": "Derod",
-			"host": "127.0.0.1",
-			"port": 30306,
-			"timeout": "10s"
-		},
-		{
-			"enabled": false,
-			"name": "Remote Derod",
-			"host": "derodaemon.nelbert442.com",
-			"port": 20206,
-			"timeout": "10s"
-		}
-	],
 
 	"redis": {
 		"enabled": true,
-		"host": "172.28.89.248",
+		"host": "172.31.146.7",
 		"port": 6379,
 		"password": "",
 		"DB": 0
