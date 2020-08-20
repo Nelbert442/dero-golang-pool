@@ -62,8 +62,9 @@ type Redis struct {
 }
 
 type UnlockerConfig struct {
-	Enabled  bool    `json:"enabled"`
-	PoolFee  float64 `json:"poolFee"`
-	Depth    uint64  `json:"depth"`
-	Interval string  `json:"interval"`
+	Enabled        bool    `json:"enabled"`
+	PoolFee        float64 `json:"poolFee"`
+	Depth          int64   `json:"depth"`
+	Interval       string  `json:"interval"`
+	PoolFeeAddress string  `json:"poolFeeAddress"`
 }

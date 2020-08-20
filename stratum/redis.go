@@ -31,7 +31,7 @@ type BlockData struct {
 	Hash           string   `json:"hash"`
 	Nonce          string   `json:"-"`
 	PowHash        string   `json:"-"`
-	Reward         *big.Int `json:"-"`
+	Reward         uint64   `json:"-"`
 	ExtraReward    *big.Int `json:"-"`
 	ImmatureReward string   `json:"-"`
 	RewardString   string   `json:"reward"`
@@ -350,7 +350,7 @@ func (redisClient *RedisClient) WriteMaturedBlock(block *BlockData, roundRewards
 		tx.HIncrBy(redisClient.formatKey("finances"), "immature", (totalImmature * -1))
 		tx.HSet(redisClient.formatKey("finances"), "lastCreditHeight", strconv.FormatInt(block.Height, 10))
 		tx.HSet(redisClient.formatKey("finances"), "lastCreditHash", block.Hash)
-		tx.HIncrBy(redisClient.formatKey("finances"), "totalMined", block.Reward.Int64())
+		tx.HIncrBy(redisClient.formatKey("finances"), "totalMined", int64(block.Reward))
 		return nil
 	})
 	return err

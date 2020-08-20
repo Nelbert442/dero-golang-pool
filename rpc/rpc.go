@@ -65,6 +65,28 @@ type GetInfoReply struct {
 	Status             string  `json:"status"`
 }
 
+type GetBlockHashReply struct {
+	BlockHeader Block_Header `json:"block_header"`
+	Status      string       `json:"status"`
+}
+
+type Block_Header struct {
+	Depth        int64    `json:"depth"`
+	Difficulty   string   `json:"difficulty"`
+	Hash         string   `json:"hash"`
+	Height       int64    `json:"height"`
+	Topoheight   int64    `json:"topoheight"`
+	MajorVersion uint64   `json:"major_version"`
+	MinorVersion uint64   `json:"minor_version"`
+	Nonce        uint64   `json:"nonce"`
+	OrphanStatus bool     `json:"orphan_status"`
+	Syncblock    bool     `json:"syncblock"`
+	Txcount      int64    `json:"txcount"`
+	Reward       uint64   `json:"reward"`
+	Tips         []string `json:"tips"`
+	Timestamp    uint64   `json:"timestamp"`
+}
+
 type JSONRpcResp struct {
 	Id     *json.RawMessage       `json:"id"`
 	Result *json.RawMessage       `json:"result"`
@@ -95,6 +117,21 @@ func (r *RPCClient) GetBlockTemplate(reserveSize int, address string) (*GetBlock
 	if rpcResp.Result != nil {
 		err = json.Unmarshal(*rpcResp.Result, &reply)
 	}
+	return reply, err
+}
+
+func (r *RPCClient) GetBlockByHash(hash string) (*GetBlockHashReply, error) {
+	params := map[string]interface{}{"hash": hash}
+	rpcResp, err := r.doPost(r.Url.String(), "getblockheaderbyhash", params)
+	if err != nil {
+		return nil, err
+	}
+
+	var reply *GetBlockHashReply
+	if rpcResp.Result != nil {
+		err = json.Unmarshal(*rpcResp.Result, &reply)
+	}
+
 	return reply, err
 }
 
