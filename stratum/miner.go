@@ -142,6 +142,7 @@ func (m *Miner) hashrate(estimationWindow time.Duration) float64 {
 func (m *Miner) processShare(s *StratumServer, cs *Session, job *Job, t *BlockTemplate, nonce string, params *SubmitParams) (bool, string) {
 
 	// Var definitions
+	var checkPowHashBig bool = false
 	var result string = params.Result
 	var shareType string
 	var hashBytes []byte
@@ -177,7 +178,9 @@ func (m *Miner) processShare(s *StratumServer, cs *Session, job *Job, t *BlockTe
 
 			fmt.Printf("[%s Share] %+v\n", shareType, hashBytes)
 
-			copy(powhash[:], hashBytes)
+			//copy(powhash[:], hashBytes)
+
+			checkPowHashBig = true
 		} else {
 			hashBytes, _ = hex.DecodeString(result)
 
@@ -203,6 +206,8 @@ func (m *Miner) processShare(s *StratumServer, cs *Session, job *Job, t *BlockTe
 			fmt.Printf("[%s Share] %+v\n", shareType, hashBytes)
 
 			copy(powhash[:], hash[:])
+
+			checkPowHashBig = blockchain.CheckPowHashBig(powhash, &diff)
 		}
 	default:
 		// Handle when no algo is defined or unhandled algo is defined, let miner know issues (properly gets sent back in job detail rejection message)
@@ -234,7 +239,8 @@ func (m *Miner) processShare(s *StratumServer, cs *Session, job *Job, t *BlockTe
 	// May be redundant, or use instead of CheckPowHashBig in future.
 	block := hashDiff.Cmp(&diff) >= 0
 
-	if blockchain.CheckPowHashBig(powhash, &diff) == true && block {
+	//if blockchain.CheckPowHashBig(powhash, &diff) == true && block {
+	if checkPowHashBig && block {
 		blockSubmit, err := r.SubmitBlock(t.Blocktemplate_blob, hex.EncodeToString(shareBuff))
 		var blockSubmitReply *rpc.SubmitBlock_Result
 
