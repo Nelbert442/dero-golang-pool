@@ -220,18 +220,18 @@ func (redisClient *RedisClient) WriteShare(login, id string, params *SubmitParam
 
 	_, err = tx.Exec(func() error {
 		redisClient.writeShare(tx, ms, ts, login, id, diff, window)
-		tx.HIncrBy(redisClient.formatKey("stats"), "roundShares", diff)
+		tx.HIncrBy(redisClient.formatKey("stats"), "roundShares", diff) // [DERO:stats] -- increments roundShares with each submitted share
 		return nil
 	})
 	return false, err
 }
 
 func (redisClient *RedisClient) writeShare(tx *redis.Multi, ms, ts int64, login, id string, diff int64, expire time.Duration) {
-	tx.HIncrBy(redisClient.formatKey("shares", "roundCurrent"), login, diff)
-	tx.ZAdd(redisClient.formatKey("hashrate"), redis.Z{Score: float64(ts), Member: join(diff, login, id, ms, diff*35)})
-	tx.ZAdd(redisClient.formatKey("hashrate", login), redis.Z{Score: float64(ts), Member: join(diff, id, ms, diff*35)})
-	tx.Expire(redisClient.formatKey("hashrate", login), expire) // Will delete hashrates for miners that gone
-	tx.HSet(redisClient.formatKey("miners", login), "lastShare", strconv.FormatInt(ts, 10))
+	tx.HIncrBy(redisClient.formatKey("shares", "roundCurrent"), login, diff)                                            // [DERO:shares:roundCurrent] -- minerID and hashes this round
+	tx.ZAdd(redisClient.formatKey("hashrate"), redis.Z{Score: float64(ts), Member: join(diff, login, id, ms, diff*35)}) // [DERO:hashrate] -- [shareDiff:minerID:timeSubmitted:diff*35] with score of timeSubmitted
+	tx.ZAdd(redisClient.formatKey("hashrate", login), redis.Z{Score: float64(ts), Member: join(diff, id, ms, diff*35)}) // [DERO:hashrate:minerID] -- [shareDiff:id:timeSubmitted:diff*35] with score of timeSubmitted
+	tx.Expire(redisClient.formatKey("hashrate", login), expire)                                                         // [DERO:hashrate:minerID]Will delete hashrates for miners that gone
+	tx.HSet(redisClient.formatKey("miners", login), "lastShare", strconv.FormatInt(ts, 10))                             // [DERO:miners:minerID] Sets time of last share submitted by login (miner id)
 }
 
 func (redisClient *RedisClient) WriteBlock(login, id string, params *SubmitParams, diff, roundDiff int64, height int64, window time.Duration, feeReward int64, blockHash string) (bool, error) {

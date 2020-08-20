@@ -27,8 +27,28 @@ type Upstream struct {
 }
 
 type Stratum struct {
-	Timeout string `json:"timeout"`
-	Ports   []Port `json:"listen"`
+	PaymentID PaymentID `json:"paymentId"`
+	FixedDiff FixedDiff `json:"fixedDiff"`
+	WorkerID  WorkerID  `json:"workerID"`
+	Timeout   string    `json:"timeout"`
+	Ports     []Port    `json:"listen"`
+}
+
+type PaymentID struct {
+	AddressSeparator string   `json:"addressSeparator"`
+	Validation       bool     `json:"validation"`
+	Validations      []string `json:"validations"`
+	Ban              bool     `json:"ban"`
+}
+
+type FixedDiff struct {
+	Enabled          bool   `json:"enabled"`
+	AddressSeparator string `json:"addressSeparator"`
+}
+
+type WorkerID struct {
+	Enabled          bool   `json:"enabled"`
+	AddressSeparator string `json:"addressSeparator"`
 }
 
 type Port struct {

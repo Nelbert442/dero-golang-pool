@@ -321,7 +321,7 @@ func (cs *Session) handleMessage(s *StratumServer, e *Endpoint, req *JSONRpcReq)
 	case "submit":
 		var params SubmitParams
 		err := json.Unmarshal(*req.Params, &params)
-		fmt.Printf("[submit] %+v\n", params)
+		//fmt.Printf("[submit] %+v\n", params)
 		if err != nil {
 			log.Println("Unable to parse params")
 			return err

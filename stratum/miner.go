@@ -5,7 +5,6 @@ import (
 	"encoding/binary"
 	"encoding/hex"
 	"encoding/json"
-	"fmt"
 	"log"
 	"math/big"
 	"strconv"
@@ -41,8 +40,11 @@ type Miner struct {
 	shares        map[int64]int64
 	roundShares   map[int64]int64
 	sync.RWMutex
-	id string
-	ip string
+	id        string
+	address   string
+	paymentID string
+	fixedDiff string
+	ip        string
 }
 
 func (job *Job) submit(nonce string) bool {
@@ -55,9 +57,9 @@ func (job *Job) submit(nonce string) bool {
 	return false
 }
 
-func NewMiner(id string, ip string) *Miner {
+func NewMiner(id string, address string, paymentid string, fixedDiff string, ip string) *Miner {
 	shares := make(map[int64]int64)
-	return &Miner{id: id, ip: ip, shares: shares}
+	return &Miner{id: id, address: address, paymentID: paymentid, fixedDiff: fixedDiff, ip: ip, shares: shares}
 }
 
 func (cs *Session) getJob(t *BlockTemplate) *JobReplyData {
@@ -176,7 +178,7 @@ func (m *Miner) processShare(s *StratumServer, cs *Session, job *Job, t *BlockTe
 		if s.config.BypassShareValidation || shareType == "Trusted" {
 			hashBytes, _ = hex.DecodeString(result)
 
-			fmt.Printf("[%s Share] %+v\n", shareType, hashBytes)
+			//fmt.Printf("[%s Share] %+v\n", shareType, hashBytes)
 
 			//copy(powhash[:], hashBytes)
 
@@ -186,8 +188,8 @@ func (m *Miner) processShare(s *StratumServer, cs *Session, job *Job, t *BlockTe
 
 			hash, success := astrobwt.POW_optimized_v2(shareBuff, max_pow_size, &data)
 			if !success || hash[len(hash)-1] != 0 {
-				fmt.Printf("[IncorrectPoW-171] %+v\n", shareBuff)
-				fmt.Printf("[IncorrectPoW-172] %+v\n", hash)
+				//fmt.Printf("[IncorrectPoW-171] %+v\n", shareBuff)
+				//fmt.Printf("[IncorrectPoW-172] %+v\n", hash)
 				minerOutput := "Incorrect PoW"
 				log.Printf("Bad hash from miner (l174) %v@%v", m.id, cs.ip)
 
@@ -203,7 +205,7 @@ func (m *Miner) processShare(s *StratumServer, cs *Session, job *Job, t *BlockTe
 
 			atomic.AddInt64(&m.trustedShares, 1)
 
-			fmt.Printf("[%s Share] %+v\n", shareType, hashBytes)
+			//fmt.Printf("[%s Share] %+v\n", shareType, hashBytes)
 
 			copy(powhash[:], hash[:])
 
@@ -228,8 +230,8 @@ func (m *Miner) processShare(s *StratumServer, cs *Session, job *Job, t *BlockTe
 
 	hashDiff, ok := util.GetHashDifficulty(hashBytes)
 	if !ok {
-		fmt.Printf("[badhash-196] %+v\n", hashDiff)
-		fmt.Printf("[badhash-197] %+v\n", hashBytes)
+		//fmt.Printf("[badhash-196] %+v\n", hashDiff)
+		//fmt.Printf("[badhash-197] %+v\n", hashBytes)
 		minerOutput := "Bad hash"
 		log.Printf("Bad hash from miner (l197) %v@%v", m.id, cs.ip)
 		atomic.AddInt64(&m.invalidShares, 1)
@@ -291,6 +293,6 @@ func (m *Miner) processShare(s *StratumServer, cs *Session, job *Job, t *BlockTe
 		log.Println("Failed to insert share data into backend:", err)
 	}
 
-	log.Printf("%s share at difficulty %v/%v from %v@%v", shareType, cs.endpoint.config.Difficulty, hashDiff, m.id, cs.ip)
+	log.Printf("%s share at difficulty %v/%v from %v@%v", shareType, cs.endpoint.config.Difficulty, hashDiff, params.Id, cs.ip)
 	return true, ""
 }
