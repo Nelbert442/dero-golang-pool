@@ -16,6 +16,7 @@ type Config struct {
 	API                     APIConfig      `json:"api"`
 	Redis                   Redis          `json:"redis"`
 	UnlockerConfig          UnlockerConfig `json:"unlocker"`
+	PaymentsConfig          PaymentsConfig `json:"payments"`
 }
 
 type Upstream struct {
@@ -63,14 +64,12 @@ type APIConfig struct {
 	PurgeOnly            bool   `json:"purgeOnly"`
 	PurgeInterval        string `json:"purgeInterval"`
 	Listen               string `json:"listen"`
-	Login                string `json:"login"`
-	Password             string `json:"password"`
-	HideIP               bool   `json:"hideIP"`
 	StatsCollectInterval string `json:"statsCollectInterval"`
 	HashrateWindow       string `json:"hashrateWindow"`
 	HashrateLargeWindow  string `json:"hashrateLargeWindow"`
 	LuckWindow           []int  `json:"luckWindow"`
 	Blocks               int64  `json:"blocks"`
+	Payments             int64  `json:"payments"`
 }
 
 type Redis struct {
@@ -87,4 +86,13 @@ type UnlockerConfig struct {
 	Depth          int64   `json:"depth"`
 	Interval       string  `json:"interval"`
 	PoolFeeAddress string  `json:"poolFeeAddress"`
+}
+
+type PaymentsConfig struct {
+	Enabled    bool   `json:"enabled"`
+	Interval   string `json:"interval"`
+	Threshold  uint64 `json:"minPayment"`
+	BgSave     bool   `json:"bgsave"`
+	WalletHost string `json:"walletHost"`
+	WalletPort string `json:"walletPort"`
 }

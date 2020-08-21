@@ -34,6 +34,10 @@ func startStratum() {
 		unlocker := stratum.NewBlockUnlocker(&cfg.UnlockerConfig, s)
 		go unlocker.StartBlockUnlocker()
 	}
+	if cfg.PaymentsConfig.Enabled {
+		payments := stratum.NewPayoutsProcessor(&cfg.PaymentsConfig, s)
+		payments.Start(s)
+	}
 	s.Listen()
 }
 

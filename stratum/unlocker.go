@@ -1,3 +1,4 @@
+// Many unlocker integration functions and ideas from: https://github.com/JKKGBE/open-zcash-pool which is a fork of https://github.com/sammy007/open-ethereum-pool
 package stratum
 
 import (
@@ -230,11 +231,12 @@ func (u *BlockUnlocker) unlockAndCreditMiners() {
 		totalPoolProfit.Add(totalPoolProfit, poolProfit)
 
 		logEntry := fmt.Sprintf(
-			"MATURED %v: revenue %v, minersProfit %v, poolProfit %v",
+			"MATURED %v: revenue %v, minersProfit %v, poolProfit %v, roundRewards %v",
 			block.RoundKey(),
 			revenue.FloatString(8),
 			minersProfit.FloatString(8),
 			poolProfit.FloatString(8),
+			roundRewards,
 		)
 		entries := []string{logEntry}
 		for login, reward := range roundRewards {
@@ -339,11 +341,13 @@ func (u *BlockUnlocker) calculateRewards(block *BlockData) (*big.Rat, *big.Rat, 
 	revenue := new(big.Rat).SetUint64(block.Reward)
 	minersProfit, poolProfit := chargeFee(revenue, u.config.PoolFee)
 
+	log.Printf("roundHeight: %v, Nonce: %s", block.RoundHeight, block.Nonce)
 	shares, err := u.backend.GetRoundShares(block.RoundHeight, block.Nonce)
 	if err != nil {
 		return nil, nil, nil, nil, err
 	}
 
+	log.Printf("shares: %v, totalShares: %v, minersProfit: %v", shares, block.TotalShares, minersProfit)
 	rewards := calculateRewardsForShares(shares, block.TotalShares, minersProfit)
 
 	if block.ExtraReward != nil {
@@ -368,6 +372,7 @@ func calculateRewardsForShares(shares map[string]int64, total int64, reward *big
 		workerReward := new(big.Rat).Mul(reward, percent)
 		workerRewardInt, _ := strconv.ParseInt(workerReward.FloatString(0), 10, 64)
 		rewards[login] += workerRewardInt
+		log.Printf("login: %s, percent: %v, workerReward: %v, workerRewardInt: %v", login, percent, workerReward, workerRewardInt)
 	}
 	return rewards
 }

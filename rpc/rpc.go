@@ -70,6 +70,11 @@ type GetBlockHashReply struct {
 	Status      string       `json:"status"`
 }
 
+type GetBalanceReply struct {
+	Balance         uint64 `json:"balance"`
+	UnlockedBalance uint64 `json:"unlocked_balance"`
+}
+
 type Block_Header struct {
 	Depth        int64    `json:"depth"`
 	Difficulty   string   `json:"difficulty"`
@@ -144,6 +149,20 @@ func (r *RPCClient) GetInfo() (*GetInfoReply, error) {
 	}
 	if rpcResp.Result != nil {
 		err = json.Unmarshal(*rpcResp.Result, &reply)
+	}
+	return reply, err
+}
+
+func (r *RPCClient) GetBalance(url string) (*GetBalanceReply, error) {
+
+	rpcResp, err := r.doPost(url, "getbalance", []string{})
+	if err != nil {
+		return nil, err
+	}
+	var reply *GetBalanceReply
+	err = json.Unmarshal(*rpcResp.Result, &reply)
+	if err != nil {
+		return nil, err
 	}
 	return reply, err
 }

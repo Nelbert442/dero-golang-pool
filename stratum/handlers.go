@@ -19,17 +19,13 @@ func init() {
 
 func (s *StratumServer) handleLoginRPC(cs *Session, params *LoginParams) (*JobReply, *ErrorReply) {
 
-	address, fixDiff, workID, paymentid := s.extractIDParts(params.Login)
 	var id string
-	if workID != address && workID != "" {
-		id = address + "~" + workID
-	} else {
-		id = address
-	}
+	// Login validation / splitting optimized [future commit] by Peppinux (https://github.com/peppinux)
+	address, fixDiff, workID, paymentid := s.extractIDParts(params.Login)
 
 	// PaymentID Length Validation
 	if paymentid != "" {
-		if len(paymentid) == 8 || len(paymentid) == 64 {
+		if len(paymentid) == 8 || len(paymentid) == 32 {
 			_, err := hex.DecodeString(paymentid)
 
 			if err != nil {
@@ -39,6 +35,25 @@ func (s *StratumServer) handleLoginRPC(cs *Session, params *LoginParams) (*JobRe
 		} else {
 			log.Printf("Invalid paymentID %s used for login by %s - %s", paymentid, cs.ip, params.Login)
 			return nil, &ErrorReply{Code: -1, Message: "Invalid paymentID used for login"}
+		}
+
+		// Adding paymentid onto the worker id because later when payments are processed, it's easily identifiable what is the paymentid to supply for creating tx etc.
+		id = address + "+" + paymentid
+	}
+
+	// If workID is used, then append with ~, this will be easily deciphered later for payments. In future, could store id and values separately so that address payout is clearer
+	if workID != address && workID != "" {
+		if id != "" {
+			// If id is not "" (default value upon var), then it must have a paymentid and have been set. So append ~workID to it
+			id = id + "~" + workID
+		} else {
+			// If id is "" (default value upon var), then it does not have paymentid and append ~workID to address normally
+			id = address + "~" + workID
+		}
+	} else {
+		if id == "" {
+			// If id is "" (default value upon var), then it does not have a paymentid and in this else doesn't have workid, so set id to address for default. Otherwise, id has already been set
+			id = address
 		}
 	}
 
