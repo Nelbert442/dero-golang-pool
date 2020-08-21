@@ -1,6 +1,7 @@
 package stratum
 
 import (
+	"encoding/hex"
 	"fmt"
 	"log"
 	"regexp"
@@ -12,26 +13,35 @@ import (
 
 var noncePattern *regexp.Regexp
 
-const defaultWorkerID = ""
-const defaultPaymentID = ""
-const defaultFixedDiff = ""
-
 func init() {
 	noncePattern, _ = regexp.Compile("^[0-9a-f]{8}$")
 }
 
 func (s *StratumServer) handleLoginRPC(cs *Session, params *LoginParams) (*JobReply, *ErrorReply) {
-	//address, workerID, fixedDiff, paymentID := s.extractWorkerID(params.Login)
-	//id := workerID
 
-	address, paymentid, workID, fixDiff := s.extractWorkerID(params.Login)
+	address, fixDiff, workID, paymentid := s.extractIDParts(params.Login)
 	var id string
 	if workID != address && workID != "" {
 		id = address + "~" + workID
 	} else {
 		id = address
 	}
-	//fmt.Printf("%+v\n", params)
+
+	// PaymentID Length Validation
+	if paymentid != "" {
+		if len(paymentid) == 8 || len(paymentid) == 64 {
+			_, err := hex.DecodeString(paymentid)
+
+			if err != nil {
+				log.Printf("Invalid paymentID %s used for login by %s - %s", paymentid, cs.ip, params.Login)
+				return nil, &ErrorReply{Code: -1, Message: "Invalid paymentID used for login"}
+			}
+		} else {
+			log.Printf("Invalid paymentID %s used for login by %s - %s", paymentid, cs.ip, params.Login)
+			return nil, &ErrorReply{Code: -1, Message: "Invalid paymentID used for login"}
+		}
+	}
+
 	if !s.config.BypassAddressValidation && !util.ValidateAddress(address, s.config.Address) {
 		log.Printf("Invalid address %s used for login by %s", address, cs.ip)
 		return nil, &ErrorReply{Code: -1, Message: "Invalid address used for login"}
@@ -148,7 +158,8 @@ func (s *StratumServer) refreshBlockTemplate(bcast bool) {
 	}
 }
 
-func (s *StratumServer) extractWorkerID(loginWorkerPair string) (string, string, string, string) { //, string, string) {
+// Old function with flaws. New function needs optimization
+/*func (s *StratumServer) extractWorkerID(loginWorkerPair string) (string, string, string, string) { //, string, string) {
 	// Stratum --> workerID --> addressSeparator in config.json
 	var addr, payID, workID, fixDiff string
 	// This sets up a little logic (probably not perfect, optimize later) to split out the different login options (paymentID, fixedDiff [future], workerID, address)
@@ -181,7 +192,172 @@ func (s *StratumServer) extractWorkerID(loginWorkerPair string) (string, string,
 	/*parts := strings.SplitN(loginWorkerPair, s.config.Stratum.WorkerID.AddressSeparator, 2)
 	if len(parts) > 1 {
 		return parts[0], parts[1]
-	}*/
+	}
 
 	return addr, payID, workID, fixDiff
+}*/
+
+// TODO: Optimize splitting function
+func (s *StratumServer) extractIDParts(loginWorkerPair string) (string, string, string, string) {
+	pid, wid, fDiff := s.checkLoginWorkerPair(loginWorkerPair)
+
+	var addr, fixDiff, workID, payID string
+
+	if pid != -1 || wid != -1 || fDiff != -1 {
+		payIDSlice, success := s.extractPaymentID(loginWorkerPair)
+		if success != false {
+			// Split [0]
+			_, wid, fDiff := s.checkLoginWorkerPair(payIDSlice[0])
+			if wid != -1 || fDiff != -1 {
+				wIDSlice, success := s.extractWorkerID(payIDSlice[0])
+				if success != false {
+					// Split [0]
+					fDiffSlice, success := s.extractFixedDiff(wIDSlice[0])
+					if success != false {
+						// address.fixDiff@workID+payID
+						addr = fDiffSlice[0]
+						fixDiff = fDiffSlice[1]
+						workID = wIDSlice[1]
+						payID = payIDSlice[1]
+					} else {
+						fDiffSlice, success := s.extractFixedDiff(wIDSlice[1])
+						if success != false {
+							// address@workID.fixDiff+payID
+							addr = wIDSlice[0]
+							workID = fDiffSlice[0]
+							fixDiff = fDiffSlice[1]
+						} else {
+							// address@workID+payID... [You shouldn't get here though]
+							addr = wIDSlice[0]
+							workID = wIDSlice[1]
+						}
+					}
+				} else {
+					fDiffSlice, success := s.extractFixedDiff(payIDSlice[0])
+					if success != false {
+						// address.fixDiff+payID
+						addr = fDiffSlice[0]
+						fixDiff = fDiffSlice[1]
+					} else {
+						// address+payID [You really shouldn't get here though]
+						addr = payIDSlice[0]
+					}
+				}
+			} else {
+				// address+payID...
+				addr = payIDSlice[0]
+			}
+			_, wid1, fDiff1 := s.checkLoginWorkerPair(payIDSlice[1])
+
+			if wid1 != -1 || fDiff1 != -1 {
+				wIDSlice, success := s.extractWorkerID(payIDSlice[1])
+				if success != false {
+					// Split [0]
+					fDiffSlice, success := s.extractFixedDiff(wIDSlice[0])
+					if success != false {
+						// address+payID.fixDiff@workID
+						payID = fDiffSlice[0]
+						fixDiff = fDiffSlice[1]
+						workID = wIDSlice[1]
+					} else {
+						fDiffSlice1, success := s.extractFixedDiff(wIDSlice[1])
+						if success != false {
+							// address+payID@workID.fixDiff
+							workID = fDiffSlice1[0]
+							fixDiff = fDiffSlice1[1]
+						} else {
+							// address+payID@workID
+							payID = wIDSlice[0]
+							workID = wIDSlice[1]
+						}
+					}
+				} else {
+					fDiffSlice, success := s.extractFixedDiff(payIDSlice[1])
+					if success != false {
+						// address+payID.fixDiff
+						payID = fDiffSlice[0]
+						fixDiff = fDiffSlice[1]
+					} else {
+						// address+payID [You really shouldn't get here though]
+						payID = payIDSlice[1]
+					}
+				}
+			} else {
+				// address+payID
+				payID = payIDSlice[1]
+			}
+		} else {
+			// Check wid && fDiff
+			wIDSlice, success := s.extractWorkerID(loginWorkerPair)
+			if success != false {
+				// Split [0]
+				fDiffSlice, success := s.extractFixedDiff(wIDSlice[0])
+				if success != false {
+					// address.fixDiff@workID
+					addr = fDiffSlice[0]
+					fixDiff = fDiffSlice[1]
+					workID = wIDSlice[1]
+				} else {
+					fDiffSlice, success := s.extractFixedDiff(wIDSlice[1])
+					if success != false {
+						// address@workID.fixDiff
+						addr = wIDSlice[0]
+						workID = fDiffSlice[0]
+						fixDiff = fDiffSlice[1]
+					} else {
+						// address@workID [You shouldn't get here though]
+						addr = wIDSlice[0]
+						workID = wIDSlice[1]
+					}
+				}
+			} else {
+				fDiffSlice, success := s.extractFixedDiff(loginWorkerPair)
+				if success != false {
+					addr = fDiffSlice[0]
+					fixDiff = fDiffSlice[1]
+				} else {
+					// Shouldn't get here
+					addr = loginWorkerPair
+				}
+			}
+		}
+	} else {
+		addr = loginWorkerPair
+	}
+
+	return addr, fixDiff, workID, payID
+}
+
+func (s *StratumServer) checkLoginWorkerPair(loginWorkerPair string) (int, int, int) {
+	pid := strings.Index(loginWorkerPair, "+")
+	wid := strings.Index(loginWorkerPair, "@")
+	fDiff := strings.Index(loginWorkerPair, ".")
+	return pid, wid, fDiff
+}
+
+func (s *StratumServer) extractPaymentID(loginWorkerPair string) ([]string, bool) {
+	if strings.ContainsAny(loginWorkerPair, "+") {
+		split := strings.SplitN(loginWorkerPair, "+", 2)
+		return split, true
+	} else {
+		return nil, false
+	}
+}
+
+func (s *StratumServer) extractFixedDiff(loginWorkerPair string) ([]string, bool) {
+	if strings.ContainsAny(loginWorkerPair, ".") {
+		split := strings.SplitN(loginWorkerPair, ".", 2)
+		return split, true
+	} else {
+		return nil, false
+	}
+}
+
+func (s *StratumServer) extractWorkerID(loginWorkerPair string) ([]string, bool) {
+	if strings.ContainsAny(loginWorkerPair, "@") {
+		split := strings.SplitN(loginWorkerPair, "@", 2)
+		return split, true
+	} else {
+		return nil, false
+	}
 }
