@@ -190,7 +190,7 @@ func (m *Miner) processShare(s *StratumServer, cs *Session, job *Job, t *BlockTe
 			if !success || hash[len(hash)-1] != 0 {
 				//fmt.Printf("[IncorrectPoW-171] %+v\n", shareBuff)
 				//fmt.Printf("[IncorrectPoW-172] %+v\n", hash)
-				minerOutput := "Incorrect PoW"
+				minerOutput := "Incorrect PoW - if you see often, check input on miner software"
 				log.Printf("Bad hash from miner (l174) %v@%v", m.id, cs.ip)
 
 				if shareType == "Trusted" {

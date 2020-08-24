@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log"
 	"net/http"
 	"net/url"
 	"sync"
@@ -74,6 +75,31 @@ type GetBalanceReply struct {
 	Balance         uint64 `json:"balance"`
 	UnlockedBalance uint64 `json:"unlocked_balance"`
 }
+
+type (
+	Destinations struct {
+		Amount  uint64 `json:"amount"`
+		Address string `json:"address"`
+	}
+
+	Transfer_Params struct {
+		Destinations []Destinations `json:"destinations"`
+		Fee          uint64         `json:"fee"`
+		Mixin        uint64         `json:"mixin"`
+		Unlock_time  uint64         `json:"unlock_time"`
+		Payment_ID   string         `json:"payment_id"`
+		Get_tx_key   bool           `json:"get_tx_key"`
+		Priority     uint64         `json:"priority"`
+		Do_not_relay bool           `json:"do_not_relay"`
+		Get_tx_hex   bool           `json:"get_tx_hex"`
+	} // no params
+	Transfer_Result struct {
+		Fee     uint64 `json:"fee"`
+		Tx_key  string `json:"tx_key"`
+		Tx_hash string `json:"tx_hash"`
+		Tx_blob string `json:"tx_blob"`
+	}
+)
 
 type Block_Header struct {
 	Depth        int64    `json:"depth"`
@@ -154,12 +180,27 @@ func (r *RPCClient) GetInfo() (*GetInfoReply, error) {
 }
 
 func (r *RPCClient) GetBalance(url string) (*GetBalanceReply, error) {
-
 	rpcResp, err := r.doPost(url, "getbalance", []string{})
 	if err != nil {
 		return nil, err
 	}
 	var reply *GetBalanceReply
+	err = json.Unmarshal(*rpcResp.Result, &reply)
+	if err != nil {
+		return nil, err
+	}
+	return reply, err
+}
+
+// TODO: Allow for array of destinations in future to be inputted to send to multiple addrs
+func (r *RPCClient) SendTransaction(url string, transferParams Transfer_Params) (*Transfer_Result, error) {
+	log.Printf("Attempting payment. params: %v", transferParams)
+
+	rpcResp, err := r.doPost(url, "transfer", transferParams)
+	if err != nil {
+		return nil, err
+	}
+	var reply *Transfer_Result
 	err = json.Unmarshal(*rpcResp.Result, &reply)
 	if err != nil {
 		return nil, err

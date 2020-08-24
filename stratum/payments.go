@@ -9,6 +9,10 @@ import (
 
 	"git.dero.io/Nelbert442/dero-golang-pool/pool"
 	"git.dero.io/Nelbert442/dero-golang-pool/rpc"
+	"github.com/deroproject/derosuite/address"
+	"github.com/deroproject/derosuite/crypto"
+	"github.com/deroproject/derosuite/transaction"
+	"github.com/deroproject/derosuite/walletapi"
 )
 
 type PayoutsProcessor struct {
@@ -18,6 +22,26 @@ type PayoutsProcessor struct {
 	halt     bool
 	lastFail error
 }
+
+type Transfer struct {
+	rAddress  *address.Address
+	PaymentID []byte
+	Amount    uint64
+	Fees      uint64
+	TX        *transaction.Transaction
+	TXID      crypto.Hash
+	Size      float32
+	Status    string
+	Inputs    []uint64
+	InputSum  uint64
+	Change    uint64
+	Relay     bool
+	OfflineTX bool
+	Filename  string
+}
+
+var wallet *walletapi.Wallet
+var transfer Transfer
 
 func NewPayoutsProcessor(cfg *pool.PaymentsConfig, s *StratumServer) *PayoutsProcessor {
 	u := &PayoutsProcessor{config: cfg, backend: s.backend}
@@ -80,7 +104,7 @@ func (u *PayoutsProcessor) process(s *StratumServer) {
 
 	for _, login := range payees {
 		amount, _ := u.backend.GetBalance(login)
-
+		log.Printf("Amount: %v, login: %v", amount, login)
 		if !u.reachedThreshold(amount) {
 			continue
 		}
@@ -121,20 +145,63 @@ func (u *PayoutsProcessor) process(s *StratumServer) {
 			break
 		}
 
-		// login can have ~workerId or +paymentID. These values will need to be trimmed off. Can potentially call the handler function to get the details
-		// s.extractIDParts(login)
-		/*value := hexutil.EncodeBig(amount)
-		txHash, err := u.rpc.SendTransaction(u.config.Address, login, u.config.GasHex(), u.config.GasPriceHex(), value, u.config.AutoGas)
+		// Send DERO - Native (mutex issues, TODO)
+		/*
+			// Validate Address
+			transfer.rAddress, err = globals.ParseValidateAddress(login)
+			if err != nil {
+				log.Printf("Invalid address format - %v", login)
+				break
+			} else {
+				log.Printf("Valid Address")
+			}
+
+			// This fails out w/ mutex error, not sure TODO
+			//curBalance, _ := wallet.Get_Balance()
+
+			transfer.Amount = amount
+			addr_list := []address.Address{*transfer.rAddress}
+			amount_list := []uint64{transfer.Amount}
+			fees_per_kb := uint64(0) // fees  must be calculated by walletapi
+
+			tx, inputs, input_sum, change, err := wallet.Transfer(addr_list, amount_list, 0, hex.EncodeToString(transfer.PaymentID), fees_per_kb, 0)
+			_ = inputs
+
+			if err != nil {
+				log.Printf("Error while building transaction: %s", err)
+				break
+			}
+
+			transfer.OfflineTX = false
+
+			transfer.Relay = build_relay_transaction(tx, inputs, input_sum, change, err, transfer.OfflineTX, amount_list)
+
+			if !transfer.Relay {
+				log.Printf("Error:  Unable to build the transfer.")
+				break
+			}
+		*/
+
+		// Send DERO - RPC (working)
+		var currPayout rpc.Transfer_Params
+		currPayout.Mixin = u.config.Mixin
+		currPayout.Destinations = []rpc.Destinations{
+			rpc.Destinations{
+				Address: login,
+				Amount:  amount,
+			},
+		}
+
+		paymentOutput, err := u.rpc.SendTransaction(walletURL, currPayout)
+
 		if err != nil {
-			log.Printf("Failed to send payment to %s, %v DERO: %v. Check outgoing tx for %s in block explorer and docs/PAYOUTS.md",
-				login, amount, err, login)
-			u.halt = true
-			u.lastFail = err
+			log.Printf("Error with transaction: %v", err)
 			break
-		}*/
+		}
+		log.Printf("Success: %v", paymentOutput)
 
 		// Log transaction hash
-		txHash := "test"
+		txHash := paymentOutput.Tx_hash
 		err = u.backend.WritePayment(login, txHash, int64(amount))
 		if err != nil {
 			log.Printf("Failed to log payment data for %s, %v DERO, tx: %s: %v", login, int64(amount), txHash, err)
@@ -178,6 +245,34 @@ func (u *PayoutsProcessor) process(s *StratumServer) {
 	if minersPaid > 0 && u.config.BgSave {
 		u.bgSave()
 	}
+}
+
+// handles the output after building tx, takes feedback, confirms or relays tx
+func build_relay_transaction(tx *transaction.Transaction, inputs []uint64, input_sum uint64, change uint64, err error, offline_tx bool, amount_list []uint64) bool {
+
+	if err != nil {
+		log.Printf("Error building transaction: %s", err)
+		return false
+	}
+
+	transfer.Inputs = append(transfer.Inputs, uint64(len(inputs)))
+	transfer.InputSum = input_sum
+	transfer.Change = change
+	transfer.Size = float32(len(tx.Serialize())) / 1024.0
+	transfer.Fees = tx.RctSignature.Get_TX_Fee()
+	transfer.TX = tx
+
+	amount := uint64(0)
+
+	for i := range amount_list {
+		amount += amount_list[i]
+	}
+
+	if input_sum != (amount + change + tx.RctSignature.Get_TX_Fee()) {
+		return false
+	}
+
+	return true
 }
 
 func formatPendingPayments(list []*PendingPayment) string {
