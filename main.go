@@ -61,6 +61,14 @@ func readConfig(cfg *pool.Config) {
 }
 
 func main() {
+	/*
+		// Declaring globals for use of integrated stuff
+		globals.Arguments = make(map[string]interface{})
+		globals.Arguments["--debug"] = false
+		globals.Arguments["--testnet"] = true
+
+		globals.Initialize()
+	*/
 	rand.Seed(time.Now().UTC().UnixNano())
 	readConfig(&cfg)
 	startStratum()

@@ -9,9 +9,7 @@ import (
 
 	"git.dero.io/Nelbert442/dero-golang-pool/pool"
 	"git.dero.io/Nelbert442/dero-golang-pool/rpc"
-	"github.com/deroproject/derosuite/address"
-	"github.com/deroproject/derosuite/crypto"
-	"github.com/deroproject/derosuite/transaction"
+	"github.com/deroproject/derosuite/globals"
 	"github.com/deroproject/derosuite/walletapi"
 )
 
@@ -23,25 +21,26 @@ type PayoutsProcessor struct {
 	lastFail error
 }
 
+/* Used when integrating with derosuite functions, currently not being used but in place incase functions are used later
 type Transfer struct {
-	rAddress  *address.Address
-	PaymentID []byte
-	Amount    uint64
-	Fees      uint64
-	TX        *transaction.Transaction
-	TXID      crypto.Hash
-	Size      float32
-	Status    string
-	Inputs    []uint64
-	InputSum  uint64
-	Change    uint64
-	Relay     bool
-	OfflineTX bool
-	Filename  string
+	rAddress	*address.Address
+	PaymentID	[]byte
+	Amount		uint64
+	Fees		uint64
+	TX			*transaction.Transaction
+	TXID		crypto.Hash
+	Size		float32
+	Status		string
+	Inputs		[]uint64
+	InputSum	uint64
+	Change		uint64
+	Relay		bool
+	OfflineTX	bool
+	Filename	string
 }
+*/
 
 var wallet *walletapi.Wallet
-var transfer Transfer
 
 func NewPayoutsProcessor(cfg *pool.PaymentsConfig, s *StratumServer) *PayoutsProcessor {
 	u := &PayoutsProcessor{config: cfg, backend: s.backend}
@@ -89,10 +88,10 @@ func (u *PayoutsProcessor) Start(s *StratumServer) {
 }
 
 func (u *PayoutsProcessor) process(s *StratumServer) {
-	if u.halt {
+	/*if u.halt {
 		log.Println("Payments suspended due to last critical error:", u.lastFail)
 		return
-	}
+	}*/
 	mustPay := 0
 	minersPaid := 0
 	totalAmount := big.NewInt(0)
@@ -114,15 +113,15 @@ func (u *PayoutsProcessor) process(s *StratumServer) {
 		walletURL := fmt.Sprintf("http://%s:%v/json_rpc", u.config.WalletHost, u.config.WalletPort)
 		poolBalanceObj, err := u.rpc.GetBalance(walletURL)
 		if err != nil {
-			u.halt = true
-			u.lastFail = err
+			//u.halt = true
+			//u.lastFail = err
 			break
 		}
 		poolBalance := poolBalanceObj.UnlockedBalance
 		if poolBalance < amount {
-			err := fmt.Errorf("Not enough balance for payment, need %v DERO, pool has %v DERO", amount, poolBalance)
-			u.halt = true
-			u.lastFail = err
+			log.Printf("Not enough balance for payment, need %v DERO, pool has %v DERO", amount, poolBalance)
+			//u.halt = true
+			//u.lastFail = err
 			break
 		}
 
@@ -130,24 +129,38 @@ func (u *PayoutsProcessor) process(s *StratumServer) {
 		err = u.backend.LockPayouts(login, int64(amount))
 		if err != nil {
 			log.Printf("Failed to lock payment for %s: %v", login, err)
-			u.halt = true
-			u.lastFail = err
+			//u.halt = true
+			//u.lastFail = err
 			break
 		}
 		log.Printf("Locked payment for %s, %v DERO", login, amount)
 
-		// Debit miner's balance and update stats
-		err = u.backend.UpdateBalance(login, int64(amount))
+		// Address validations
+		// We already do this for when the miner connects, we need to get those details/vars or just regen them as well as re-validate JUST TO BE SURE prior to attempting to send
+		// NOTE: The issue with grabbing from the miners arr (s.miners), is that if they're not actively mining but get rewards from a past round, the query will not return their detail for payout
+
+		address, workID, paymentID, fixDiff := s.splitLoginString(login)
+		_, _ = workID, fixDiff
+
+		// Validate Address
+		validatedAddress, err := globals.ParseValidateAddress(address)
+		_ = validatedAddress
+
 		if err != nil {
-			log.Printf("Failed to update balance for %s, %v DERO: %v", login, int64(amount), err)
-			u.halt = true
-			u.lastFail = err
+			log.Printf("Invalid address format. Will not process payments - %v", address)
 			break
+		} else {
+			log.Printf("Valid Address, continuing on processing payments - %v", address)
 		}
 
-		// Send DERO - Native (mutex issues, TODO)
+		// Send DERO - Native, TODO)
+		// Issues with mutex and also running wallet process locally (with --rpc-server), as it can't get a lock to generate the transaction.
+		// Problem comes in, then it can't use the daemon/wallet to do the work it needs and errors, since we're not providing authentication in config etc.
+		// Future may be allow for auth to rpc-server within the config.json or other means as an option to run it that way. Otherwise will continue using the rpc option as the future option.
 		/*
 			// Validate Address
+			wallet.SetDaemonAddress("http://127.0.0.1:30306")
+
 			transfer.rAddress, err = globals.ParseValidateAddress(login)
 			if err != nil {
 				log.Printf("Invalid address format - %v", login)
@@ -155,6 +168,8 @@ func (u *PayoutsProcessor) process(s *StratumServer) {
 			} else {
 				log.Printf("Valid Address")
 			}
+
+			transfer.PaymentID = nil
 
 			// This fails out w/ mutex error, not sure TODO
 			//curBalance, _ := wallet.Get_Balance()
@@ -180,6 +195,19 @@ func (u *PayoutsProcessor) process(s *StratumServer) {
 				log.Printf("Error:  Unable to build the transfer.")
 				break
 			}
+
+			err = wallet.SendTransaction(transfer.TX) // relay tx to daemon/network
+
+			if err == nil {
+				transfer.Status = "Success"
+				transfer.TXID = transfer.TX.GetHash()
+			} else {
+				transfer.Status = "Failed"
+				transfer.TXID = transfer.TX.GetHash()
+				log.Printf("Error relaying transaction: %s", err)
+				break
+			}
+			txHash := transfer.TXID.String()
 		*/
 
 		// Send DERO - RPC (working)
@@ -189,6 +217,11 @@ func (u *PayoutsProcessor) process(s *StratumServer) {
 		currPayout.Get_tx_key = true
 		currPayout.Do_not_relay = false
 		currPayout.Get_tx_hex = true
+
+		if paymentID != "" {
+			currPayout.Payment_ID = paymentID
+		}
+
 		currPayout.Destinations = []rpc.Destinations{
 			rpc.Destinations{
 				Address: login,
@@ -203,14 +236,24 @@ func (u *PayoutsProcessor) process(s *StratumServer) {
 			break
 		}
 		log.Printf("Success: %v", paymentOutput)
-
 		// Log transaction hash
 		txHash := paymentOutput.Tx_hash
+
+		// Debit miner's balance and update stats
+		err = u.backend.UpdateBalance(login, int64(amount))
+		if err != nil {
+			log.Printf("Failed to update balance for %s, %v DERO: %v", login, int64(amount), err)
+			//u.halt = true
+			//u.lastFail = err
+			break
+		}
+
+		// Update stats for pool payments
 		err = u.backend.WritePayment(login, txHash, int64(amount))
 		if err != nil {
 			log.Printf("Failed to log payment data for %s, %v DERO, tx: %s: %v", login, int64(amount), txHash, err)
-			u.halt = true
-			u.lastFail = err
+			//u.halt = true
+			//u.lastFail = err
 			break
 		}
 
@@ -251,6 +294,7 @@ func (u *PayoutsProcessor) process(s *StratumServer) {
 	}
 }
 
+/*
 // handles the output after building tx, takes feedback, confirms or relays tx
 func build_relay_transaction(tx *transaction.Transaction, inputs []uint64, input_sum uint64, change uint64, err error, offline_tx bool, amount_list []uint64) bool {
 
@@ -278,6 +322,7 @@ func build_relay_transaction(tx *transaction.Transaction, inputs []uint64, input
 
 	return true
 }
+*/
 
 func formatPendingPayments(list []*PendingPayment) string {
 	var s string
