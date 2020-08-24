@@ -185,6 +185,10 @@ func (u *PayoutsProcessor) process(s *StratumServer) {
 		// Send DERO - RPC (working)
 		var currPayout rpc.Transfer_Params
 		currPayout.Mixin = u.config.Mixin
+		currPayout.Unlock_time = 0
+		currPayout.Get_tx_key = true
+		currPayout.Do_not_relay = false
+		currPayout.Get_tx_hex = true
 		currPayout.Destinations = []rpc.Destinations{
 			rpc.Destinations{
 				Address: login,
