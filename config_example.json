@@ -9,6 +9,7 @@
 
 	"trustedSharesCount": 30,
 	"blockRefreshInterval": "450ms",
+	"hashrateExpiration": "3h",
 
 	"upstreamCheckInterval": "5s",
 
@@ -30,6 +31,21 @@
 	],
 
 	"stratum": {
+		"paymentId": {
+			"addressSeparator": "+",
+			"validation": false,
+			"validations": ["1,16", "64"],
+			"ban": true
+		},
+		"fixedDiff": {
+			"enabled": true,
+			"addressSeparator": "."
+		},
+		"workerID": {
+			"enabled": true,
+			"addressSeparator": "@"
+		},
+
 		"timeout": "15m",
 
 		"listen": [
@@ -56,20 +72,39 @@
 
 	"api": {
 		"enabled": true,
+		"purgeOnly": false,
+		"purgeInterval": "10m",
 		"listen": "0.0.0.0:8082",
-		"login": "admin",
-		"password": "",
-		"hideIP": false,
-		"estimationWindow": "27s",
-		"luckWindow": "24h",
-		"largeLuckWindow": "72h"
+		"statsCollectInterval": "5s",
+		"hashrateWindow": "1m",
+		"hashrateLargeWindow": "3h",
+		"luckWindow": [64, 128, 256],
+		"payments": 30,
+		"blocks": 50
 	},
 
 	"redis": {
 		"enabled": true,
-		"host": "172.31.146.7",
+		"host": "127.0.0.1",
 		"port": 6379,
 		"password": "",
 		"DB": 0
+	},
+
+	"unlocker": {
+		"enabled": true,
+		"poolFee": 0.1,
+		"poolFeeAddress": "",
+		"depth": 0,
+		"interval": "10m"
+	},
+
+	"payments": {
+		"enabled": true,
+		"interval": "10m",
+		"minPayment": 1000000000000,
+		"bgsave": true,
+		"walletHost": "127.0.0.1",
+		"walletPort": "30309"
 	}
 }

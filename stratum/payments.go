@@ -121,6 +121,8 @@ func (u *PayoutsProcessor) process(s *StratumServer) {
 			break
 		}
 
+		// login can have ~workerId or +paymentID. These values will need to be trimmed off. Can potentially call the handler function to get the details
+		// s.extractIDParts(login)
 		/*value := hexutil.EncodeBig(amount)
 		txHash, err := u.rpc.SendTransaction(u.config.Address, login, u.config.GasHex(), u.config.GasPriceHex(), value, u.config.AutoGas)
 		if err != nil {

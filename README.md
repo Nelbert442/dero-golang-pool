@@ -78,6 +78,16 @@ Explanation for each field:
 	],
 
 	"stratum": {
+		"paymentId": {
+			"addressSeparator": "+",	// Defines separator used from miner login to parse paymentID
+		},
+		"fixedDiff": {
+			"addressSeparator": "."		// Defines separator used from miner login to parse fixed difficulty
+		},
+		"workerID": {
+			"addressSeparator": "@"		// Defines separator used from miner login to parse workerID
+		},
+
 		"timeout": "15m",           // See SetDeadline - https://golang.org/pkg/net/
 
 		"listen": [
@@ -103,14 +113,16 @@ Explanation for each field:
 	},
 
 	"api": {
-		"enabled": true,            // Set api enabled to true, self-hosted api, or false, not hosted
-		"listen": "0.0.0.0:8082",   // Set bind address and port for api
-		"login": "admin",           // Set login username for api
-		"password": "",             // Set password for api
-		"hideIP": false             // Set hideIP on whether or not to show miner IPs on the api or not
-		"estimationWindow": "27s",	// Defines estimation window of a block being mined. Usually set to 'average' block speed
-		"luckWindow": "24h",		// Used for block stats
-		"largeLuckWindow": "72h",	// Used for block stats
+		"enabled": true,			// Set api enabled to true, self-hosted api, or false, not hosted
+		"purgeOnly": false,			// Set api to purgeOnly mode which will just call purge functions and not collect stats
+		"purgeInterval": "10m",		// Set purge interval (for both purgeOnly and normal stats collections) of stale stats
+		"listen": "0.0.0.0:8082",	// Set bind address and port for api
+		"statsCollectInterval": "5s",	// Set interval for stats collection to run
+		"hashrateWindow": "1m",		// Fast hashrate estimation window for each miner from its' shares
+		"hashrateLargeWindow": "3h",	// Long and precise hashrate from shares
+		"luckWindow": [64, 128, 256],	// Collect stats for shares/diff ratio for this number of blocks
+		"payments": 30,				// Max number of payments to display in frontend
+		"blocks": 50				// Max number of blocks to display in frontend
 	},
 
 	"redis": {
