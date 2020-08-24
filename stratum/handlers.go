@@ -5,10 +5,18 @@ import (
 	"fmt"
 	"log"
 	"regexp"
+	"strconv"
 	"strings"
 	"sync/atomic"
 
 	"git.dero.io/Nelbert442/dero-golang-pool/util"
+)
+
+const (
+	paramAddr = iota
+	paramWID  = iota
+	paramPID  = iota
+	paramDiff = iota
 )
 
 var noncePattern *regexp.Regexp
@@ -20,8 +28,9 @@ func init() {
 func (s *StratumServer) handleLoginRPC(cs *Session, params *LoginParams) (*JobReply, *ErrorReply) {
 
 	var id string
-	// Login validation / splitting optimized [future commit] by Peppinux (https://github.com/peppinux)
-	address, fixDiff, workID, paymentid := s.extractIDParts(params.Login)
+	// Login validation / splitting optimized by Peppinux (https://github.com/peppinux)
+	//address, fixDiff, workID, paymentid := s.extractIDParts(params.Login)
+	address, workID, paymentid, fixDiff := s.splitLoginString(params.Login)
 
 	// PaymentID Length Validation
 	if paymentid != "" {
@@ -69,12 +78,12 @@ func (s *StratumServer) handleLoginRPC(cs *Session, params *LoginParams) (*JobRe
 
 	miner, ok := s.miners.Get(id)
 	if !ok {
-		log.Printf("Registering new miner: %s@%s, Address: %s, PaymentID: %s, fixedDiff: %s", id, cs.ip, address, paymentid, fixDiff)
+		log.Printf("Registering new miner: %s@%s, Address: %s, PaymentID: %s, fixedDiff: %v", id, cs.ip, address, paymentid, fixDiff)
 		miner = NewMiner(id, address, paymentid, fixDiff, cs.ip)
 		s.registerMiner(miner)
 	}
 
-	log.Printf("Miner connected %s@%s, Address: %s, PaymentID: %s, fixedDiff: %s", id, cs.ip, address, paymentid, fixDiff)
+	log.Printf("Miner connected %s@%s, Address: %s, PaymentID: %s, fixedDiff: %v", id, cs.ip, address, paymentid, fixDiff)
 
 	s.registerSession(cs)
 	miner.heartbeat()
@@ -213,7 +222,7 @@ func (s *StratumServer) refreshBlockTemplate(bcast bool) {
 }*/
 
 // TODO: Optimize splitting function
-func (s *StratumServer) extractIDParts(loginWorkerPair string) (string, string, string, string) {
+/*func (s *StratumServer) extractIDParts(loginWorkerPair string) (string, string, string, string) {
 	pid, wid, fDiff := s.checkLoginWorkerPair(loginWorkerPair)
 
 	var addr, fixDiff, workID, payID string
@@ -341,9 +350,55 @@ func (s *StratumServer) extractIDParts(loginWorkerPair string) (string, string, 
 	}
 
 	return addr, fixDiff, workID, payID
+}*/
+
+// Optimized splitting functions with runes from @Peppinux (https://github.com/peppinux)
+func (s *StratumServer) splitLoginString(loginWorkerPair string) (addr, wid, pid string, diff uint64) {
+	currParam := paramAddr // String always starts with ADDRESS
+	currSubstr := ""       // Substring starts empty
+
+	// Since input vals from json are string, need to convert to a rune array, then references just use [0] slice since these are just '@', '+', '.' in config.json
+	widAddrSep := []rune(s.config.Stratum.WorkerID.AddressSeparator)
+	pidAddrSep := []rune(s.config.Stratum.PaymentID.AddressSeparator)
+	fDiffAddrSep := []rune(s.config.Stratum.FixedDiff.AddressSeparator)
+
+	lastPos := len(loginWorkerPair) - 1
+	for pos, c := range loginWorkerPair {
+		if c != widAddrSep[0] && c != pidAddrSep[0] && c != fDiffAddrSep[0] && pos != lastPos {
+			currSubstr += string(c)
+		} else {
+			if pos == lastPos {
+				currSubstr += string(c)
+			}
+
+			// Finalize substring
+			switch currParam {
+			case paramAddr:
+				addr = currSubstr
+			case paramWID:
+				wid = currSubstr
+			case paramPID:
+				pid = currSubstr
+			case paramDiff:
+				diff, _ = strconv.ParseUint(currSubstr, 10, 64)
+			}
+
+			// Reset substring and find out next param type
+			currSubstr = ""
+			switch c {
+			case widAddrSep[0]:
+				currParam = paramWID
+			case pidAddrSep[0]:
+				currParam = paramPID
+			case fDiffAddrSep[0]:
+				currParam = paramDiff
+			}
+		}
+	}
+	return
 }
 
-func (s *StratumServer) checkLoginWorkerPair(loginWorkerPair string) (int, int, int) {
+/*func (s *StratumServer) checkLoginWorkerPair(loginWorkerPair string) (int, int, int) {
 	pid := strings.Index(loginWorkerPair, "+")
 	wid := strings.Index(loginWorkerPair, "@")
 	fDiff := strings.Index(loginWorkerPair, ".")
@@ -376,3 +431,4 @@ func (s *StratumServer) extractWorkerID(loginWorkerPair string) ([]string, bool)
 		return nil, false
 	}
 }
+*/

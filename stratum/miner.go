@@ -43,7 +43,7 @@ type Miner struct {
 	id        string
 	address   string
 	paymentID string
-	fixedDiff string
+	fixedDiff uint64
 	ip        string
 }
 
@@ -57,7 +57,7 @@ func (job *Job) submit(nonce string) bool {
 	return false
 }
 
-func NewMiner(id string, address string, paymentid string, fixedDiff string, ip string) *Miner {
+func NewMiner(id string, address string, paymentid string, fixedDiff uint64, ip string) *Miner {
 	shares := make(map[int64]int64)
 	return &Miner{id: id, address: address, paymentID: paymentid, fixedDiff: fixedDiff, ip: ip, shares: shares}
 }
