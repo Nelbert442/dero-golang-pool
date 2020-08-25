@@ -40,7 +40,7 @@ func startStratum() {
 		payments.Start(s)
 	}
 	if cfg.Website.Enabled {
-		website.NewWebsite(&cfg.Website)
+		go website.NewWebsite(&cfg.Website)
 	}
 	s.Listen()
 }
