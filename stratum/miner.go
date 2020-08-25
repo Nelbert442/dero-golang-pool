@@ -115,6 +115,7 @@ func (m *Miner) storeShare(diff int64) {
 	m.Unlock()
 }
 
+// TODO: This needs rework, I don't think it's correct.
 func (m *Miner) hashrate(estimationWindow time.Duration) float64 {
 	now := util.MakeTimestamp() / 1000
 	totalShares := int64(0)
@@ -145,7 +146,6 @@ func (m *Miner) processShare(s *StratumServer, cs *Session, job *Job, t *BlockTe
 	var result string = params.Result
 	var shareType string
 	var hashBytes []byte
-	//var powhash crypto.Hash
 	var diff big.Int
 	diff.SetUint64(t.Difficulty)
 	r := s.rpc()
@@ -170,52 +170,13 @@ func (m *Miner) processShare(s *StratumServer, cs *Session, job *Job, t *BlockTe
 	hashBytes, _ = hex.DecodeString(result)
 
 	if s.config.BypassShareValidation || shareType == "Trusted" {
-		//hashBytes, _ = hex.DecodeString(result)
-
-		//fmt.Printf("[%s Share] %+v\n", shareType, hashBytes)
-
-		//copy(powhash[:], hashBytes)
-
 		checkPowHashBig = true
 	} else {
 		switch s.algo {
 		case "astrobwt":
-			// Send: shareBuff, diff. Return: checkPowHashBig, success
-			/*var data astrobwt.Data
-			var max_pow_size int = 819200 //astrobwt.MAX_LENGTH
-
-			//hashBytes, _ = hex.DecodeString(result)
-
-			hash, success := astrobwt.POW_optimized_v2(shareBuff, max_pow_size, &data)
-			if !success || hash[len(hash)-1] != 0 {
-				//fmt.Printf("[IncorrectPoW-171] %+v\n", shareBuff)
-				//fmt.Printf("[IncorrectPoW-172] %+v\n", hash)
-				minerOutput := "Incorrect PoW - if you see often, check input on miner software"
-				log.Printf("Bad hash from miner (l174) %v@%v", m.id, cs.ip)
-
-				if shareType == "Trusted" {
-					log.Printf("[No Trust] Miner is no longer submitting trusted shares: %v@%v", m.id, cs.ip)
-					shareType = "Valid"
-				}
-
-				atomic.AddInt64(&m.invalidShares, 1)
-				atomic.StoreInt64(&m.trustedShares, 0)
-				return false, minerOutput
-			}
-
-			atomic.AddInt64(&m.trustedShares, 1)
-
-			//fmt.Printf("[%s Share] %+v\n", shareType, hashBytes)
-
-			copy(powhash[:], hash[:])
-
-			checkPowHashBig = blockchain.CheckPowHashBig(powhash, &diff)*/
-
 			checkPowHashBig, success = util.AstroBWTHash(shareBuff, diff)
 
 			if !success {
-				//fmt.Printf("[IncorrectPoW-171] %+v\n", shareBuff)
-				//fmt.Printf("[IncorrectPoW-172] %+v\n", hash)
 				minerOutput := "Incorrect PoW - if you see often, check input on miner software"
 				log.Printf("Bad hash from miner %v@%v", m.id, cs.ip)
 
@@ -239,20 +200,8 @@ func (m *Miner) processShare(s *StratumServer, cs *Session, job *Job, t *BlockTe
 		}
 	}
 
-	// Since using astrobwt functions, don't believe this is needed for hash validation
-	/*if !s.config.BypassShareValidation && hex.EncodeToString(hashBytes) != result {
-		fmt.Printf("[badhash-186] %+v\n", hex.EncodeToString(hashBytes))
-		fmt.Printf("[badhash-187] %+v\n", result)
-		minerOutput := "Bad hash"
-		log.Printf("Bad hash from miner (l187) %v@%v", m.id, cs.ip)
-		atomic.AddInt64(&m.invalidShares, 1)
-		return false, minerOutput
-	}*/
-
 	hashDiff, ok := util.GetHashDifficulty(hashBytes)
 	if !ok {
-		//fmt.Printf("[badhash-196] %+v\n", hashDiff)
-		//fmt.Printf("[badhash-197] %+v\n", hashBytes)
 		minerOutput := "Bad hash"
 		log.Printf("Bad hash from miner (l197) %v@%v", m.id, cs.ip)
 		atomic.AddInt64(&m.invalidShares, 1)
@@ -262,7 +211,6 @@ func (m *Miner) processShare(s *StratumServer, cs *Session, job *Job, t *BlockTe
 	// May be redundant, or use instead of CheckPowHashBig in future.
 	block := hashDiff.Cmp(&diff) >= 0
 
-	//if blockchain.CheckPowHashBig(powhash, &diff) == true && block {
 	if checkPowHashBig && block {
 		blockSubmit, err := r.SubmitBlock(t.Blocktemplate_blob, hex.EncodeToString(shareBuff))
 		var blockSubmitReply *rpc.SubmitBlock_Result
@@ -291,6 +239,7 @@ func (m *Miner) processShare(s *StratumServer, cs *Session, job *Job, t *BlockTe
 			// Immediately refresh current BT and send new jobs
 			s.refreshBlockTemplate(true)
 
+			// Redis store of successful block
 			_, err := s.backend.WriteBlock(params.Id, params.JobId, params, cs.endpoint.config.Difficulty, int64(t.Difficulty), int64(t.Height), s.hashrateExpiration, 0, blockSubmitReply.BLID)
 			if err != nil {
 				log.Println("Failed to insert block data into backend:", err)
@@ -303,12 +252,11 @@ func (m *Miner) processShare(s *StratumServer, cs *Session, job *Job, t *BlockTe
 		return false, minerOutput
 	}
 
-	// Old store
 	atomic.AddInt64(&s.roundShares, cs.endpoint.config.Difficulty)
 	atomic.AddInt64(&m.validShares, 1)
 	m.storeShare(cs.endpoint.config.Difficulty)
 
-	// New store
+	// Redis store of successful share
 	_, err := s.backend.WriteShare(params.Id, params.JobId, params, cs.endpoint.config.Difficulty, int64(t.Height), s.hashrateExpiration)
 	if err != nil {
 		log.Println("Failed to insert share data into backend:", err)

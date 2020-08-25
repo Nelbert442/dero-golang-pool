@@ -1,6 +1,6 @@
 {
 	"address": "dEToUEe3q57XoqLgbuDE7DUmoB6byMtNBWtz85DmLAHAC8wSpetw4ggLVE4nB3KRMRhnFdxRT3fnh9geaAMmGrhP2UDY18gVNr",
-	"bypassAddressValidation": false,
+	"ConfigRefreshInterval": "1m",
 	"bypassShareValidation": false,
 
 	"threads": 1,
@@ -32,17 +32,12 @@
 
 	"stratum": {
 		"paymentId": {
-			"addressSeparator": "+",
-			"validation": false,
-			"validations": ["1,16", "64"],
-			"ban": true
+			"addressSeparator": "+"
 		},
 		"fixedDiff": {
-			"enabled": true,
 			"addressSeparator": "."
 		},
 		"workerID": {
-			"enabled": true,
 			"addressSeparator": "@"
 		},
 
@@ -76,7 +71,7 @@
 		"purgeInterval": "10m",
 		"listen": "0.0.0.0:8082",
 		"statsCollectInterval": "5s",
-		"hashrateWindow": "1m",
+		"hashrateWindow": "10m",
 		"hashrateLargeWindow": "3h",
 		"luckWindow": [64, 128, 256],
 		"payments": 30,
@@ -96,13 +91,14 @@
 		"poolFee": 0.1,
 		"poolFeeAddress": "",
 		"depth": 0,
-		"interval": "10m"
+		"interval": "10s"
 	},
 
 	"payments": {
-		"enabled": true,
-		"interval": "10m",
-		"minPayment": 1000000000000,
+		"enabled": false,
+		"interval": "30s",
+		"mixin": 8,
+		"minPayment": 100,
 		"bgsave": true,
 		"walletHost": "127.0.0.1",
 		"walletPort": "30309"

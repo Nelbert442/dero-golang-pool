@@ -204,11 +204,9 @@ func (r *RPCClient) GetBalance(url string) (*GetBalanceReply, error) {
 	return reply, err
 }
 
-// TODO: Allow for array of destinations in future to be inputted to send to multiple addrs
 func (r *RPCClient) SendTransaction(url string, transferParams Transfer_Params) (*TransferSplit_Result, error) {
 	log.Printf("Attempting payment. params: %v", transferParams)
 
-	//params := map[string]interface{}{"destinations": transferParams.Destinations, "mixin": transferParams.Mixin}
 	rpcResp, err := r.doPost(url, "transfer_split", transferParams)
 	if err != nil {
 		return nil, err

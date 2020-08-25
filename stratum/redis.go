@@ -2,7 +2,6 @@
 package stratum
 
 import (
-	"context"
 	"fmt"
 	"log"
 	"math/big"
@@ -13,7 +12,6 @@ import (
 	"git.dero.io/Nelbert442/dero-golang-pool/pool"
 	"git.dero.io/Nelbert442/dero-golang-pool/util"
 
-	//redis "github.com/go-redis/redis"
 	redis "gopkg.in/redis.v3"
 )
 
@@ -57,8 +55,6 @@ type PendingPayment struct {
 	Amount    int64  `json:"amount"`
 	Address   string `json:"login"`
 }
-
-var ctx = context.Background()
 
 func NewRedisClient(cfg *pool.Redis, coinPrefix string) *RedisClient {
 	redisAddr := fmt.Sprintf("%s:%v", cfg.Host, cfg.Port)

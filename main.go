@@ -11,6 +11,7 @@ import (
 
 	"git.dero.io/Nelbert442/dero-golang-pool/pool"
 	"git.dero.io/Nelbert442/dero-golang-pool/stratum"
+	"git.dero.io/Nelbert442/dero-golang-pool/website"
 )
 
 var cfg pool.Config
@@ -37,6 +38,9 @@ func startStratum() {
 	if cfg.PaymentsConfig.Enabled {
 		payments := stratum.NewPayoutsProcessor(&cfg.PaymentsConfig, s)
 		payments.Start(s)
+	}
+	if cfg.Website.Enabled {
+		website.NewWebsite(&cfg.Website)
 	}
 	s.Listen()
 }

@@ -8,8 +8,6 @@ import (
 
 var SHARD_COUNT = 32
 
-// TODO: Add Keys function which returns an array of keys for the map.
-
 // A "thread" safe map of type string:*Miner.
 // To avoid lock bottlenecks this map is dived to several (SHARD_COUNT) map shards.
 type MinersMap []*MinersMapShared

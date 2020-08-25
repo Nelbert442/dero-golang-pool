@@ -105,14 +105,6 @@ func NewStratum(cfg *pool.Config) *StratumServer {
 	timeout, _ := time.ParseDuration(cfg.Stratum.Timeout)
 	stratum.timeout = timeout
 
-	//estimationWindow, _ := time.ParseDuration(cfg.APIConfig.EstimationWindow)
-	//stratum.estimationWindow = estimationWindow
-
-	//luckWindow, _ := time.ParseDuration(cfg.API.LuckWindow)
-	//stratum.luckWindow = int64(luckWindow / time.Millisecond)
-	//largeLuckWindow, _ := time.ParseDuration(cfg.API.LargeLuckWindow)
-	//stratum.largeLuckWindow = int64(largeLuckWindow / time.Millisecond)
-
 	refreshIntv, _ := time.ParseDuration(cfg.BlockRefreshInterval)
 	refreshTimer := time.NewTimer(refreshIntv)
 	log.Printf("Set block refresh every %v", refreshIntv)

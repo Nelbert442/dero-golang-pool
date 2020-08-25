@@ -1,23 +1,23 @@
 package pool
 
 type Config struct {
-	Address                 string         `json:"address"`
-	ConfigRefreshInterval   string         `json:"ConfigRefreshInterval"`
-	BypassAddressValidation bool           `json:"bypassAddressValidation"`
-	BypassShareValidation   bool           `json:"bypassShareValidation"`
-	Threads                 int            `json:"threads"`
-	Algo                    string         `json:"algo"`
-	Coin                    string         `json:"coin"`
-	TrustedSharesCount      int64          `json:"trustedSharesCount"`
-	BlockRefreshInterval    string         `json:"blockRefreshInterval"`
-	HashrateExpiration      string         `json:"hashrateExpiration"`
-	UpstreamCheckInterval   string         `json:"upstreamCheckInterval"`
-	Upstream                []Upstream     `json:"upstream"`
-	Stratum                 Stratum        `json:"stratum"`
-	API                     APIConfig      `json:"api"`
-	Redis                   Redis          `json:"redis"`
-	UnlockerConfig          UnlockerConfig `json:"unlocker"`
-	PaymentsConfig          PaymentsConfig `json:"payments"`
+	Address               string         `json:"address"`
+	ConfigRefreshInterval string         `json:"ConfigRefreshInterval"`
+	BypassShareValidation bool           `json:"bypassShareValidation"`
+	Threads               int            `json:"threads"`
+	Algo                  string         `json:"algo"`
+	Coin                  string         `json:"coin"`
+	TrustedSharesCount    int64          `json:"trustedSharesCount"`
+	BlockRefreshInterval  string         `json:"blockRefreshInterval"`
+	HashrateExpiration    string         `json:"hashrateExpiration"`
+	UpstreamCheckInterval string         `json:"upstreamCheckInterval"`
+	Upstream              []Upstream     `json:"upstream"`
+	Stratum               Stratum        `json:"stratum"`
+	API                   APIConfig      `json:"api"`
+	Redis                 Redis          `json:"redis"`
+	UnlockerConfig        UnlockerConfig `json:"unlocker"`
+	PaymentsConfig        PaymentsConfig `json:"payments"`
+	Website               Website        `json:"website"`
 }
 
 type Upstream struct {
@@ -37,19 +37,14 @@ type Stratum struct {
 }
 
 type PaymentID struct {
-	AddressSeparator string   `json:"addressSeparator"`
-	Validation       bool     `json:"validation"`
-	Validations      []string `json:"validations"`
-	Ban              bool     `json:"ban"`
+	AddressSeparator string `json:"addressSeparator"`
 }
 
 type FixedDiff struct {
-	Enabled          bool   `json:"enabled"`
 	AddressSeparator string `json:"addressSeparator"`
 }
 
 type WorkerID struct {
-	Enabled          bool   `json:"enabled"`
 	AddressSeparator string `json:"addressSeparator"`
 }
 
@@ -97,4 +92,9 @@ type PaymentsConfig struct {
 	BgSave     bool   `json:"bgsave"`
 	WalletHost string `json:"walletHost"`
 	WalletPort string `json:"walletPort"`
+}
+
+type Website struct {
+	Enabled bool   `json:"enabled"`
+	Port    string `json:"port"`
 }
