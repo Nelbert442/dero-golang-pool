@@ -73,7 +73,7 @@ func main() {
 
 	// Read config file every 'ConfigRefreshInterval' interval time for changes, defined in config.json
 	readConfig(&cfg)
-	go func() {
+	/*go func() {
 		for {
 			interval, _ := time.ParseDuration(cfg.ConfigRefreshInterval)
 			timer := time.NewTimer(interval)
@@ -83,6 +83,6 @@ func main() {
 				timer.Reset(interval)
 			}
 		}
-	}()
+	}()*/
 	startStratum()
 }
