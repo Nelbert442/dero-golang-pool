@@ -2,6 +2,7 @@ package pool
 
 type Config struct {
 	Address                 string         `json:"address"`
+	ConfigRefreshInterval   string         `json:"ConfigRefreshInterval"`
 	BypassAddressValidation bool           `json:"bypassAddressValidation"`
 	BypassShareValidation   bool           `json:"bypassShareValidation"`
 	Threads                 int            `json:"threads"`

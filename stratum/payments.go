@@ -51,6 +51,7 @@ func NewPayoutsProcessor(cfg *pool.PaymentsConfig, s *StratumServer) *PayoutsPro
 func (u *PayoutsProcessor) Start(s *StratumServer) {
 	log.Println("Starting payouts")
 
+	// Unlock payments when starting the process. This will re-attempt any potentially locked payments if errored out before unlocking
 	err := u.backend.UnlockPayouts()
 	if err != nil {
 		log.Printf("Failed to unlock payment")
@@ -251,6 +252,7 @@ func (u *PayoutsProcessor) process(s *StratumServer) {
 		}
 		log.Printf("Success: %v", paymentOutput)
 		// Log transaction hash
+		// TODO: Possibly better way to handle the []string returned for Tx_hash_list and usage below for redis stores. Maybe a rune split approach will be necessary (especially if in future multiple tx in one return)
 		txHash := paymentOutput.Tx_hash_list
 
 		if txHash == nil {

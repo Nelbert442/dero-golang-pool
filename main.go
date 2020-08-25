@@ -70,6 +70,19 @@ func main() {
 		globals.Initialize()
 	*/
 	rand.Seed(time.Now().UTC().UnixNano())
+
+	// Read config file every 'ConfigRefreshInterval' interval time for changes, defined in config.json
 	readConfig(&cfg)
+	go func() {
+		for {
+			interval, _ := time.ParseDuration(cfg.ConfigRefreshInterval)
+			timer := time.NewTimer(interval)
+			select {
+			case <-timer.C:
+				readConfig(&cfg)
+				timer.Reset(interval)
+			}
+		}
+	}()
 	startStratum()
 }
