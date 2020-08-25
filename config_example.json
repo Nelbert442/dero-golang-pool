@@ -102,5 +102,10 @@
 		"bgsave": true,
 		"walletHost": "127.0.0.1",
 		"walletPort": "30309"
+	},
+
+	"website": {
+		"enabled": true,
+		"port": "8080"
 	}
 }

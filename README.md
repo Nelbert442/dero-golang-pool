@@ -152,6 +152,11 @@ Explanation for each field:
 		"bgsave": true,				// Perform BGSAVE on Redis after successful payouts session
 		"walletHost": "127.0.0.1",	// Defines the host of the wallet daemon
 		"walletPort": "30309"		// Defines the port of the wallet daemon [DERO Mainnet defaults to 20209 and Testnet to 30309]
+	},
+
+	"website": {
+		"enabled": true,			// Set website enabled to true, utilized, or false, not utilized
+		"port": "8080"				// Set the port for the website to be bound to
 	}
 }
 ```
