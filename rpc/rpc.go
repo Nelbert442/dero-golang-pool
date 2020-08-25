@@ -84,20 +84,32 @@ type (
 
 	Transfer_Params struct {
 		Destinations []Destinations `json:"destinations"`
-		Fee          uint64         `json:"fee"`
-		Mixin        uint64         `json:"mixin"`
-		Unlock_time  uint64         `json:"unlock_time"`
-		Payment_ID   string         `json:"payment_id"`
-		Get_tx_key   bool           `json:"get_tx_key"`
-		Priority     uint64         `json:"priority"`
-		Do_not_relay bool           `json:"do_not_relay"`
-		Get_tx_hex   bool           `json:"get_tx_hex"`
+		//Fee          uint64         `json:"fee"`
+		Mixin        uint64 `json:"mixin"`
+		Unlock_time  uint64 `json:"unlock_time"`
+		Payment_ID   string `json:"payment_id"`
+		Get_tx_key   bool   `json:"get_tx_key"`
+		Priority     uint64 `json:"priority"`
+		Do_not_relay bool   `json:"do_not_relay"`
+		Get_tx_hex   bool   `json:"get_tx_hex"`
 	} // no params
 	Transfer_Result struct {
 		Fee     uint64 `json:"fee"`
 		Tx_key  string `json:"tx_key"`
 		Tx_hash string `json:"tx_hash"`
 		Tx_blob string `json:"tx_blob"`
+	}
+)
+
+//transfer split
+type (
+	TransferSplit_Params Transfer_Params
+	TransferSplit_Result struct {
+		Fee_list     []uint64 `json:"fee_list"`
+		Amount_list  []uint64 `json:"amount_list"`
+		Tx_key_list  []string `json:"tx_key_list"`
+		Tx_hash_list []string `json:"tx_hash_list"`
+		Tx_blob_list []string `json:"tx_blob_list"`
 	}
 )
 
@@ -193,14 +205,15 @@ func (r *RPCClient) GetBalance(url string) (*GetBalanceReply, error) {
 }
 
 // TODO: Allow for array of destinations in future to be inputted to send to multiple addrs
-func (r *RPCClient) SendTransaction(url string, transferParams Transfer_Params) (*Transfer_Result, error) {
+func (r *RPCClient) SendTransaction(url string, transferParams Transfer_Params) (*TransferSplit_Result, error) {
 	log.Printf("Attempting payment. params: %v", transferParams)
 
+	//params := map[string]interface{}{"destinations": transferParams.Destinations, "mixin": transferParams.Mixin}
 	rpcResp, err := r.doPost(url, "transfer_split", transferParams)
 	if err != nil {
 		return nil, err
 	}
-	var reply *Transfer_Result
+	var reply *TransferSplit_Result
 	err = json.Unmarshal(*rpcResp.Result, &reply)
 	if err != nil {
 		return nil, err

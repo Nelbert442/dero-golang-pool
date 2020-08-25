@@ -51,6 +51,14 @@ func NewPayoutsProcessor(cfg *pool.PaymentsConfig, s *StratumServer) *PayoutsPro
 func (u *PayoutsProcessor) Start(s *StratumServer) {
 	log.Println("Starting payouts")
 
+	err := u.backend.UnlockPayouts()
+	if err != nil {
+		log.Printf("Failed to unlock payment")
+		//u.halt = true
+		//u.lastFail = err
+	}
+	log.Printf("Unlocked payment")
+
 	intv, _ := time.ParseDuration(u.config.Interval)
 	timer := time.NewTimer(intv)
 	log.Printf("Set payouts interval to %v", intv)
@@ -217,15 +225,12 @@ func (u *PayoutsProcessor) process(s *StratumServer) {
 		currPayout.Get_tx_key = true
 		currPayout.Do_not_relay = false
 		currPayout.Get_tx_hex = true
-
-		if paymentID != "" {
-			currPayout.Payment_ID = paymentID
-		}
+		currPayout.Payment_ID = paymentID
 
 		currPayout.Destinations = []rpc.Destinations{
 			rpc.Destinations{
-				Address: login,
 				Amount:  amount,
+				Address: address,
 			},
 		}
 
@@ -233,11 +238,36 @@ func (u *PayoutsProcessor) process(s *StratumServer) {
 
 		if err != nil {
 			log.Printf("Error with transaction: %v", err)
+			// Unlock payments for current payout
+			err = u.backend.UnlockPayouts()
+			if err != nil {
+				log.Printf("Failed to unlock payment for %s: %v", login, err)
+				//u.halt = true
+				//u.lastFail = err
+				break
+			}
+			log.Printf("Unlocked payment for %s, %v DERO", login, amount)
 			break
 		}
 		log.Printf("Success: %v", paymentOutput)
 		// Log transaction hash
-		txHash := paymentOutput.Tx_hash
+		txHash := paymentOutput.Tx_hash_list
+
+		if txHash == nil {
+			log.Printf("Failed to generate transaction. It was sent successfully to rpc server, but no reply back.")
+
+			// Unlock payments for current payout
+			err = u.backend.UnlockPayouts()
+			if err != nil {
+				log.Printf("Failed to unlock payment for %s: %v", login, err)
+				//u.halt = true
+				//u.lastFail = err
+				break
+			}
+			log.Printf("Unlocked payment for %s, %v DERO", login, amount)
+
+			break
+		}
 
 		// Debit miner's balance and update stats
 		err = u.backend.UpdateBalance(login, int64(amount))
@@ -249,9 +279,9 @@ func (u *PayoutsProcessor) process(s *StratumServer) {
 		}
 
 		// Update stats for pool payments
-		err = u.backend.WritePayment(login, txHash, int64(amount))
+		err = u.backend.WritePayment(login, txHash[0], int64(amount))
 		if err != nil {
-			log.Printf("Failed to log payment data for %s, %v DERO, tx: %s: %v", login, int64(amount), txHash, err)
+			log.Printf("Failed to log payment data for %s, %v DERO, tx: %s: %v", login, int64(amount), txHash[0], err)
 			//u.halt = true
 			//u.lastFail = err
 			break

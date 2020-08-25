@@ -14,10 +14,6 @@ import (
 
 	"git.dero.io/Nelbert442/dero-golang-pool/rpc"
 	"git.dero.io/Nelbert442/dero-golang-pool/util"
-
-	"github.com/deroproject/derosuite/astrobwt"
-	"github.com/deroproject/derosuite/blockchain"
-	"github.com/deroproject/derosuite/crypto"
 )
 
 type Job struct {
@@ -144,11 +140,12 @@ func (m *Miner) hashrate(estimationWindow time.Duration) float64 {
 func (m *Miner) processShare(s *StratumServer, cs *Session, job *Job, t *BlockTemplate, nonce string, params *SubmitParams) (bool, string) {
 
 	// Var definitions
-	var checkPowHashBig bool = false
+	checkPowHashBig := false
+	success := false
 	var result string = params.Result
 	var shareType string
 	var hashBytes []byte
-	var powhash crypto.Hash
+	//var powhash crypto.Hash
 	var diff big.Int
 	diff.SetUint64(t.Difficulty)
 	r := s.rpc()
@@ -164,27 +161,30 @@ func (m *Miner) processShare(s *StratumServer, cs *Session, job *Job, t *BlockTe
 	nonceBuff, _ := hex.DecodeString(nonce)
 	copy(shareBuff[39:], nonceBuff)
 
-	switch s.algo {
-	case "astrobwt":
-		if m.trustedShares >= s.trustedSharesCount {
-			shareType = "Trusted"
-		} else {
-			shareType = "Valid"
-		}
+	if m.trustedShares >= s.trustedSharesCount {
+		shareType = "Trusted"
+	} else {
+		shareType = "Valid"
+	}
 
-		var data astrobwt.Data
-		var max_pow_size int = 819200 //astrobwt.MAX_LENGTH
+	hashBytes, _ = hex.DecodeString(result)
 
-		if s.config.BypassShareValidation || shareType == "Trusted" {
-			hashBytes, _ = hex.DecodeString(result)
+	if s.config.BypassShareValidation || shareType == "Trusted" {
+		//hashBytes, _ = hex.DecodeString(result)
 
-			//fmt.Printf("[%s Share] %+v\n", shareType, hashBytes)
+		//fmt.Printf("[%s Share] %+v\n", shareType, hashBytes)
 
-			//copy(powhash[:], hashBytes)
+		//copy(powhash[:], hashBytes)
 
-			checkPowHashBig = true
-		} else {
-			hashBytes, _ = hex.DecodeString(result)
+		checkPowHashBig = true
+	} else {
+		switch s.algo {
+		case "astrobwt":
+			// Send: shareBuff, diff. Return: checkPowHashBig, success
+			/*var data astrobwt.Data
+			var max_pow_size int = 819200 //astrobwt.MAX_LENGTH
+
+			//hashBytes, _ = hex.DecodeString(result)
 
 			hash, success := astrobwt.POW_optimized_v2(shareBuff, max_pow_size, &data)
 			if !success || hash[len(hash)-1] != 0 {
@@ -209,13 +209,34 @@ func (m *Miner) processShare(s *StratumServer, cs *Session, job *Job, t *BlockTe
 
 			copy(powhash[:], hash[:])
 
-			checkPowHashBig = blockchain.CheckPowHashBig(powhash, &diff)
+			checkPowHashBig = blockchain.CheckPowHashBig(powhash, &diff)*/
+
+			checkPowHashBig, success = util.AstroBWTHash(shareBuff, diff)
+
+			if !success {
+				//fmt.Printf("[IncorrectPoW-171] %+v\n", shareBuff)
+				//fmt.Printf("[IncorrectPoW-172] %+v\n", hash)
+				minerOutput := "Incorrect PoW - if you see often, check input on miner software"
+				log.Printf("Bad hash from miner %v@%v", m.id, cs.ip)
+
+				if shareType == "Trusted" {
+					log.Printf("[No Trust] Miner is no longer submitting trusted shares: %v@%v", m.id, cs.ip)
+					shareType = "Valid"
+				}
+
+				atomic.AddInt64(&m.invalidShares, 1)
+				atomic.StoreInt64(&m.trustedShares, 0)
+				return false, minerOutput
+			}
+
+			atomic.AddInt64(&m.trustedShares, 1)
+
+		default:
+			// Handle when no algo is defined or unhandled algo is defined, let miner know issues (properly gets sent back in job detail rejection message)
+			minerOutput := "Rejected share, no pool algo defined. Contact pool owner."
+			log.Printf("Rejected share, no pool algo defined (%s). Contact pool owner - from %v@%v", s.algo, m.id, cs.ip)
+			return false, minerOutput
 		}
-	default:
-		// Handle when no algo is defined or unhandled algo is defined, let miner know issues (properly gets sent back in job detail rejection message)
-		minerOutput := "Rejected share, no pool algo defined. Contact pool owner."
-		log.Printf("Rejected share, no pool algo defined (%s). Contact pool owner - from %v@%v", s.algo, m.id, cs.ip)
-		return false, minerOutput
 	}
 
 	// Since using astrobwt functions, don't believe this is needed for hash validation

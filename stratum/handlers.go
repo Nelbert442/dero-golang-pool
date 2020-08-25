@@ -34,7 +34,7 @@ func (s *StratumServer) handleLoginRPC(cs *Session, params *LoginParams) (*JobRe
 
 	// PaymentID Length Validation
 	if paymentid != "" {
-		if len(paymentid) == 8 || len(paymentid) == 32 {
+		if len(paymentid) == 16 || len(paymentid) == 64 {
 			_, err := hex.DecodeString(paymentid)
 
 			if err != nil {
