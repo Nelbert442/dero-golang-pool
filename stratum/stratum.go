@@ -37,6 +37,7 @@ type StratumServer struct {
 	trustedSharesCount int64
 	backend            *RedisClient
 	hashrateExpiration time.Duration
+	failsCount         int64
 }
 
 type blockEntry struct {
@@ -155,6 +156,9 @@ func NewStratum(cfg *pool.Config) *StratumServer {
 					_, err := v.UpdateInfo()
 					if err != nil || err2 != nil {
 						log.Printf("Unable to update info on upstream %s: %v", v.Name, err)
+						stratum.markSick()
+					} else {
+						stratum.markOk()
 					}
 				}
 				current := stratum.rpc()
@@ -430,4 +434,20 @@ func (s *StratumServer) checkUpstreams() {
 func (s *StratumServer) rpc() *rpc.RPCClient {
 	i := atomic.LoadInt32(&s.upstream)
 	return s.upstreams[i]
+}
+
+func (s *StratumServer) markSick() {
+	atomic.AddInt64(&s.failsCount, 1)
+}
+
+func (s *StratumServer) isSick() bool {
+	x := atomic.LoadInt64(&s.failsCount)
+	if s.config.Stratum.HealthCheck && x >= s.config.Stratum.MaxFails {
+		return true
+	}
+	return false
+}
+
+func (s *StratumServer) markOk() {
+	atomic.StoreInt64(&s.failsCount, 0)
 }

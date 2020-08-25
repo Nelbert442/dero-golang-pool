@@ -42,6 +42,8 @@
 		},
 
 		"timeout": "15m",
+		"healthCheck": true,
+		"maxFails": 100,
 
 		"listen": [
 			{

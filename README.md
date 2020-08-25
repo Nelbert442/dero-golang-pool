@@ -110,6 +110,8 @@ Explanation for each field:
 		},
 
 		"timeout": "15m",           // See SetDeadline - https://golang.org/pkg/net/
+		"healthCheck": true,		// Reply error to miner instead of job if redis isn't available (https://github.com/sammy007/monero-stratum)
+		"maxFails": 100,			// Mark pool sick after this number of redis failures (https://github.com/sammy007/monero-stratum)
 
 		"listen": [
 			{

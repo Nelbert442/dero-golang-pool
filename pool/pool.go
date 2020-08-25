@@ -29,11 +29,13 @@ type Upstream struct {
 }
 
 type Stratum struct {
-	PaymentID PaymentID `json:"paymentId"`
-	FixedDiff FixedDiff `json:"fixedDiff"`
-	WorkerID  WorkerID  `json:"workerID"`
-	Timeout   string    `json:"timeout"`
-	Ports     []Port    `json:"listen"`
+	PaymentID   PaymentID `json:"paymentId"`
+	FixedDiff   FixedDiff `json:"fixedDiff"`
+	WorkerID    WorkerID  `json:"workerID"`
+	Timeout     string    `json:"timeout"`
+	MaxFails    int64     `json:"maxFails"`
+	HealthCheck bool      `json:"healthCheck"`
+	Ports       []Port    `json:"listen"`
 }
 
 type PaymentID struct {

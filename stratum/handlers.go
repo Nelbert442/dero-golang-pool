@@ -96,7 +96,7 @@ func (s *StratumServer) handleGetJobRPC(cs *Session, params *GetJobParams) (*Job
 		return nil, &ErrorReply{Code: -1, Message: "Unauthenticated"}
 	}
 	t := s.currentBlockTemplate()
-	if t == nil {
+	if t == nil || s.isSick() {
 		return nil, &ErrorReply{Code: -1, Message: "Job not ready"}
 	}
 	miner.heartbeat()
@@ -146,7 +146,7 @@ func (s *StratumServer) handleUnknownRPC(req *JSONRpcReq) *ErrorReply {
 
 func (s *StratumServer) broadcastNewJobs() {
 	t := s.currentBlockTemplate()
-	if t == nil {
+	if t == nil || s.isSick() {
 		return
 	}
 	s.sessionsMu.RLock()
