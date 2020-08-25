@@ -4,17 +4,19 @@ Golang Mining Pool for DERO
 #### Features
 * Developed in Golang
 * In-built http server for web UI
-* (FUTURE) Support of pool and solo mining
 * Mining hardware monitoring, track if workers are sick
 * Keep track of accepts, rejects and block stats
 * Daemon failover, leverage multiple daemons (upstreams) and pool will get work from the first alive node, while monitoring the rest for backups
 * Concurrent shares processing by using multiple threads
 * Supports mining rewards sent directly to an exchange or wallet
 * Allows use of integrated addresses (dERi)
-* (FUTURE) User-friendly design for webpage
-* (FUTURE) PROP/PPLNS and other pool schemes support
 * API in JSON for easy integration to web frontend
 * Utils functions and switch for mining algorithm support, this way you can modify which mining algo is required from config.json with ease and update code in only a couple places
+
+### Future Features
+* (FUTURE) Support of pool and solo mining
+* (FUTURE) User-friendly design for webpage
+* (FUTURE) PROP/PPLNS and other pool schemes support
 
 #### Requirements
 * Coin daemon (find the coin's repo and build latest version from source)
