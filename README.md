@@ -17,6 +17,7 @@ Golang Mining Pool for DERO
 * (FUTURE) Support of pool and solo mining
 * (FUTURE) User-friendly design for webpage
 * (FUTURE) PROP/PPLNS and other pool schemes support
+* (FUTURE) Support for custom fixed and variable difficulties
 
 #### Requirements
 * Coin daemon (find the coin's repo and build latest version from source)

@@ -115,6 +115,7 @@ func NewStratum(cfg *pool.Config) *StratumServer {
 
 	checkIntv, _ := time.ParseDuration(cfg.UpstreamCheckInterval)
 	checkTimer := time.NewTimer(checkIntv)
+	log.Printf("Set upstream check interval every %v", refreshIntv)
 
 	infoIntv, _ := time.ParseDuration(cfg.UpstreamCheckInterval)
 	infoTimer := time.NewTimer(infoIntv)
@@ -180,6 +181,7 @@ func NewStratum(cfg *pool.Config) *StratumServer {
 	return stratum
 }
 
+// Defines parameters for the ports to be listened on, such as default difficulty
 func NewEndpoint(cfg *pool.Port) *Endpoint {
 	e := &Endpoint{config: cfg}
 	e.instanceId = make([]byte, 4)
@@ -192,6 +194,7 @@ func NewEndpoint(cfg *pool.Port) *Endpoint {
 	return e
 }
 
+// Sets up stratum to listen on the ports in config.json
 func (s *StratumServer) Listen() {
 	quit := make(chan bool)
 	for _, port := range s.config.Stratum.Ports {
@@ -203,6 +206,7 @@ func (s *StratumServer) Listen() {
 	<-quit
 }
 
+// Starts listening on the ports defined in s.Listen()
 func (e *Endpoint) Listen(s *StratumServer) {
 	bindAddr := fmt.Sprintf("%s:%d", e.config.Host, e.config.Port)
 	addr, err := net.ResolveTCPAddr("tcp", bindAddr)
@@ -237,6 +241,7 @@ func (e *Endpoint) Listen(s *StratumServer) {
 	}
 }
 
+// Handles inbound client data, and sends off to handleMessage for processing things like login, submits etc.
 func (s *StratumServer) handleClient(cs *Session, e *Endpoint) {
 	connbuff := bufio.NewReaderSize(cs.conn, MaxReqSize)
 	s.setDeadline(cs.conn)
@@ -290,6 +295,7 @@ func (cs *Session) handleMessage(s *StratumServer, e *Endpoint, req *JSONRpcReq)
 
 	case "login":
 		var params LoginParams
+
 		err := json.Unmarshal(*req.Params, &params)
 		fmt.Printf("[login] %+v\n", params)
 		if err != nil {
@@ -317,7 +323,7 @@ func (cs *Session) handleMessage(s *StratumServer, e *Endpoint, req *JSONRpcReq)
 	case "submit":
 		var params SubmitParams
 		err := json.Unmarshal(*req.Params, &params)
-		//fmt.Printf("[submit] %+v\n", params)
+		fmt.Printf("[submit] %+v\n", params)
 		if err != nil {
 			log.Println("Unable to parse params")
 			return err
