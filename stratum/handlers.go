@@ -53,10 +53,10 @@ func (s *StratumServer) handleLoginRPC(cs *Session, params *LoginParams) (*JobRe
 	if workID != address && workID != "" {
 		if id != "" {
 			// If id is not "" (default value upon var), then it must have a paymentid and have been set. So append ~workID to it
-			id = id + "~" + workID
+			id = id + s.config.Stratum.WorkerID.AddressSeparator + workID
 		} else {
 			// If id is "" (default value upon var), then it does not have paymentid and append ~workID to address normally
-			id = address + "~" + workID
+			id = address + s.config.Stratum.WorkerID.AddressSeparator + workID
 		}
 	} else {
 		if id == "" {
@@ -87,6 +87,10 @@ func (s *StratumServer) handleLoginRPC(cs *Session, params *LoginParams) (*JobRe
 	s.registerSession(cs)
 	miner.heartbeat()
 
+	// Initially set cs.difficulty. If there's no fixDiff defined, inside of cs.getJob the diff target will be set to cs.endpoint.difficulty, otherwise will be set to fixDiff (as long as it's above min diff in config)
+	cs.difficulty = int64(fixDiff)
+
+	log.Printf("[handleGetJobRPC] getJob: %v", cs.getJob(t))
 	return &JobReply{Id: id, Job: cs.getJob(t), Status: "OK"}, nil
 }
 
@@ -100,6 +104,7 @@ func (s *StratumServer) handleGetJobRPC(cs *Session, params *GetJobParams) (*Job
 		return nil, &ErrorReply{Code: -1, Message: "Job not ready"}
 	}
 	miner.heartbeat()
+	log.Printf("[handleGetJobRPC] getJob: %v", cs.getJob(t))
 	return cs.getJob(t), nil
 }
 

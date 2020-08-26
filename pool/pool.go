@@ -52,6 +52,7 @@ type WorkerID struct {
 
 type Port struct {
 	Difficulty int64  `json:"diff"`
+	MinDiff    int64  `json:"minDiff"`
 	Host       string `json:"host"`
 	Port       int    `json:"port"`
 	MaxConn    int    `json:"maxConn"`

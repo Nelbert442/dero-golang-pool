@@ -39,6 +39,7 @@ func (s *StratumServer) fetchBlockTemplate() bool {
 		log.Printf("Error while refreshing block template: %s", err)
 		return false
 	}
+
 	t := s.currentBlockTemplate()
 
 	if t != nil && t.Prev_Hash == reply.Prev_Hash {

@@ -58,11 +58,12 @@ type Endpoint struct {
 type Session struct {
 	lastBlockHeight uint64
 	sync.Mutex
-	conn      *net.TCPConn
-	enc       *json.Encoder
-	ip        string
-	endpoint  *Endpoint
-	validJobs []*Job
+	conn       *net.TCPConn
+	enc        *json.Encoder
+	ip         string
+	endpoint   *Endpoint
+	validJobs  []*Job
+	difficulty int64
 }
 
 const (
@@ -152,6 +153,7 @@ func NewStratum(cfg *pool.Config) *StratumServer {
 					// Tweaks to input for WriteNodeState from https://github.com/JKKGBE/open-zcash-pool - TODO: cleanup later
 					var diff big.Int
 					diff.SetUint64(currentWork.Difficulty)
+					log.Printf("[NewStratum] currentWork.Difficulty: %v", currentWork.Difficulty)
 					err2 := stratum.backend.WriteNodeState(cfg.Coin, int64(currentWork.Height), &diff)
 
 					_, err := v.UpdateInfo()
@@ -189,6 +191,7 @@ func NewEndpoint(cfg *pool.Port) *Endpoint {
 	if err != nil {
 		log.Fatalf("Can't seed with random bytes: %v", err)
 	}
+	log.Printf("[NewEndpoint] e.config.Difficulty: %v", e.config.Difficulty)
 	e.targetHex = util.GetTargetHex(e.config.Difficulty)
 	e.difficulty = big.NewInt(e.config.Difficulty)
 	return e
@@ -200,6 +203,7 @@ func (s *StratumServer) Listen() {
 	for _, port := range s.config.Stratum.Ports {
 		go func(cfg pool.Port) {
 			e := NewEndpoint(&cfg)
+			log.Printf("[s.Listen] NewEndpoint: %v", cfg)
 			e.Listen(s)
 		}(port)
 	}
@@ -231,6 +235,7 @@ func (e *Endpoint) Listen(s *StratumServer) {
 		conn.SetKeepAlive(true)
 		ip, _, _ := net.SplitHostPort(conn.RemoteAddr().String())
 		cs := &Session{conn: conn, ip: ip, enc: json.NewEncoder(conn), endpoint: e}
+		log.Printf("[e.Listen] Listen: %v", cs)
 		n++
 
 		accept <- n
@@ -269,6 +274,7 @@ func (s *StratumServer) handleClient(cs *Session, e *Endpoint) {
 				break
 			}
 			s.setDeadline(cs.conn)
+			log.Printf("[s.handleClient] handleMessage: s: %v, e: %v, req: %v", s, e, req)
 			err = cs.handleMessage(s, e, &req)
 			if err != nil {
 				break
@@ -279,6 +285,7 @@ func (s *StratumServer) handleClient(cs *Session, e *Endpoint) {
 	cs.conn.Close()
 }
 
+// Handle messages , login and submit are common
 func (cs *Session) handleMessage(s *StratumServer, e *Endpoint, req *JSONRpcReq) error {
 	if req.Id == nil {
 		err := fmt.Errorf("Server disconnect request")
@@ -385,20 +392,24 @@ func (s *StratumServer) removeSession(cs *Session) {
 	delete(s.sessions, cs)
 }
 
+/*
+// Unused atm
 func (s *StratumServer) isActive(cs *Session) bool {
 	s.sessionsMu.RLock()
 	defer s.sessionsMu.RUnlock()
 	_, exist := s.sessions[cs]
 	return exist
-}
+}*/
 
 func (s *StratumServer) registerMiner(miner *Miner) {
 	s.miners.Set(miner.id, miner)
 }
 
+/*
+// Unused atm
 func (s *StratumServer) removeMiner(id string) {
 	s.miners.Remove(id)
-}
+}*/
 
 func (s *StratumServer) currentBlockTemplate() *BlockTemplate {
 	if t := s.blockTemplate.Load(); t != nil {
@@ -416,6 +427,7 @@ func (s *StratumServer) currentWork() *BlockTemplate {
 	}
 }
 
+// Poll upstreams for health status
 func (s *StratumServer) checkUpstreams() {
 	candidate := int32(0)
 	backup := false
@@ -437,15 +449,18 @@ func (s *StratumServer) checkUpstreams() {
 	}
 }
 
+// Loads the current active upstream that is used for getting blocks etc.
 func (s *StratumServer) rpc() *rpc.RPCClient {
 	i := atomic.LoadInt32(&s.upstream)
 	return s.upstreams[i]
 }
 
+// Mark the stratum server sick if it fails to connect to redis
 func (s *StratumServer) markSick() {
 	atomic.AddInt64(&s.failsCount, 1)
 }
 
+// Checks if the stratum server is sick based on failsCount and if healthcheck is true, to see if >= maxfails from config.json
 func (s *StratumServer) isSick() bool {
 	x := atomic.LoadInt64(&s.failsCount)
 	if s.config.Stratum.HealthCheck && x >= s.config.Stratum.MaxFails {
@@ -454,6 +469,7 @@ func (s *StratumServer) isSick() bool {
 	return false
 }
 
+// Upon success to redis, set failsCount to 0 and mark OK again
 func (s *StratumServer) markOk() {
 	atomic.StoreInt64(&s.failsCount, 0)
 }

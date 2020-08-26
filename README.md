@@ -12,12 +12,13 @@ Golang Mining Pool for DERO
 * Allows use of integrated addresses (dERi)
 * API in JSON for easy integration to web frontend
 * Utils functions and switch for mining algorithm support, this way you can modify which mining algo is required from config.json with ease and update code in only a couple places
+* Support for fixed difficulty with minimum difficulty settings on a per-port basis
 
 ##### Future Features
 * (FUTURE) Support of pool and solo mining
 * (FUTURE) User-friendly design for webpage
 * (FUTURE) PROP/PPLNS and other pool schemes support
-* (FUTURE) Support for custom fixed and variable difficulties
+* (FUTURE) Support for variable difficulties
 
 #### Requirements
 * Coin daemon (find the coin's repo and build latest version from source)
@@ -119,18 +120,21 @@ Explanation for each field:
 				"host": "0.0.0.0",  // Bind address
 				"port": 1111,       // Port for mining apps to connect to
 				"diff": 1000,       // Difficulty miners are set to on this port. TODO: varDiff and set diff to be starting diff
+				"minDiff": 500,		// Sets minimum difficulty that one can use for fixed (potentially for varDiff [future]) on a per-port basis
 				"maxConn": 32768    // Maximum connections on this port
 			},
 			{
 				"host": "0.0.0.0",
 				"port": 3333,
 				"diff": 3000,
+				"minDiff": 500,
 				"maxConn": 32768
 			},
 			{
 				"host": "0.0.0.0",
 				"port": 5555,
 				"diff": 5000,
+				"minDiff": 500,
 				"maxConn": 32768
 			}
 		]

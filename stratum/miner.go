@@ -64,6 +64,18 @@ func (cs *Session) getJob(t *BlockTemplate) *JobReplyData {
 		return &JobReplyData{}
 	}
 
+	// Define difficulty and set targetHex = util.GetTargetHex(cs.difficulty) else targetHex == cs.endpoint.targetHex
+	var targetHex string
+	if cs.difficulty != 0 {
+		if cs.difficulty >= cs.endpoint.config.MinDiff {
+			targetHex = util.GetTargetHex(cs.difficulty)
+		} else {
+			targetHex = util.GetTargetHex(cs.endpoint.config.MinDiff)
+		}
+	} else {
+		targetHex = cs.endpoint.targetHex
+	}
+
 	extraNonce := atomic.AddUint32(&cs.endpoint.extraNonce, 1)
 	blob := t.nextBlob(extraNonce, cs.endpoint.instanceId)
 	id := atomic.AddUint64(&cs.endpoint.jobSequence, 1)
@@ -74,7 +86,7 @@ func (cs *Session) getJob(t *BlockTemplate) *JobReplyData {
 	}
 	job.submissions = make(map[string]struct{})
 	cs.pushJob(job)
-	reply := &JobReplyData{JobId: job.id, Blob: blob, Target: cs.endpoint.targetHex}
+	reply := &JobReplyData{JobId: job.id, Blob: blob, Target: targetHex}
 	return reply
 }
 
@@ -104,9 +116,12 @@ func (m *Miner) heartbeat() {
 	atomic.StoreInt64(&m.lastBeat, now)
 }
 
+/*
+// Unused atm
 func (m *Miner) getLastBeat() int64 {
 	return atomic.LoadInt64(&m.lastBeat)
 }
+*/
 
 func (m *Miner) storeShare(diff int64) {
 	now := util.MakeTimestamp() / 1000
@@ -148,6 +163,7 @@ func (m *Miner) processShare(s *StratumServer, cs *Session, job *Job, t *BlockTe
 	var hashBytes []byte
 	var diff big.Int
 	diff.SetUint64(t.Difficulty)
+	log.Printf("[processShare] t.Difficulty: %v", t.Difficulty)
 	r := s.rpc()
 
 	shareBuff := make([]byte, len(t.Buffer))
@@ -201,6 +217,7 @@ func (m *Miner) processShare(s *StratumServer, cs *Session, job *Job, t *BlockTe
 	}
 
 	hashDiff, ok := util.GetHashDifficulty(hashBytes)
+	log.Printf("[processShare] hashDiff: %v", hashDiff)
 	if !ok {
 		minerOutput := "Bad hash"
 		log.Printf("Bad hash from miner (l197) %v@%v", m.id, cs.ip)

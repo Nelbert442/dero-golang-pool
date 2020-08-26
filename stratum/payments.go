@@ -377,6 +377,8 @@ func (self PayoutsProcessor) bgSave() {
 	log.Println("Saving backend state to disk:", result)
 }
 
+/*
+// Unused atm
 func (self PayoutsProcessor) resolvePayouts() {
 	payments := self.backend.GetPendingPayments()
 
@@ -405,3 +407,4 @@ func (self PayoutsProcessor) resolvePayouts() {
 	}
 	log.Println("Payouts unlocked")
 }
+*/

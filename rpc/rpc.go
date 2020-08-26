@@ -92,12 +92,6 @@ type (
 		Priority     uint64 `json:"priority"`
 		Do_not_relay bool   `json:"do_not_relay"`
 		Get_tx_hex   bool   `json:"get_tx_hex"`
-	} // no params
-	Transfer_Result struct {
-		Fee     uint64 `json:"fee"`
-		Tx_key  string `json:"tx_key"`
-		Tx_hash string `json:"tx_hash"`
-		Tx_blob string `json:"tx_blob"`
 	}
 )
 
