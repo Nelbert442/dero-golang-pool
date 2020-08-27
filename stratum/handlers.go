@@ -87,8 +87,13 @@ func (s *StratumServer) handleLoginRPC(cs *Session, params *LoginParams) (*JobRe
 	s.registerSession(cs)
 	miner.heartbeat()
 
-	// Initially set cs.difficulty. If there's no fixDiff defined, inside of cs.getJob the diff target will be set to cs.endpoint.difficulty, otherwise will be set to fixDiff (as long as it's above min diff in config)
-	cs.difficulty = int64(fixDiff)
+	// Initially set cs.difficulty. If there's no fixDiff defined, inside of cs.getJob the diff target will be set to cs.endpoint.difficulty,
+	// otherwise will be set to fixDiff (as long as it's above min diff in config)
+	if fixDiff != 0 {
+		cs.difficulty = int64(fixDiff)
+	} else {
+		cs.difficulty = cs.endpoint.config.Difficulty
+	}
 
 	log.Printf("[handleGetJobRPC] getJob: %v", cs.getJob(t))
 	return &JobReply{Id: id, Job: cs.getJob(t), Status: "OK"}, nil
