@@ -752,7 +752,8 @@ func convertMinersStats(window int64, raw *redis.ZSliceCmd) (int64, map[string]M
 	for _, v := range raw.Val() {
 		parts := strings.Split(v.Member.(string), ":")
 		shareAdjusted, _ := strconv.ParseInt(parts[4], 10, 64)
-		id := parts[1]
+		//id := parts[1]
+		id := parts[1][0:7] + "..." + parts[1][91:98]
 		score := int64(v.Score)
 		miner := miners[id]
 		miner.HR += shareAdjusted
