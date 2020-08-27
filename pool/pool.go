@@ -36,6 +36,7 @@ type Stratum struct {
 	MaxFails    int64     `json:"maxFails"`
 	HealthCheck bool      `json:"healthCheck"`
 	Ports       []Port    `json:"listen"`
+	VarDiff     VarDiff   `json:"varDiff"`
 }
 
 type PaymentID struct {
@@ -56,6 +57,16 @@ type Port struct {
 	Host       string `json:"host"`
 	Port       int    `json:"port"`
 	MaxConn    int    `json:"maxConn"`
+}
+
+type VarDiff struct {
+	Enabled         bool  `json:"enabled"`
+	MinDiff         int64 `json:"minDiff"`
+	MaxDiff         int64 `json:"maxDiff"`
+	TargetTime      int64 `json:"targetTime"`
+	RetargetTime    int64 `json:"retargetTime"`
+	VariancePercent int64 `json:"variancePercent"`
+	MaxJUmp         int64 `json:"maxJump"`
 }
 
 type APIConfig struct {

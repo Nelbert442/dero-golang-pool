@@ -2,7 +2,6 @@ package stratum
 
 import (
 	"encoding/hex"
-	"fmt"
 	"log"
 	"regexp"
 	"strconv"
@@ -91,11 +90,13 @@ func (s *StratumServer) handleLoginRPC(cs *Session, params *LoginParams) (*JobRe
 	// otherwise will be set to fixDiff (as long as it's above min diff in config)
 	if fixDiff != 0 {
 		cs.difficulty = int64(fixDiff)
+		cs.isFixedDiff = true
 	} else {
 		cs.difficulty = cs.endpoint.config.Difficulty
+		cs.isFixedDiff = false
 	}
 
-	log.Printf("[handleGetJobRPC] getJob: %v", cs.getJob(t))
+	//log.Printf("[handleGetJobRPC] getJob: %v", cs.getJob(t))
 	return &JobReply{Id: id, Job: cs.getJob(t), Status: "OK"}, nil
 }
 
@@ -109,7 +110,7 @@ func (s *StratumServer) handleGetJobRPC(cs *Session, params *GetJobParams) (*Job
 		return nil, &ErrorReply{Code: -1, Message: "Job not ready"}
 	}
 	miner.heartbeat()
-	log.Printf("[handleGetJobRPC] getJob: %v", cs.getJob(t))
+	//log.Printf("[handleGetJobRPC] getJob: %v", cs.getJob(t))
 	return cs.getJob(t), nil
 }
 
@@ -172,7 +173,7 @@ func (s *StratumServer) broadcastNewJobs() {
 		go func(cs *Session) {
 			reply := cs.getJob(t)
 			err := cs.pushMessage("job", &reply)
-			fmt.Printf("[Job Broadcast] %+v\n", reply)
+			//fmt.Printf("[Job Broadcast] %+v\n", reply)
 			<-bcast
 			if err != nil {
 				log.Printf("Job transmit error to %s: %v", cs.ip, err)

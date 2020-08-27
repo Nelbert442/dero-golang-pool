@@ -120,7 +120,7 @@ func (apiServer *ApiServer) purgeStale() {
 }
 
 func (apiServer *ApiServer) collectStats() {
-	start := time.Now()
+	//start := time.Now()
 	stats, err := apiServer.backend.CollectStats(apiServer.hashrateWindow, apiServer.config.Blocks, apiServer.config.Payments)
 	if err != nil {
 		log.Printf("Failed to fetch stats from backend: %v", err)
@@ -134,7 +134,7 @@ func (apiServer *ApiServer) collectStats() {
 		}
 	}
 	apiServer.stats.Store(stats)
-	log.Printf("Stats collection finished %s", time.Since(start))
+	//log.Printf("Stats collection finished %s", time.Since(start))
 }
 
 func (apiServer *ApiServer) StatsIndex(writer http.ResponseWriter, _ *http.Request) {

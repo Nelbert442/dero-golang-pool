@@ -341,13 +341,13 @@ func (u *BlockUnlocker) calculateRewards(block *BlockData) (*big.Rat, *big.Rat, 
 	revenue := new(big.Rat).SetUint64(block.Reward)
 	minersProfit, poolProfit := chargeFee(revenue, u.config.PoolFee)
 
-	log.Printf("roundHeight: %v, Nonce: %s", block.RoundHeight, block.Nonce)
+	//log.Printf("roundHeight: %v, Nonce: %s", block.RoundHeight, block.Nonce)
 	shares, err := u.backend.GetRoundShares(block.RoundHeight, block.Nonce)
 	if err != nil {
 		return nil, nil, nil, nil, err
 	}
 
-	log.Printf("shares: %v, totalShares: %v, minersProfit: %v", shares, block.TotalShares, minersProfit)
+	//log.Printf("shares: %v, totalShares: %v, minersProfit: %v", shares, block.TotalShares, minersProfit)
 	rewards := calculateRewardsForShares(shares, block.TotalShares, minersProfit)
 
 	if block.ExtraReward != nil {
@@ -372,7 +372,7 @@ func calculateRewardsForShares(shares map[string]int64, total int64, reward *big
 		workerReward := new(big.Rat).Mul(reward, percent)
 		workerRewardInt, _ := strconv.ParseInt(workerReward.FloatString(0), 10, 64)
 		rewards[login] += workerRewardInt
-		log.Printf("login: %s, percent: %v, workerReward: %v, workerRewardInt: %v", login, percent, workerReward, workerRewardInt)
+		//log.Printf("login: %s, percent: %v, workerReward: %v, workerRewardInt: %v", login, percent, workerReward, workerRewardInt)
 	}
 	return rewards
 }

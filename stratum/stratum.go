@@ -55,15 +55,24 @@ type Endpoint struct {
 	targetHex   string
 }
 
+type VarDiff struct {
+	config     *pool.VarDiff
+	difficulty int64
+	average    float64
+	sinceLast  time.Time
+}
+
 type Session struct {
 	lastBlockHeight uint64
 	sync.Mutex
-	conn       *net.TCPConn
-	enc        *json.Encoder
-	ip         string
-	endpoint   *Endpoint
-	validJobs  []*Job
-	difficulty int64
+	conn        *net.TCPConn
+	enc         *json.Encoder
+	ip          string
+	endpoint    *Endpoint
+	validJobs   []*Job
+	difficulty  int64
+	varDiff     *VarDiff
+	isFixedDiff bool
 }
 
 const (
@@ -153,7 +162,7 @@ func NewStratum(cfg *pool.Config) *StratumServer {
 					// Tweaks to input for WriteNodeState from https://github.com/JKKGBE/open-zcash-pool - TODO: cleanup later
 					var diff big.Int
 					diff.SetUint64(currentWork.Difficulty)
-					log.Printf("[NewStratum] currentWork.Difficulty: %v", currentWork.Difficulty)
+					//log.Printf("[NewStratum] currentWork.Difficulty: %v", currentWork.Difficulty)
 					err2 := stratum.backend.WriteNodeState(cfg.Coin, int64(currentWork.Height), &diff)
 
 					_, err := v.UpdateInfo()
@@ -191,7 +200,7 @@ func NewEndpoint(cfg *pool.Port) *Endpoint {
 	if err != nil {
 		log.Fatalf("Can't seed with random bytes: %v", err)
 	}
-	log.Printf("[NewEndpoint] e.config.Difficulty: %v", e.config.Difficulty)
+	//log.Printf("[NewEndpoint] e.config.Difficulty: %v", e.config.Difficulty)
 	e.targetHex = util.GetTargetHex(e.config.Difficulty)
 	e.difficulty = big.NewInt(e.config.Difficulty)
 	return e
@@ -203,7 +212,7 @@ func (s *StratumServer) Listen() {
 	for _, port := range s.config.Stratum.Ports {
 		go func(cfg pool.Port) {
 			e := NewEndpoint(&cfg)
-			log.Printf("[s.Listen] NewEndpoint: %v", cfg)
+			//log.Printf("[s.Listen] NewEndpoint: %v", cfg)
 			e.Listen(s)
 		}(port)
 	}
@@ -235,7 +244,7 @@ func (e *Endpoint) Listen(s *StratumServer) {
 		conn.SetKeepAlive(true)
 		ip, _, _ := net.SplitHostPort(conn.RemoteAddr().String())
 		cs := &Session{conn: conn, ip: ip, enc: json.NewEncoder(conn), endpoint: e}
-		log.Printf("[e.Listen] Listen: %v", cs)
+		//log.Printf("[e.Listen] Listen: %v", cs)
 		n++
 
 		accept <- n
@@ -274,7 +283,7 @@ func (s *StratumServer) handleClient(cs *Session, e *Endpoint) {
 				break
 			}
 			s.setDeadline(cs.conn)
-			log.Printf("[s.handleClient] handleMessage: s: %v, e: %v, req: %v", s, e, req)
+			//log.Printf("[s.handleClient] handleMessage: s: %v, e: %v, req: %v", s, e, req)
 			err = cs.handleMessage(s, e, &req)
 			if err != nil {
 				break
@@ -304,7 +313,7 @@ func (cs *Session) handleMessage(s *StratumServer, e *Endpoint, req *JSONRpcReq)
 		var params LoginParams
 
 		err := json.Unmarshal(*req.Params, &params)
-		fmt.Printf("[login] %+v\n", params)
+		//fmt.Printf("[login] %+v\n", params)
 		if err != nil {
 			log.Println("Unable to parse params")
 			return err
@@ -317,7 +326,7 @@ func (cs *Session) handleMessage(s *StratumServer, e *Endpoint, req *JSONRpcReq)
 	case "getjob":
 		var params GetJobParams
 		err := json.Unmarshal(*req.Params, &params)
-		fmt.Printf("[getJob] %+v\n", params)
+		//fmt.Printf("[getJob] %+v\n", params)
 		if err != nil {
 			log.Println("Unable to parse params")
 			return err
@@ -330,7 +339,7 @@ func (cs *Session) handleMessage(s *StratumServer, e *Endpoint, req *JSONRpcReq)
 	case "submit":
 		var params SubmitParams
 		err := json.Unmarshal(*req.Params, &params)
-		fmt.Printf("[submit] %+v\n", params)
+		//fmt.Printf("[submit] %+v\n", params)
 		if err != nil {
 			log.Println("Unable to parse params")
 			return err

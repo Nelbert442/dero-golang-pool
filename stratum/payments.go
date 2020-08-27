@@ -112,7 +112,7 @@ func (u *PayoutsProcessor) process(s *StratumServer) {
 
 	for _, login := range payees {
 		amount, _ := u.backend.GetBalance(login)
-		log.Printf("Amount: %v, login: %v", amount, login)
+		//log.Printf("Amount: %v, login: %v", amount, login)
 		if !u.reachedThreshold(amount) {
 			continue
 		}
@@ -159,7 +159,7 @@ func (u *PayoutsProcessor) process(s *StratumServer) {
 			log.Printf("Invalid address format. Will not process payments - %v", address)
 			break
 		} else {
-			log.Printf("Valid Address, continuing on processing payments - %v", address)
+			//log.Printf("Valid Address, continuing on processing payments - %v", address)
 		}
 
 		// Send DERO - Native, TODO)

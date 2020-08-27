@@ -66,14 +66,29 @@ func (cs *Session) getJob(t *BlockTemplate) *JobReplyData {
 
 	// Define difficulty and set targetHex = util.GetTargetHex(cs.difficulty) else targetHex == cs.endpoint.targetHex
 	var targetHex string
-	if cs.difficulty != 0 && cs.difficulty != cs.endpoint.config.Difficulty {
+	if cs.difficulty != 0 && cs.isFixedDiff { // If fixed difficulty is defined
 		if cs.difficulty >= cs.endpoint.config.MinDiff {
 			targetHex = util.GetTargetHex(cs.difficulty)
 		} else {
 			targetHex = util.GetTargetHex(cs.endpoint.config.MinDiff)
 		}
-	} else {
-		targetHex = cs.endpoint.targetHex
+	} else { // See if variable diff is defined, otherwise default back to defined difficulty with the initial config for the port
+		if cs.varDiff.config.Enabled == true { // If vardiff is enabled, get varDiff targetHex TODO: work in progress, varDiff is not currently doing anything
+			variance := cs.varDiff.config.VariancePercent / 100 * cs.varDiff.config.TargetTime
+			tMin := cs.varDiff.config.TargetTime - variance
+			tMax := cs.varDiff.config.TargetTime + variance
+			bufferSize := cs.varDiff.config.RetargetTime / cs.varDiff.config.TargetTime * 4
+
+			// Set last time varDiff config was handled
+			sinceLast := time.Since(cs.varDiff.sinceLast)
+
+			_, _, _, _ = tMin, tMax, bufferSize, sinceLast
+
+			// TODO: Remove, this is the temp fallback while figuring varDiff
+			targetHex = cs.endpoint.targetHex
+		} else { // If not fixed diff and vardiff is not enabled, use default config difficulty and targetHex
+			targetHex = cs.endpoint.targetHex
+		}
 	}
 
 	extraNonce := atomic.AddUint32(&cs.endpoint.extraNonce, 1)
@@ -165,7 +180,7 @@ func (m *Miner) processShare(s *StratumServer, cs *Session, job *Job, t *BlockTe
 	diff.SetUint64(t.Difficulty)
 	var setDiff big.Int
 	setDiff.SetInt64(cs.difficulty)
-	log.Printf("[processShare] t.Difficulty: %v", t.Difficulty)
+	//log.Printf("[processShare] t.Difficulty: %v", t.Difficulty)
 	r := s.rpc()
 
 	shareBuff := make([]byte, len(t.Buffer))
@@ -219,10 +234,10 @@ func (m *Miner) processShare(s *StratumServer, cs *Session, job *Job, t *BlockTe
 	}
 
 	hashDiff, ok := util.GetHashDifficulty(hashBytes)
-	log.Printf("[processShare] hashDiff: %v", hashDiff)
+	//log.Printf("[processShare] hashDiff: %v", hashDiff)
 	if !ok {
 		minerOutput := "Bad hash"
-		log.Printf("Bad hash from miner (l197) %v@%v", m.id, cs.ip)
+		log.Printf("Bad hash from miner %v@%v", m.id, cs.ip)
 		atomic.AddInt64(&m.invalidShares, 1)
 		return false, minerOutput
 	}
