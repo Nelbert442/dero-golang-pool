@@ -137,7 +137,17 @@ Explanation for each field:
 				"minDiff": 500,
 				"maxConn": 32768
 			}
-		]
+		],
+
+		"varDiff": {				// NOTE: varDiff is not currently doing anything, just staged config/structs in code in prep for it
+			"enabled": false,		// Set varDiff enabled to true, variable difficulty for non-fixed diff miners, or false, to default to above difficulty configurations or fixed difficulty
+			"minDiff": 100,			// Set minimum difficulty for varDiff
+			"maxDiff": 1000000,		// Set maximum difficulty for varDiff
+			"targetTime": 20,		// Try to get 1 share per this many seconds
+			"retargetTime": 120,	// Check to see if we should retarget every this many seconds
+			"variancePercent": 30,	// Allow time to vary this % from target without retargetting
+			"maxJump": 50			// Limit diff percent increase/decrease in a single retargetting
+		}
 	},
 
 	"api": {
