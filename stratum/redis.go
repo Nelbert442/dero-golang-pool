@@ -911,6 +911,7 @@ func (r *RedisClient) BgSave() (string, error) {
 	return r.client.BgSave().Result()
 }
 
+// Defines output of .../api/payments
 func convertPaymentsResults(raw *redis.ZSliceCmd) []map[string]interface{} {
 	var result []map[string]interface{}
 	for _, v := range raw.Val() {
@@ -922,7 +923,7 @@ func convertPaymentsResults(raw *redis.ZSliceCmd) []map[string]interface{} {
 		if len(fields) < 3 {
 			tx["amount"], _ = strconv.ParseInt(fields[1], 10, 64)
 		} else {
-			tx["address"] = fields[1]
+			tx["address"] = fields[1][0:7] + "..." + fields[1][91:98]
 			tx["amount"], _ = strconv.ParseInt(fields[2], 10, 64)
 		}
 		result = append(result, tx)
