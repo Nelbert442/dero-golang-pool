@@ -94,7 +94,7 @@ func (apiServer *ApiServer) listen() {
 	router.HandleFunc("/api/miners", apiServer.MinersIndex)
 	router.HandleFunc("/api/blocks", apiServer.BlocksIndex)
 	router.HandleFunc("/api/payments", apiServer.PaymentsIndex)
-	router.HandleFunc("/api/accounts/{login:t[0-9a-zA-Z]{34}}", apiServer.AccountIndex)
+	router.HandleFunc("/api/accounts/{login:dE[0-9a-zA-Z]{96}}", apiServer.AccountIndex)
 	router.NotFoundHandler = http.HandlerFunc(notFound)
 	err := http.ListenAndServe(apiServer.config.Listen, router)
 	if err != nil {
