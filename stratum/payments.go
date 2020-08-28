@@ -123,6 +123,8 @@ func (u *PayoutsProcessor) process(s *StratumServer) {
 		walletURL := fmt.Sprintf("http://%s:%v/json_rpc", u.config.WalletHost, u.config.WalletPort)
 		poolBalanceObj, err := u.rpc.GetBalance(walletURL)
 		if err != nil {
+			// TODO: mark sick maybe for tracking and frontend reporting?
+			log.Printf("Error when getting balance from wallet %s. Will try again in %s", walletURL, u.config.Interval)
 			//u.halt = true
 			//u.lastFail = err
 			break
