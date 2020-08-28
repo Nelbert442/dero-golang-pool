@@ -151,6 +151,12 @@ func (apiServer *ApiServer) AllStatsIndex(writer http.ResponseWriter, _ *http.Re
 	}
 	reply["nodes"] = nodes
 
+	lastblock, err := apiServer.backend.GetLastBlockStates()
+	if err != nil {
+		log.Printf("Failed to get nodes stats from backend: %v", err)
+	}
+	reply["lastblock"] = lastblock
+
 	stats := apiServer.getStats()
 	if stats != nil {
 		reply["now"] = util.MakeTimestamp() / 1000

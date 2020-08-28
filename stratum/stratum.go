@@ -160,23 +160,21 @@ func NewStratum(cfg *pool.Config) *StratumServer {
 				currentWork := stratum.currentWork()
 				poll := func(v *rpc.RPCClient) {
 					// Need to make sure that this isn't too heavy of action, to call GetBlockByHash here. Otherwise, need to store it in another fashion
-					var prevBlockReward uint64
 					var diff big.Int
 					diff.SetUint64(currentWork.Difficulty)
 
 					prevBlock, getHashERR := v.GetBlockByHash(currentWork.Prev_Hash)
+					lastBlock := prevBlock.BlockHeader
 
 					if getHashERR != nil {
 						log.Printf("Error while retrieving block %s from node: %v", currentWork.Prev_Hash, getHashERR)
-						prevBlockReward = 0
-					} else {
-						prevBlockReward = prevBlock.BlockHeader.Reward
 					}
 
-					err2 := stratum.backend.WriteNodeState(cfg.Coin, currentWork.Prev_Hash, int64(prevBlockReward), int64(currentWork.Height), &diff)
+					writeLBErr := stratum.backend.WriteLastBlockState(cfg.Coin, lastBlock.Difficulty, lastBlock.Height, int64(lastBlock.Timestamp), int64(lastBlock.Reward), lastBlock.Hash)
+					err2 := stratum.backend.WriteNodeState(cfg.Coin, int64(currentWork.Height), &diff)
 
 					_, err := v.UpdateInfo()
-					if err != nil || err2 != nil {
+					if err != nil || err2 != nil || writeLBErr != nil {
 						log.Printf("Unable to update info on upstream %s: %v", v.Name, err)
 						stratum.markSick()
 					} else {

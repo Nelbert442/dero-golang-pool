@@ -156,7 +156,47 @@ func (redisClient *RedisClient) GetBalance(login string) (uint64, error) {
 	return cmd.Uint64()
 }
 
-func (redisClient *RedisClient) WriteNodeState(id, prevhash string, prevReward int64, height int64, diff *big.Int) error {
+func (redisClient *RedisClient) WriteLastBlockState(id string, difficulty string, height int64, timestamp int64, reward int64, hash string) error {
+	tx := redisClient.client.Multi()
+	defer tx.Close()
+
+	_, err := tx.Exec(func() error {
+		tx.HSet(redisClient.formatKey("lastblock"), join(id, "difficulty"), difficulty)
+		tx.HSet(redisClient.formatKey("lastblock"), join(id, "height"), strconv.FormatInt(height, 10))
+		tx.HSet(redisClient.formatKey("lastblock"), join(id, "timestamp"), strconv.FormatInt(timestamp, 10))
+		tx.HSet(redisClient.formatKey("lastblock"), join(id, "reward"), strconv.FormatInt(reward, 10))
+		tx.HSet(redisClient.formatKey("lastblock"), join(id, "hash"), hash)
+		return nil
+	})
+	return err
+}
+
+func (redisClient *RedisClient) GetLastBlockStates() ([]map[string]interface{}, error) {
+	cmd := redisClient.client.HGetAllMap(redisClient.formatKey("lastblock"))
+	if cmd.Err() != nil {
+		return nil, cmd.Err()
+	}
+	m := make(map[string]map[string]interface{})
+	for key, value := range cmd.Val() {
+		parts := strings.Split(key, ":")
+		if val, ok := m[parts[0]]; ok {
+			val[parts[1]] = value
+		} else {
+			node := make(map[string]interface{})
+			node[parts[1]] = value
+			m[parts[0]] = node
+		}
+	}
+	v := make([]map[string]interface{}, len(m))
+	i := 0
+	for _, value := range m {
+		v[i] = value
+		i++
+	}
+	return v, nil
+}
+
+func (redisClient *RedisClient) WriteNodeState(id string, height int64, diff *big.Int) error {
 	tx := redisClient.client.Multi()
 	defer tx.Close()
 
@@ -164,8 +204,6 @@ func (redisClient *RedisClient) WriteNodeState(id, prevhash string, prevReward i
 
 	_, err := tx.Exec(func() error {
 		tx.HSet(redisClient.formatKey("nodes"), join(id, "name"), id)
-		tx.HSet(redisClient.formatKey("nodes"), join(id, "prevhash"), prevhash)
-		tx.HSet(redisClient.formatKey("nodes"), join(id, "prevreward"), strconv.FormatInt(prevReward, 10))
 		tx.HSet(redisClient.formatKey("nodes"), join(id, "height"), strconv.FormatInt(height, 10))
 		tx.HSet(redisClient.formatKey("nodes"), join(id, "difficulty"), diff.String())
 		tx.HSet(redisClient.formatKey("nodes"), join(id, "lastBeat"), strconv.FormatInt(now, 10))
