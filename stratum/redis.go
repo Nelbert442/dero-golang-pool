@@ -812,6 +812,7 @@ func convertWorkersStats(window int64, raw *redis.ZSliceCmd) map[string]WorkerDa
 }
 
 func convertMinersStats(window int64, raw *redis.ZSliceCmd) (int64, map[string]MinerData) {
+	var id string
 	now := util.MakeTimestamp() / 1000
 	miners := make(map[string]MinerData)
 	totalHashrate := int64(0)
@@ -820,7 +821,12 @@ func convertMinersStats(window int64, raw *redis.ZSliceCmd) (int64, map[string]M
 		parts := strings.Split(v.Member.(string), ":")
 		shareAdjusted, _ := strconv.ParseInt(parts[4], 10, 64)
 		//id := parts[1]
-		id := parts[1][0:7] + "..." + parts[1][91:98]
+		workIndex := strings.Index(parts[1], "@")
+		if workIndex != -1 {
+			id = parts[1][0:7] + "..." + parts[1][workIndex-7:workIndex]
+		} else {
+			id = parts[1][0:7] + "..." + parts[1][len(parts[1])-7:len(parts[1])]
+		}
 		score := int64(v.Score)
 		miner := miners[id]
 		miner.HR += shareAdjusted
@@ -991,7 +997,13 @@ func convertPaymentsResults(raw *redis.ZSliceCmd) []map[string]interface{} {
 		if len(fields) < 3 {
 			tx["amount"], _ = strconv.ParseInt(fields[1], 10, 64)
 		} else {
-			tx["address"] = fields[1][0:7] + "..." + fields[1][91:98]
+			workIndex := strings.Index(fields[1], "@")
+			if workIndex != -1 {
+				tx["address"] = fields[1][0:7] + "..." + fields[1][workIndex-7:workIndex]
+			} else {
+				tx["address"] = fields[1][0:7] + "..." + fields[1][len(fields[1])-7:len(fields[1])]
+			}
+			//tx["address"] = fields[1][0:7] + "..." + fields[1][len(fields[1])-7:len(fields[1])]
 			tx["amount"], _ = strconv.ParseInt(fields[2], 10, 64)
 		}
 		result = append(result, tx)
