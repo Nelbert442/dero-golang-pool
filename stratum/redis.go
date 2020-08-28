@@ -692,7 +692,7 @@ func convertBlockResults(rows ...*redis.ZSliceCmd) []*BlockData {
 	var result []*BlockData
 	for _, row := range rows {
 		for _, v := range row.Val() {
-			// "orphan:nonce:blockHash:timestamp:diff:totalShares:rewardInZatoshi"
+			// "orphan:nonce:blockHash:timestamp:diff:totalShares:rewardInDERO"
 			block := BlockData{}
 			block.Height = int64(v.Score)
 			block.RoundHeight = block.Height

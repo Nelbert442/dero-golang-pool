@@ -73,7 +73,7 @@ func (cs *Session) getJob(t *BlockTemplate) *JobReplyData {
 			targetHex = util.GetTargetHex(cs.endpoint.config.MinDiff)
 		}
 	} else { // See if variable diff is defined, otherwise default back to defined difficulty with the initial config for the port
-		if cs.varDiff.config.Enabled == true { // If vardiff is enabled, get varDiff targetHex TODO: work in progress, varDiff is not currently doing anything
+		if false { //cs.varDiff.config.Enabled == true { // If vardiff is enabled, get varDiff targetHex TODO: work in progress, varDiff is not currently doing anything
 			variance := cs.varDiff.config.VariancePercent / 100 * cs.varDiff.config.TargetTime
 			tMin := cs.varDiff.config.TargetTime - variance
 			tMax := cs.varDiff.config.TargetTime + variance
