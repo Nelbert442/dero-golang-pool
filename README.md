@@ -215,6 +215,12 @@ Once `config.json` has "api"."enabled" set to true, it will listen by default lo
 
 API Examples:
 
+* ".../api/allstats" Example (this is currently just for testing, perhaps replaces the additional listed below):
+
+```json
+{"blocks":{"candidates":[{"height":350,"timestamp":1598645388,"difficulty":21600,"shares":3000,"orphan":false,"hash":"d994d904e7391c2dd73376ddca36f8373a12c09b698d01b5db4d1527eff0806b","reward":""}],"candidatesTotal":1,"immature":[{"height":349,"timestamp":1598645382,"difficulty":21600,"shares":25000,"orphan":false,"hash":"3685777465a264ce7c915fd8dd578205725eebd4404c56816f66cc03405f10bf","reward":"2345520714920"},{"height":348,"timestamp":1598645300,"difficulty":21600,"shares":4000,"orphan":false,"hash":"6b002d39347fb9f5a3b2ab9046c1618a12fe8141faf92e0006c2115fd68883fc","reward":"2345521013169"},{"height":347,"timestamp":1598645282,"difficulty":21600,"shares":14000,"orphan":false,"hash":"2beb0b3e2aade298c872aade250b80b438650f53f045a547f0add7d821e219a0","reward":"2345521311417"},{"height":346,"timestamp":1598645225,"difficulty":21600,"shares":32000,"orphan":false,"hash":"762cabfa570fba9eca47672aef72781bb4ccd21e6c4f105434d8f09ce28ceeff","reward":"2350021609665"}],"immatureTotal":4,"luck":{"5":{"luck":0.787037037037037,"orphanRate":0}},"matured":[{"height":345,"timestamp":1598644983,"difficulty":21600,"shares":10000,"orphan":false,"hash":"dd3af49211f1bf162f67eb81a670cf6eaad35d48dbd1958c7c1e1084a7f163ad","reward":"2350021907914"}],"maturedTotal":1},"lastblock":[{"difficulty":"21600","hash":"d994d904e7391c2dd73376ddca36f8373a12c09b698d01b5db4d1527eff0806b","height":"350","reward":"2345520416672","timestamp":"1598645382"}],"miners":{"hashrate":5191,"miners":{"dEToUEe...Y18gVNr":{"lastBeat":1598645390,"hr":5191,"offline":false}},"minersTotal":1},"network":[{"difficulty":"21600","height":"350"}],"nodes":[{"difficulty":"21600","height":"351","lastBeat":"1598645392","name":"DERO"}],"now":1598645392,"payments":{"payments":[{"address":"dEToUEe...Y18gVNr","amount":2347671886006,"timestamp":1598644998,"tx":"64c71edd3430ec404607e9ec604738baaa4055a53186dbc247aa0478f91bebd3"}],"paymentsTotal":1},"stats":{"hashrate":5191,"minersTotal":1,"stats":{"lastBlockFound":1598645388,"roundShares":1000}}}
+```
+
 * ".../api/stats" Example:
 
 ```json
