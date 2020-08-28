@@ -103,6 +103,7 @@ func (u *PayoutsProcessor) process(s *StratumServer) {
 	}*/
 	mustPay := 0
 	minersPaid := 0
+	//var paymentSplice []map[string]interface{}
 	totalAmount := big.NewInt(0)
 	payees, err := u.backend.GetPayees()
 	if err != nil {
@@ -158,8 +159,6 @@ func (u *PayoutsProcessor) process(s *StratumServer) {
 		if err != nil {
 			log.Printf("Invalid address format. Will not process payments - %v", address)
 			break
-		} else {
-			//log.Printf("Valid Address, continuing on processing payments - %v", address)
 		}
 
 		// Send DERO - Native, TODO)

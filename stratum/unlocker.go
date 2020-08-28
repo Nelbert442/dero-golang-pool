@@ -43,7 +43,7 @@ func NewBlockUnlocker(cfg *pool.UnlockerConfig, s *StratumServer) *BlockUnlocker
 	return u
 }
 
-func (u *BlockUnlocker) StartBlockUnlocker() {
+func (u *BlockUnlocker) StartBlockUnlocker(s *StratumServer) {
 	log.Println("Starting block unlocker")
 	//interval := util.MustParseDuration(u.config.Interval)
 	interval, _ := time.ParseDuration(u.config.Interval)
@@ -51,23 +51,23 @@ func (u *BlockUnlocker) StartBlockUnlocker() {
 	log.Printf("Set block unlock interval to %v", interval)
 
 	// Immediately unlock after start
-	u.unlockPendingBlocks()
-	u.unlockAndCreditMiners()
+	u.unlockPendingBlocks(s)
+	u.unlockAndCreditMiners(s)
 	timer.Reset(interval)
 
 	go func() {
 		for {
 			select {
 			case <-timer.C:
-				u.unlockPendingBlocks()
-				u.unlockAndCreditMiners()
+				u.unlockPendingBlocks(s)
+				u.unlockAndCreditMiners(s)
 				timer.Reset(interval)
 			}
 		}
 	}()
 }
 
-func (u *BlockUnlocker) unlockPendingBlocks() {
+func (u *BlockUnlocker) unlockPendingBlocks(s *StratumServer) {
 	if u.halt {
 		log.Println("Unlocking suspended due to last critical error:", u.lastFail)
 		return
@@ -119,7 +119,7 @@ func (u *BlockUnlocker) unlockPendingBlocks() {
 	totalPoolProfit := new(big.Rat)
 
 	for _, block := range result.maturedBlocks {
-		revenue, minersProfit, poolProfit, roundRewards, err := u.calculateRewards(block)
+		revenue, minersProfit, poolProfit, roundRewards, err := u.calculateRewards(s, block)
 		if err != nil {
 			u.halt = true
 			u.lastFail = err
@@ -159,7 +159,7 @@ func (u *BlockUnlocker) unlockPendingBlocks() {
 	)
 }
 
-func (u *BlockUnlocker) unlockAndCreditMiners() {
+func (u *BlockUnlocker) unlockAndCreditMiners(s *StratumServer) {
 	if u.halt {
 		log.Println("Unlocking suspended due to last critical error:", u.lastFail)
 		return
@@ -212,7 +212,7 @@ func (u *BlockUnlocker) unlockAndCreditMiners() {
 	totalPoolProfit := new(big.Rat)
 
 	for _, block := range result.maturedBlocks {
-		revenue, minersProfit, poolProfit, roundRewards, err := u.calculateRewards(block)
+		revenue, minersProfit, poolProfit, roundRewards, err := u.calculateRewards(s, block)
 		if err != nil {
 			u.halt = true
 			u.lastFail = err
@@ -337,7 +337,7 @@ func (u *BlockUnlocker) handleBlock(block *rpc.GetBlockHashReply, candidate *Blo
 	return nil
 }
 
-func (u *BlockUnlocker) calculateRewards(block *BlockData) (*big.Rat, *big.Rat, *big.Rat, map[string]int64, error) {
+func (u *BlockUnlocker) calculateRewards(s *StratumServer, block *BlockData) (*big.Rat, *big.Rat, *big.Rat, map[string]int64, error) {
 	revenue := new(big.Rat).SetUint64(block.Reward)
 	minersProfit, poolProfit := chargeFee(revenue, u.config.PoolFee)
 
@@ -348,7 +348,7 @@ func (u *BlockUnlocker) calculateRewards(block *BlockData) (*big.Rat, *big.Rat, 
 	}
 
 	//log.Printf("shares: %v, totalShares: %v, minersProfit: %v", shares, block.TotalShares, minersProfit)
-	rewards := calculateRewardsForShares(shares, block.TotalShares, minersProfit)
+	rewards := calculateRewardsForShares(s, shares, block.TotalShares, minersProfit)
 
 	if block.ExtraReward != nil {
 		extraReward := new(big.Rat).SetInt(block.ExtraReward)
@@ -364,15 +364,17 @@ func (u *BlockUnlocker) calculateRewards(block *BlockData) (*big.Rat, *big.Rat, 
 	return revenue, minersProfit, poolProfit, rewards, nil
 }
 
-func calculateRewardsForShares(shares map[string]int64, total int64, reward *big.Rat) map[string]int64 {
+func calculateRewardsForShares(s *StratumServer, shares map[string]int64, total int64, reward *big.Rat) map[string]int64 {
 	rewards := make(map[string]int64)
 
 	for login, n := range shares {
+		// Split away for workers, paymentIDs etc. just to compound the shares associated with a given address
+		address, _, _, _ := s.splitLoginString(login)
+
 		percent := big.NewRat(n, total)
 		workerReward := new(big.Rat).Mul(reward, percent)
 		workerRewardInt, _ := strconv.ParseInt(workerReward.FloatString(0), 10, 64)
-		rewards[login] += workerRewardInt
-		//log.Printf("login: %s, percent: %v, workerReward: %v, workerRewardInt: %v", login, percent, workerReward, workerRewardInt)
+		rewards[address] += workerRewardInt
 	}
 	return rewards
 }
