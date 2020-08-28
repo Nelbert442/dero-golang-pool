@@ -151,17 +151,26 @@ func (apiServer *ApiServer) AllStatsIndex(writer http.ResponseWriter, _ *http.Re
 	}
 	reply["nodes"] = nodes
 
+	network, err := apiServer.backend.GetLastNetworkStates()
+	if err != nil {
+		log.Printf("Failed to get network stats from backend: %v", err)
+	}
+	reply["network"] = network
+
 	lastblock, err := apiServer.backend.GetLastBlockStates()
 	if err != nil {
-		log.Printf("Failed to get nodes stats from backend: %v", err)
+		log.Printf("Failed to get lastblock stats from backend: %v", err)
 	}
 	reply["lastblock"] = lastblock
 
 	stats := apiServer.getStats()
 	if stats != nil {
-		reply["now"] = util.MakeTimestamp() / 1000
-		reply["network"] = map[string]interface{}{"stats": stats["stats"], "hashrate": stats["hashrate"], "minersTotal": stats["minersTotal"], "maturedTotal": stats["maturedTotal"], "immatureTotal": stats["immatureTotal"], "candidatesTotal": stats["candidatesTotal"]}
 
+		reply["blocks"] = map[string]interface{}{"maturedTotal": stats["maturedTotal"], "immatureTotal": stats["immatureTotal"], "candidatesTotal": stats["candidatesTotal"], "luck": stats["luck"], "matured": stats["matured"], "immature": stats["immature"], "candidates": stats["candidates"]}
+		reply["payments"] = map[string]interface{}{"paymentsTotal": stats["paymentsTotal"], "payments": stats["payments"]}
+		reply["miners"] = map[string]interface{}{"hashrate": stats["hashrate"], "minersTotal": stats["minersTotal"], "miners": stats["miners"]}
+		reply["now"] = util.MakeTimestamp() / 1000
+		reply["stats"] = map[string]interface{}{"stats": stats["stats"], "hashrate": stats["hashrate"], "minersTotal": stats["minersTotal"]}
 	}
 
 	err = json.NewEncoder(writer).Encode(reply)
