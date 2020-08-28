@@ -156,7 +156,7 @@ func (redisClient *RedisClient) GetBalance(login string) (uint64, error) {
 	return cmd.Uint64()
 }
 
-func (redisClient *RedisClient) WriteNodeState(id string, height int64, diff *big.Int) error {
+func (redisClient *RedisClient) WriteNodeState(id, prevhash string, prevReward int64, height int64, diff *big.Int) error {
 	tx := redisClient.client.Multi()
 	defer tx.Close()
 
@@ -164,6 +164,8 @@ func (redisClient *RedisClient) WriteNodeState(id string, height int64, diff *bi
 
 	_, err := tx.Exec(func() error {
 		tx.HSet(redisClient.formatKey("nodes"), join(id, "name"), id)
+		tx.HSet(redisClient.formatKey("nodes"), join(id, "prevhash"), prevhash)
+		tx.HSet(redisClient.formatKey("nodes"), join(id, "prevreward"), strconv.FormatInt(prevReward, 10))
 		tx.HSet(redisClient.formatKey("nodes"), join(id, "height"), strconv.FormatInt(height, 10))
 		tx.HSet(redisClient.formatKey("nodes"), join(id, "difficulty"), diff.String())
 		tx.HSet(redisClient.formatKey("nodes"), join(id, "lastBeat"), strconv.FormatInt(now, 10))

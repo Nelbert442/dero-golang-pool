@@ -159,11 +159,21 @@ func NewStratum(cfg *pool.Config) *StratumServer {
 			case <-infoTimer.C:
 				currentWork := stratum.currentWork()
 				poll := func(v *rpc.RPCClient) {
-					// Tweaks to input for WriteNodeState from https://github.com/JKKGBE/open-zcash-pool - TODO: cleanup later
+					// Need to make sure that this isn't too heavy of action, to call GetBlockByHash here. Otherwise, need to store it in another fashion
+					var prevBlockReward uint64
 					var diff big.Int
 					diff.SetUint64(currentWork.Difficulty)
-					//log.Printf("[NewStratum] currentWork.Difficulty: %v", currentWork.Difficulty)
-					err2 := stratum.backend.WriteNodeState(cfg.Coin, int64(currentWork.Height), &diff)
+
+					prevBlock, getHashERR := v.GetBlockByHash(currentWork.Prev_Hash)
+
+					if getHashERR != nil {
+						log.Printf("Error while retrieving block %s from node: %v", currentWork.Prev_Hash, getHashERR)
+						prevBlockReward = 0
+					} else {
+						prevBlockReward = prevBlock.BlockHeader.Reward
+					}
+
+					err2 := stratum.backend.WriteNodeState(cfg.Coin, currentWork.Prev_Hash, int64(prevBlockReward), int64(currentWork.Height), &diff)
 
 					_, err := v.UpdateInfo()
 					if err != nil || err2 != nil {

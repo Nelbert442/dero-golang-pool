@@ -94,6 +94,7 @@ func (apiServer *ApiServer) listen() {
 	router.HandleFunc("/api/miners", apiServer.MinersIndex)
 	router.HandleFunc("/api/blocks", apiServer.BlocksIndex)
 	router.HandleFunc("/api/payments", apiServer.PaymentsIndex)
+	router.HandleFunc("/api/allstats", apiServer.AllStatsIndex)
 	router.HandleFunc("/api/accounts/{login:dE[0-9a-zA-Z]{96}}", apiServer.AccountIndex)
 	router.NotFoundHandler = http.HandlerFunc(notFound)
 	err := http.ListenAndServe(apiServer.config.Listen, router)
@@ -135,6 +136,32 @@ func (apiServer *ApiServer) collectStats() {
 	}
 	apiServer.stats.Store(stats)
 	//log.Printf("Stats collection finished %s", time.Since(start))
+}
+
+func (apiServer *ApiServer) AllStatsIndex(writer http.ResponseWriter, _ *http.Request) {
+	writer.Header().Set("Content-Type", "application/json; charset=UTF-8")
+	writer.Header().Set("Access-Control-Allow-Origin", "*")
+	writer.Header().Set("Cache-Control", "no-cache")
+	writer.WriteHeader(http.StatusOK)
+
+	reply := make(map[string]interface{})
+	nodes, err := apiServer.backend.GetNodeStates()
+	if err != nil {
+		log.Printf("Failed to get nodes stats from backend: %v", err)
+	}
+	reply["nodes"] = nodes
+
+	stats := apiServer.getStats()
+	if stats != nil {
+		reply["now"] = util.MakeTimestamp() / 1000
+		reply["network"] = map[string]interface{}{"stats": stats["stats"], "hashrate": stats["hashrate"], "minersTotal": stats["minersTotal"], "maturedTotal": stats["maturedTotal"], "immatureTotal": stats["immatureTotal"], "candidatesTotal": stats["candidatesTotal"]}
+
+	}
+
+	err = json.NewEncoder(writer).Encode(reply)
+	if err != nil {
+		log.Println("Error serializing API response: ", err)
+	}
 }
 
 func (apiServer *ApiServer) StatsIndex(writer http.ResponseWriter, _ *http.Request) {
