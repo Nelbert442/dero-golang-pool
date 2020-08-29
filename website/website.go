@@ -8,7 +8,7 @@ import (
 )
 
 func NewWebsite(cfg *pool.Website) {
-	fileServer := http.FileServer(http.Dir("./website/Pages"))
+	fileServer := http.FileServer(http.Dir("./website/site"))
 	http.Handle("/", fileServer)
 
 	log.Printf("Starting server at port %v\n", cfg.Port)

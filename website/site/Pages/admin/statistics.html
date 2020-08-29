@@ -1,0 +1,88 @@
+<script>
+
+	function formatLuck(difficulty, shares) {
+		var percent = Math.round(shares / difficulty * 100);
+		if(!percent) {
+			return '<span class="luckGood">?</span>';
+		}
+		else if(percent <= 100) {
+			return '<span class="luckGood">' + percent + '%</span>';
+		}
+		else {
+			return '<span class="luckBad">' + percent + '%</span>';
+		}
+	}
+
+	function getStats(promptPassword) {
+
+		var password = docCookies.getItem('password');
+
+		if(!password || promptPassword) {
+			password = prompt('Enter admin password');
+		}
+
+		$('#loading').show();
+		$.ajax({
+			url: api + '/allstats',
+			data: {password: password},
+			success: function(data) {
+				docCookies.setItem('password', password, Infinity);
+				$('#loading').hide();
+				renderData(data);
+			},
+			error: function(e) {
+				docCookies.removeItem('password');
+				getStats(true);
+			}
+		});
+	}
+
+	function renderData(data) {
+		$('#totalOwed').text(getReadableCoins(data.totalOwed));
+		$('#totalPaid').text(getReadableCoins(data.totalPaid));
+		$('#totalPayments').text(getReadableCoins(data.totalPayments));
+		$('#totalMined').text(getReadableCoins(data.totalRevenue));
+		$('#profit').text(getReadableCoins(data.totalRevenue - data.totalOwed - data.totalPaid));
+		$('#averageLuck').html(formatLuck(data.totalDiff, data.totalShares));
+		$('#orphanPercent').text((data.blocksOrphaned / data.blocksUnlocked * 100).toFixed(2));
+		$('#registeredAddresses').text(data.totalWorkers);
+	}
+
+	$(function() {
+		getStats();
+	});
+</script>
+<div class="row adminStats">
+	<div class="col-sm-3 color1">
+		<h4>Total Owed</h4>
+		<span class="statValue" id="totalOwed">...</span>
+	</div>
+	<div class="col-sm-3 color2">
+		<h4>Total Payments</h4>
+		<span class="statValue" id="totalPayments">...</span>
+	</div>
+	<div class="col-sm-3 color2">
+		<h4>Total Paid</h4>
+		<span class="statValue" id="totalPaid">...</span>
+	</div>
+	<div class="col-sm-3 color3">
+		<h4>Total Mined</h4>
+		<span class="statValue" id="totalMined">...</span>
+	</div>
+	<div class="col-sm-3 color4">
+		<h4>Profit (before tx fees)</h4>
+		<span class="statValue" id="profit">...</span>
+	</div>
+	<div class="col-sm-4 color5">
+		<h4>Average Luck (shares/diff)</h4>
+		<span class="statValue lead" id="averageLuck">...</span>
+	</div>
+	<div class="col-sm-4 color6">
+		<h4>Orphan Percent</h4>
+		<span class="statValue lead" id="orphanPercent">...</span>
+	</div>
+	<div class="col-sm-4 color7">
+		<h4>Registered Addresses</h4>
+		<span class="statValue lead" id="registeredAddresses">...</span>
+	</div>
+</div>

@@ -1,0 +1,159 @@
+<style>
+    hr{
+        border-top-color: #d9d9d9;
+        margin-top: 40px !important;
+        margin-bottom: 40px !important;
+    }
+    #miningPorts > .stats{
+        width: auto !important;
+        margin-right: 70px;
+        margin-left: 15px;
+        display: inline-block;
+    }
+    #miningPorts > .stats:last-child{
+        margin-right: 0;
+    }
+    .getting_started_windows{
+        line-height: 40px;
+    }
+    #getting_started_list > li{
+        margin-bottom: 20px;
+    }
+    #mining_apps > tr:first-child > td{
+        padding-top: 35px;
+    }
+    #mining_apps > tr > td{
+        border-top: none;
+    }
+    #mining_apps > tr:nth-child(even) > td{
+        border-bottom: 1px solid #e5e5e5;
+        padding-bottom: 20px;
+    }
+    #mining_apps > tr:nth-child(odd) > td{
+        padding-top: 20px;
+    }
+    #mining_apps{
+        margin-top: 10px;
+    }
+    .miningAppTitle{
+        font-weight: bold;
+    }
+    .exampleAddress{
+        font-style: italic;
+    }
+    #cpuminer_code{
+        display: inline-block;
+        white-space: normal;
+    }
+</style>
+
+
+<h3>Connection Details</h3>
+<div class="stats">
+    <div><i class="fa fa-cloud"></i> Mining Pool Address: <span id="miningPoolHost"></span></div>
+</div>
+
+<h3>Mining Ports</h3>
+<table class="table table-striped">
+    <thead>
+      <tr>
+        <th><i class="fa fa-tachometer"></i> Port</th>
+        <th><i class="fa fa-unlock-alt"></i> Starting Difficulty</th>
+        <th><i class="fa fa-question"></i> Description</th>
+      </tr>
+    </thead>
+    <tbody id="miningPorts">
+        <tr>
+            <td><span class="miningPort"></span></td>
+            <td><span class="miningPortDiff"></span></td>
+            <td><span class="miningPortDesc"></span></td>
+        </tr>
+    </tbody>
+</table>
+ 
+<hr>
+
+<h3>For Solo Mining With Remote Daemon</h3>
+<p class="getting_started_windows">
+    You can download and run <a target="_blank" href="https://github.com/deroproject/derosuite/releases/latest">dero-miner</a> <i class="fa fa-github"> and leverage --daemon-rpc-address=http://<span class="exampleHost"></span>:20206</i>.
+</p>
+
+<hr>
+
+<h3>Mining Apps</h3>
+<div class="yourStats table-responsive">
+    <table class="table">
+        <thead>
+        <tr>
+            <th><i class="fa fa-book"></i> App Name</th>
+            <th><i class="fa fa-car"></i> Architecture</th>
+            <th><i class="fa fa-download"></i> Downloads</th>
+            <th><i class="fa fa-comments"></i> Discussion</th>
+            <th><i class="fa fa-file-code-o"></i> Source Code</th>
+        </tr>
+        </thead>
+        <tbody id="mining_apps">
+        <tr>
+            <td class="miningAppTitle">XMRig</td>
+            <td>CPU</td>
+            <td><a target="_blank" href="https://github.com/xmrig/xmrig/releases/latest">Github</a></td>
+            <td><a target="_blank" href="https://github.com/xmrig/xmrig/releases/latest">Github</a></td>
+            <td><a target="_blank" href="https://github.com/xmrig/xmrig">Github</a></td>
+        </tr>
+        <tr>
+            <td colspan="5">
+                <span>Example:</span>
+                <code>xmrig -o <span class="exampleHost"></span>:<span class="examplePort"></span> --coin=dero --user=<span class="exampleAddress">YOUR_WALLET_ADDRESS</span></code>
+                <br /><br />
+                <span>Example (static diff):</span>
+                <code>xmrig -o <span class="exampleHost"></span>:<span class="examplePort"></span> --coin=dero --user=<span class="exampleAddress">YOUR_WALLET_ADDRESS</span>.<span class="exampleDiff"></span></code>
+                <br /><br />
+                <span>Example (worker name)</span>
+                <code>xmrig -o <span class="exampleHost"></span>:<span class="examplePort"></span> --coin=dero --user=<span class="exampleAddress">YOUR_WALLET_ADDRESS</span>+CPU01</code>
+                <br /><br />
+                <span>Example (static diff + worker name)</span>
+                <code>xmrig -o <span class="exampleHost"></span>:<span class="examplePort"></span> --coin=dero --user=<span class="exampleAddress">YOUR_WALLET_ADDRESS</span>.<span class="exampleDiff"></span>+CPU01</code>
+            </td>
+        </tr>
+        </tbody>
+    </table>
+</div>
+
+
+<script>
+
+    currentPage = {
+        destroy: function(){
+
+        },
+        update: function(){
+
+            var portsJson = JSON.stringify(lastStats.config.ports);
+            if (lastPortsJson !== portsJson) {
+                lastPortsJson = portsJson;
+                var $miningPortChildren = [];
+                for (var i = 0; i < lastStats.config.ports.length; i++) {
+                    var portData = lastStats.config.ports[i];
+                    var $portChild = $(miningPortTemplate);
+                    $portChild.find('.miningPort').text(portData.port);
+                    $portChild.find('.miningPortDiff').text(portData.difficulty);
+                    $portChild.find('.miningPortDesc').text(portData.desc);
+                    $miningPortChildren.push($portChild);
+                }
+                $miningPorts.empty().append($miningPortChildren);
+            }
+
+            updateTextClasses('exampleHost', poolHost);
+            updateTextClasses('examplePort', lastStats.config.ports[0].port.toString());
+            updateTextClasses('exampleDiff', lastStats.config.ports[0].difficulty.toString());
+        }
+    };
+
+    document.getElementById('miningPoolHost').textContent = poolHost;
+
+    var lastPortsJson = '';
+    var $miningPorts = $('#miningPorts');
+    var miningPortTemplate = $miningPorts.html();
+    $miningPorts.empty();
+
+</script>

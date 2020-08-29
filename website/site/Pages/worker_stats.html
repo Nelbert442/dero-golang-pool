@@ -1,0 +1,152 @@
+
+<script>
+
+function loadScript(url, callback){
+  var script = document.createElement("script")
+    script.type = "text/javascript";
+
+  if (script.readyState){  //IE
+    script.onreadystatechange = function(){
+      if (script.readyState == "loaded" ||
+          script.readyState == "complete"){
+        script.onreadystatechange = null;
+        callback();
+      }
+    };
+  } else {  //Others
+    script.onload = function(){
+      callback();
+    };
+  }
+
+  script.src = url;
+  document.getElementsByTagName("head")[0].appendChild(script);
+}
+
+$('#addressSetButton').click(function(){
+  $("#graphs").empty();
+  var address = $('#yourAddress').val();
+  fetchAddressWorkers(address);
+});
+
+// Fetches the workers that are known for an address and creates the graphs.
+function fetchAddressWorkers(address) {
+  $.ajax({
+    url: api + '/allstats',
+    data: {
+      address: address,
+    },
+    dataType: 'json',
+    cache: 'false',
+    success: function(data){
+      for (var i=0; i<data.workers.length; i++) {
+        getWorkerGraphData(data.workers[i], address, function(graphData, rangeMax) {
+          var new_id = 'chart_' + graphData[0].name;
+          var $template = $("#worker_chart").clone().prop('id', new_id);
+          if (graphData[0].y.length < 5) {
+            $template.append('<br>Not enough data yet for worker: ' + graphData[0].name);
+            $template.appendTo("#graphs");
+          } else {
+            var layout = {
+              title: 'Hashrate worker: ' + graphData[0].name,
+              autosize: false,
+              width: 1000,
+              height: 500,
+              yaxis: {
+                autorange: false,
+                range: [0, rangeMax + 500],
+                type: 'linear'
+              }
+            }
+            $template.appendTo("#graphs");
+            Plotly.newPlot(new_id, graphData, layout);
+          }
+          $('#' + new_id).show();
+        });
+      }
+    }
+  });
+}
+
+// Gets worker graph data.
+function getWorkerGraphData(worker, address, dataHandler) {
+  var worker_address = address + '+' + worker;
+  $.ajax({
+    url: api + '/allstats',
+    data: {
+      address: worker_address,
+    },
+    dataType: 'json',
+    cache: 'false',
+    success: function(data){
+      var graphData = {
+        names: [],
+        values: []
+      };
+
+      var rangeMax = 0;
+      for (var i = 0; i< data['charts']['hashrate'].length; i++) {
+        xy = data['charts']['hashrate'][i];
+        graphData.names.push(new Date(xy[0]*1000).toUTCString());
+        if (xy[1] > rangeMax) {
+          rangeMax = xy[1];
+        }
+        graphData.values.push(xy[1]);
+      }
+
+      dataHandler([{
+        x: graphData.names,
+        y: graphData.values,
+        type: 'scatter',
+        name: worker,
+        mode: 'lines',
+        fill: 'tonexty',
+        connectgaps: true,
+        autosize: false
+      }], rangeMax);
+    }
+  });
+}
+</script>
+
+<h1>Individual worker stats</h1>
+<br>
+To show individual worker statistics; you will need to configure your miner with
+a worker name. Simply append the worker name you like to your wallet address
+using the following format:
+<br>
+<i>wallet_address+workername</i><br>
+<br>
+
+Note: that it might take a few hours before the stats on this page start to show
+meaningful data. It's on our TODO list to speed this up.
+<br><br>
+
+<div class="form-group">
+  <label class="col-sm-2 col-form-label col-form-label-lg" for="yourAddress">DERO address:</label>
+  <div class="col-sm-8">
+    <input class="form-control" id="yourAddress" type="text" placeholder="Enter Your Address">
+  </div>
+  <span>
+    <button class="btn btn-default" type="button" id="addressSetButton">
+      <span><i class="fa fa-check"></i> Show</span>
+    </button>
+  </span>
+</div>
+<hr>
+
+<div id="worker_chart" style="display:none"></div>
+<div id="graphs">
+</div>
+
+<script>
+loadScript("https://cdn.plot.ly/plotly-1.2.0.min.js", function() {
+var urlWalletAddress = location.search.split('wallet=')[1] || 0;
+var address = urlWalletAddress || docCookies.getItem('mining_address');
+
+if (address) {
+	$('#yourAddress').val(address);
+	fetchAddressWorkers(address);
+}
+});
+</script>
