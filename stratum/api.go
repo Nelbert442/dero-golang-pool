@@ -170,7 +170,7 @@ func (apiServer *ApiServer) AllStatsIndex(writer http.ResponseWriter, _ *http.Re
 		reply["payments"] = map[string]interface{}{"paymentsTotal": stats["paymentsTotal"], "payments": stats["payments"]}
 		reply["miners"] = map[string]interface{}{"hashrate": stats["hashrate"], "minersTotal": stats["minersTotal"], "miners": stats["miners"]}
 		reply["now"] = util.MakeTimestamp() / 1000
-		reply["stats"] = map[string]interface{}{"stats": stats["stats"], "hashrate": stats["hashrate"], "minersTotal": stats["minersTotal"]}
+		reply["stats"] = map[string]interface{}{"poolstats": stats["stats"], "hashrate": stats["hashrate"], "minersTotal": stats["minersTotal"]}
 	}
 
 	err = json.NewEncoder(writer).Encode(reply)

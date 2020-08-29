@@ -173,7 +173,7 @@ func (redisClient *RedisClient) WriteLastBlockState(id string, difficulty string
 	return err
 }
 
-func (redisClient *RedisClient) GetLastNetworkStates() ([]map[string]interface{}, error) {
+func (redisClient *RedisClient) GetLastNetworkStates() (map[string]map[string]interface{}, error) {
 	cmd := redisClient.client.HGetAllMap(redisClient.formatKey("network"))
 	if cmd.Err() != nil {
 		return nil, cmd.Err()
@@ -189,20 +189,16 @@ func (redisClient *RedisClient) GetLastNetworkStates() ([]map[string]interface{}
 			m[parts[0]] = node
 		}
 	}
-	v := make([]map[string]interface{}, len(m))
-	i := 0
-	for _, value := range m {
-		v[i] = value
-		i++
-	}
-	return v, nil
+
+	return m, nil
 }
 
-func (redisClient *RedisClient) GetLastBlockStates() ([]map[string]interface{}, error) {
+func (redisClient *RedisClient) GetLastBlockStates() (map[string]map[string]interface{}, error) {
 	cmd := redisClient.client.HGetAllMap(redisClient.formatKey("lastblock"))
 	if cmd.Err() != nil {
 		return nil, cmd.Err()
 	}
+
 	m := make(map[string]map[string]interface{})
 	for key, value := range cmd.Val() {
 		parts := strings.Split(key, ":")
@@ -214,13 +210,8 @@ func (redisClient *RedisClient) GetLastBlockStates() ([]map[string]interface{}, 
 			m[parts[0]] = node
 		}
 	}
-	v := make([]map[string]interface{}, len(m))
-	i := 0
-	for _, value := range m {
-		v[i] = value
-		i++
-	}
-	return v, nil
+
+	return m, nil
 }
 
 func (redisClient *RedisClient) WriteNodeState(id string, height int64, diff *big.Int) error {
