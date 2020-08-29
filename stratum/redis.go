@@ -287,11 +287,11 @@ func (redisClient *RedisClient) WriteShare(login, id string, params *SubmitParam
 }
 
 func (redisClient *RedisClient) writeShare(tx *redis.Multi, ms, ts int64, login, id string, diff int64, expire time.Duration) {
-	tx.HIncrBy(redisClient.formatKey("shares", "roundCurrent"), login, diff)                                            // [DERO:shares:roundCurrent] -- minerID and hashes this round
-	tx.ZAdd(redisClient.formatKey("hashrate"), redis.Z{Score: float64(ts), Member: join(diff, login, id, ms, diff*35)}) // [DERO:hashrate] -- [shareDiff:minerID:timeSubmitted:diff*35] with score of timeSubmitted
-	tx.ZAdd(redisClient.formatKey("hashrate", login), redis.Z{Score: float64(ts), Member: join(diff, id, ms, diff*35)}) // [DERO:hashrate:minerID] -- [shareDiff:id:timeSubmitted:diff*35] with score of timeSubmitted
-	tx.Expire(redisClient.formatKey("hashrate", login), expire)                                                         // [DERO:hashrate:minerID]Will delete hashrates for miners that gone
-	tx.HSet(redisClient.formatKey("miners", login), "lastShare", strconv.FormatInt(ts, 10))                             // [DERO:miners:minerID] Sets time of last share submitted by login (miner id)
+	tx.HIncrBy(redisClient.formatKey("shares", "roundCurrent"), login, diff)                                   // [DERO:shares:roundCurrent] -- minerID and hashes this round
+	tx.ZAdd(redisClient.formatKey("hashrate"), redis.Z{Score: float64(ts), Member: join(diff, login, id, ms)}) // [DERO:hashrate] -- [shareDiff:minerID:timeSubmitted] with score of timeSubmitted
+	tx.ZAdd(redisClient.formatKey("hashrate", login), redis.Z{Score: float64(ts), Member: join(diff, id, ms)}) // [DERO:hashrate:minerID] -- [shareDiff:id:timeSubmitted] with score of timeSubmitted
+	tx.Expire(redisClient.formatKey("hashrate", login), expire)                                                // [DERO:hashrate:minerID]Will delete hashrates for miners that gone
+	tx.HSet(redisClient.formatKey("miners", login), "lastShare", strconv.FormatInt(ts, 10))                    // [DERO:miners:minerID] Sets time of last share submitted by login (miner id)
 }
 
 func (redisClient *RedisClient) WriteBlock(login, id string, params *SubmitParams, diff, roundDiff int64, height int64, window time.Duration, feeReward int64, blockHash string) (bool, error) {
@@ -778,9 +778,9 @@ func convertWorkersStats(window int64, raw *redis.ZSliceCmd) map[string]WorkerDa
 
 	for _, v := range raw.Val() {
 		parts := strings.Split(v.Member.(string), ":")
-		shareAdjusted, _ := strconv.ParseInt(parts[3], 10, 64)
+		shareAdjusted, _ := strconv.ParseInt(parts[0], 10, 64)
 		id := parts[1]
-		score := int64(v.Score)
+		score := int64(v.Score) // timestamp of share
 		worker := workers[id]
 
 		// Add for large window
@@ -810,7 +810,7 @@ func convertMinersStats(window int64, raw *redis.ZSliceCmd) (int64, map[string]M
 
 	for _, v := range raw.Val() {
 		parts := strings.Split(v.Member.(string), ":")
-		shareAdjusted, _ := strconv.ParseInt(parts[4], 10, 64)
+		shareAdjusted, _ := strconv.ParseInt(parts[0], 10, 64)
 		//id := parts[1]
 		workIndex := strings.Index(parts[1], "@")
 		if workIndex != -1 {

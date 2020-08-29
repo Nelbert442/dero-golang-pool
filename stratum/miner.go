@@ -145,10 +145,11 @@ func (m *Miner) storeShare(diff int64) {
 	m.Unlock()
 }
 
-// TODO: This needs rework, I don't think it's correct.
-func (m *Miner) hashrate(estimationWindow time.Duration) float64 {
+// TODO: This needs rework, I don't think it's correct. - not being used
+/*func (m *Miner) hashrate(estimationWindow time.Duration) float64 {
 	now := util.MakeTimestamp() / 1000
 	totalShares := int64(0)
+	// Convert time window (such as 10m) to seconds
 	window := int64(estimationWindow / time.Second)
 	boundary := now - m.startedAt
 
@@ -157,16 +158,18 @@ func (m *Miner) hashrate(estimationWindow time.Duration) float64 {
 	}
 
 	m.Lock()
+	// Total shares only keeping track of last 24hr..
 	for k, v := range m.shares {
 		if k < now-86400 {
 			delete(m.shares, k)
 		} else if k >= now-window {
 			totalShares += v
 		}
+		log.Printf("[hashrate] totalShares: %v, minerShares: %v, window: %v", totalShares, m.shares, window)
 	}
 	m.Unlock()
-	return float64(totalShares) / float64(boundary)
-}
+	return float64(totalShares) / float64(window)
+}*/
 
 func (m *Miner) processShare(s *StratumServer, cs *Session, job *Job, t *BlockTemplate, nonce string, params *SubmitParams) (bool, string) {
 
