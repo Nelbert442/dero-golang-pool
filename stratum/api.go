@@ -25,6 +25,7 @@ type ApiServer struct {
 	miners              map[string]*Entry
 	minersMu            sync.RWMutex
 	statsIntv           time.Duration
+	stratum             *StratumServer
 }
 
 type Entry struct {
@@ -41,6 +42,7 @@ func NewApiServer(cfg *pool.APIConfig, s *StratumServer) *ApiServer {
 		hashrateWindow:      hashrateWindow,
 		hashrateLargeWindow: hashrateLargeWindow,
 		miners:              make(map[string]*Entry),
+		stratum:             s,
 	}
 }
 
@@ -171,12 +173,32 @@ func (apiServer *ApiServer) AllStatsIndex(writer http.ResponseWriter, _ *http.Re
 		reply["miners"] = map[string]interface{}{"hashrate": stats["hashrate"], "minersTotal": stats["minersTotal"], "miners": stats["miners"]}
 		reply["now"] = util.MakeTimestamp() / 1000
 		reply["stats"] = map[string]interface{}{"poolstats": stats["stats"], "hashrate": stats["hashrate"], "minersTotal": stats["minersTotal"]}
+		reply["config"] = apiServer.GetConfigIndex()
 	}
 
 	err = json.NewEncoder(writer).Encode(reply)
 	if err != nil {
 		log.Println("Error serializing API response: ", err)
 	}
+}
+
+func (apiServer *ApiServer) GetConfigIndex() map[string]interface{} {
+	stats := make(map[string]interface{})
+
+	stats["algo"] = apiServer.stratum.config.Algo
+	stats["coin"] = apiServer.stratum.config.Coin
+	stats["coinUnits"] = apiServer.stratum.config.CoinUnits
+	stats["coinDifficultyTarget"] = apiServer.stratum.config.CoinDifficultyTarget
+	stats["payIDAddressSeparator"] = apiServer.stratum.config.Stratum.PaymentID.AddressSeparator
+	stats["workIDAddressSeparator"] = apiServer.stratum.config.Stratum.WorkerID.AddressSeparator
+	stats["fixedDiffAddressSeparator"] = apiServer.stratum.config.Stratum.FixedDiff.AddressSeparator
+	stats["ports"] = apiServer.stratum.config.Stratum.Ports
+	stats["unlockDepth"] = apiServer.stratum.config.UnlockerConfig.Depth
+	stats["poolFee"] = apiServer.stratum.config.UnlockerConfig.PoolFee
+	stats["paymentMixin"] = apiServer.stratum.config.PaymentsConfig.Mixin
+	stats["paymentMinimum"] = apiServer.stratum.config.PaymentsConfig.Threshold
+
+	return stats
 }
 
 func (apiServer *ApiServer) StatsIndex(writer http.ResponseWriter, _ *http.Request) {

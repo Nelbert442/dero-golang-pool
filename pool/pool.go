@@ -7,6 +7,8 @@ type Config struct {
 	Threads               int            `json:"threads"`
 	Algo                  string         `json:"algo"`
 	Coin                  string         `json:"coin"`
+	CoinUnits             int64          `json:"coinUnits"`
+	CoinDifficultyTarget  int            `json:"coinDifficultyTarget"`
 	TrustedSharesCount    int64          `json:"trustedSharesCount"`
 	BlockRefreshInterval  string         `json:"blockRefreshInterval"`
 	HashrateExpiration    string         `json:"hashrateExpiration"`
