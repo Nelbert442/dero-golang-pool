@@ -64,7 +64,7 @@
         },
         update: function(){
             updateText('blocksTotal', lastStats.blocks.maturedTotal.toString());
-            updateText('blocksMaturityCount', (60).toString());
+            updateText('blocksMaturityCount', (15).toString());
             renderBlocks(lastStats.blocks.matured);
         }
     };
@@ -100,14 +100,14 @@
             reward: serializedBlock.reward
         };
 
-        var toGo = 60 - (lastStats.lastblock.DERO.height - block.height);
+        var toGo = 15 - (lastStats.lastblock.DERO.height - block.height);
         block.maturity = toGo < 1 ? '' : (toGo + ' to go');
 
         switch (block.orphaned){
-            case 'false':
+            case false:
                 block.status = 'unlocked';
                 break;
-            case 'true':
+            case true:
                 block.status = 'orphaned';
                 break;
             default:
@@ -140,7 +140,7 @@
         }
 
         function formatStatus(orphaned){
-            var toGo = 60 - (lastStats.lastblock.DERO.height - block.height);
+            var toGo = 15 - (lastStats.lastblock.DERO.height - block.height);
             block.maturity = toGo < 1 ? '' : (toGo + ' to go');
 
             if(block.maturity != '')
@@ -148,7 +148,7 @@
                 return block.maturity
             }
 
-            if(orphaned == 'false')
+            if(orphaned == false)
             {
                 return '<span class="luckGood"><i class="fa fa-unlock-alt"></i></span>';
             }
