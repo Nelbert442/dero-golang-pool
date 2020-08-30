@@ -1450,7 +1450,7 @@ function payments_InitTemplate (xhrGetPayments, ranOnce) {
 	updateText(`paymentsTotal${coin}`, lastStats.payments.paymentsTotal.toString());
 	updateText(`paymentsTotalPaid${coin}`, lastStats.payments.totalMinersPaid.toString());
 	updateText(`paymentsInterval${coin}`, getReadableTime(lastStats.config.paymentInterval));
-	updateText(`paymentsMinimum${coin}`, getReadableCoin(lastStats, lastStats.config.paymentMinimum));
+	updateText(`paymentsMinimum${coin}`, getReadableCoin(lastStats, lastStats.config.paymentMinimum), 7);
 	updateText(`paymentsDenomination${coin}`, getReadableCoin(lastStats, lastStats.config.coinUnits, 7));
 	payments_renderPayments(lastStats.payments.payments, lastStats);
 
@@ -1484,7 +1484,7 @@ function payments_InitTemplate (xhrGetPayments, ranOnce) {
 			updateText(`paymentsTotal${key}`, mergedStats[key].payments.paymentsTotal.toString());
 			updateText(`paymentsTotalPaid${key}`, mergedStats[key].payments.totalMinersPaid.toString());
 			updateText(`paymentsInterval${key}`, getReadableTime(mergedStats[key].config.paymentInterval));
-			updateText(`paymentsMinimum${key}`, getReadableCoin(mergedStats[key], mergedStats[key].config.paymentMinimum));
+			updateText(`paymentsMinimum${key}`, getReadableCoin(mergedStats[key], mergedStats[key].config.paymentMinimum, 7));
 			updateText(`paymentsDenomination${key}`, getReadableCoin(mergedStats[key], mergedStats[key].config.coinUnits, 7));
 			payments_renderPayments(mergedStats[key].payments.payments, mergedStats[key]);
 		})
@@ -2803,7 +2803,7 @@ function home_InitTemplate (parentStats, siblingStats) {
 	updateText('poolFee', (totalFee > 0 && totalFee != 100 ? floatToString(totalFee) : (totalFee == 100 ? '100' : '0')) + '%');
 
 	updateText('paymentsInterval', getReadableTime(parentStats.config.paymentInterval));
-	updateText('paymentsMinimum', getReadableCoin(parentStats, parentStats.config.paymentMinimum));
+	updateText('paymentsMinimum', getReadableCoin(parentStats, parentStats.config.paymentMinimum, 7));
 
 	updateText('blockSolvedTime', getReadableTime(parentStats.network.DERO.difficulty / parentStats.stats.hashrate));
 
