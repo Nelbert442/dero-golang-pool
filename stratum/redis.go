@@ -966,7 +966,7 @@ func (r *RedisClient) RollbackBalance(login string, amount int64) error {
 	return err
 }
 
-func (r *RedisClient) WritePayment(login, txHash string, amount int64) error {
+func (r *RedisClient) WritePayment(login, txHash, txKey string, txFee, mixin uint64, amount int64) error {
 	tx := r.client.Multi()
 	defer tx.Close()
 
@@ -977,8 +977,8 @@ func (r *RedisClient) WritePayment(login, txHash string, amount int64) error {
 		tx.HIncrBy(r.formatKey("miners", login), "paid", amount)
 		tx.HIncrBy(r.formatKey("finances"), "pending", (amount * -1))
 		tx.HIncrBy(r.formatKey("finances"), "paid", amount)
-		tx.ZAdd(r.formatKey("payments", "all"), redis.Z{Score: float64(ts), Member: join(txHash, login, amount)})
-		tx.ZAdd(r.formatKey("payments", login), redis.Z{Score: float64(ts), Member: join(txHash, amount)})
+		tx.ZAdd(r.formatKey("payments", "all"), redis.Z{Score: float64(ts), Member: join(txHash, login, amount, txKey, txFee, mixin)})
+		tx.ZAdd(r.formatKey("payments", login), redis.Z{Score: float64(ts), Member: join(txHash, amount, txKey, txFee, mixin)})
 		tx.ZRem(r.formatKey("payments", "pending"), join(login, amount))
 		tx.Del(r.formatKey("payments", "lock"))
 		return nil
@@ -999,9 +999,13 @@ func convertPaymentsResults(raw *redis.ZSliceCmd) []map[string]interface{} {
 		fields := strings.Split(v.Member.(string), ":")
 		tx["tx"] = fields[0]
 		// Individual or whole payments row
-		if len(fields) < 3 {
+		if len(fields) < 6 {
+			// txHash:amount:txKey:txFee:mixin -- with score of timestamp
 			tx["amount"], _ = strconv.ParseInt(fields[1], 10, 64)
+			tx["fee"], _ = strconv.ParseInt(fields[3], 10, 64)
+			tx["mixin"], _ = strconv.ParseInt(fields[4], 10, 64)
 		} else {
+			// txHash:login:amount:txKey:txFee:mixin -- with score of timestamp
 			workIndex := strings.Index(fields[1], "@")
 			if workIndex != -1 {
 				tx["address"] = fields[1][0:7] + "..." + fields[1][workIndex-7:workIndex]
@@ -1010,6 +1014,8 @@ func convertPaymentsResults(raw *redis.ZSliceCmd) []map[string]interface{} {
 			}
 			//tx["address"] = fields[1][0:7] + "..." + fields[1][len(fields[1])-7:len(fields[1])]
 			tx["amount"], _ = strconv.ParseInt(fields[2], 10, 64)
+			tx["fee"], _ = strconv.ParseInt(fields[4], 10, 64)
+			tx["mixin"], _ = strconv.ParseInt(fields[5], 10, 64)
 		}
 		result = append(result, tx)
 	}

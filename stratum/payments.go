@@ -255,6 +255,9 @@ func (u *PayoutsProcessor) process(s *StratumServer) {
 		// Log transaction hash
 		// TODO: Possibly better way to handle the []string returned for Tx_hash_list and usage below for redis stores. Maybe a rune split approach will be necessary (especially if in future multiple tx in one return)
 		txHash := paymentOutput.Tx_hash_list
+		txFee := paymentOutput.Fee_list
+		// As pool owner, you probably want to store keys so that you can prove a send if required.
+		txKey := paymentOutput.Tx_key_list
 
 		if txHash == nil {
 			log.Printf("Failed to generate transaction. It was sent successfully to rpc server, but no reply back.")
@@ -282,9 +285,9 @@ func (u *PayoutsProcessor) process(s *StratumServer) {
 		}
 
 		// Update stats for pool payments
-		err = u.backend.WritePayment(login, txHash[0], int64(amount))
+		err = u.backend.WritePayment(login, txHash[0], txKey[0], txFee[0], u.config.Mixin, int64(amount))
 		if err != nil {
-			log.Printf("Failed to log payment data for %s, %v DERO, tx: %s: %v", login, int64(amount), txHash[0], err)
+			log.Printf("Failed to log payment data for %s, %v DERO, tx: %s, fee: %v, txKey: %v, Mixin: %v, error: %v", login, int64(amount), txHash[0], txFee[0], txKey[0], u.config.Mixin, err)
 			//u.halt = true
 			//u.lastFail = err
 			break
@@ -292,7 +295,7 @@ func (u *PayoutsProcessor) process(s *StratumServer) {
 
 		minersPaid++
 		totalAmount.Add(totalAmount, big.NewInt(int64(amount)))
-		log.Printf("Paid %v DERO to %v, TxHash: %v", int64(amount), login, txHash)
+		log.Printf("Paid %v DERO to %v, TxHash: %v, Fee: %v, Mixin: %v", int64(amount), login, txHash[0], txFee[0], u.config.Mixin)
 
 		// Wait for TX confirmation before further payouts
 		/*for {

@@ -11,6 +11,7 @@ type Config struct {
 	Algo                  string         `json:"algo"`
 	Coin                  string         `json:"coin"`
 	CoinUnits             int64          `json:"coinUnits"`
+	CoinDecimalPlaces     int64          `json:"coinDecimalPlaces"`
 	CoinDifficultyTarget  int            `json:"coinDifficultyTarget"`
 	TrustedSharesCount    int64          `json:"trustedSharesCount"`
 	BlockRefreshInterval  string         `json:"blockRefreshInterval"`

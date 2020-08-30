@@ -193,6 +193,7 @@ func (apiServer *ApiServer) GetConfigIndex() map[string]interface{} {
 	stats["algo"] = apiServer.stratum.config.Algo
 	stats["coin"] = apiServer.stratum.config.Coin
 	stats["coinUnits"] = apiServer.stratum.config.CoinUnits
+	stats["coinDecimalPlaces"] = apiServer.stratum.config.CoinDecimalPlaces
 	stats["coinDifficultyTarget"] = apiServer.stratum.config.CoinDifficultyTarget
 	stats["payIDAddressSeparator"] = apiServer.stratum.config.Stratum.PaymentID.AddressSeparator
 	stats["workIDAddressSeparator"] = apiServer.stratum.config.Stratum.WorkerID.AddressSeparator
