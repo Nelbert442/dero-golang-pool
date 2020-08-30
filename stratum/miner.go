@@ -174,6 +174,9 @@ func (m *Miner) storeShare(diff int64) {
 func (m *Miner) processShare(s *StratumServer, cs *Session, job *Job, t *BlockTemplate, nonce string, params *SubmitParams) (bool, string) {
 
 	// Var definitions
+	var isSolo bool
+	// TODO: update with login id when solo is being used
+	isSolo = false
 	checkPowHashBig := false
 	success := false
 	var result string = params.Result
@@ -277,7 +280,7 @@ func (m *Miner) processShare(s *StratumServer, cs *Session, job *Job, t *BlockTe
 			s.refreshBlockTemplate(true)
 
 			// Redis store of successful block
-			_, err := s.backend.WriteBlock(params.Id, params.JobId, params, cs.difficulty, int64(t.Difficulty), int64(t.Height), s.hashrateExpiration, 0, blockSubmitReply.BLID)
+			_, err := s.backend.WriteBlock(params.Id, params.JobId, params, cs.difficulty, int64(t.Difficulty), int64(t.Height), s.hashrateExpiration, 0, blockSubmitReply.BLID, isSolo, m.address)
 			if err != nil {
 				log.Println("Failed to insert block data into backend:", err)
 			}
@@ -295,7 +298,7 @@ func (m *Miner) processShare(s *StratumServer, cs *Session, job *Job, t *BlockTe
 	m.storeShare(cs.difficulty)
 
 	// Redis store of successful share
-	_, err := s.backend.WriteShare(params.Id, params.JobId, params, cs.difficulty, int64(t.Height), s.hashrateExpiration)
+	_, err := s.backend.WriteShare(params.Id, params.JobId, params, cs.difficulty, int64(t.Height), s.hashrateExpiration, isSolo, m.address)
 	if err != nil {
 		log.Println("Failed to insert share data into backend:", err)
 	}

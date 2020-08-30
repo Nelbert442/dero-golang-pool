@@ -168,12 +168,13 @@ func (apiServer *ApiServer) AllStatsIndex(writer http.ResponseWriter, _ *http.Re
 	stats := apiServer.getStats()
 	if stats != nil {
 
-		reply["blocks"] = map[string]interface{}{"maturedTotal": stats["maturedTotal"], "immatureTotal": stats["immatureTotal"], "candidatesTotal": stats["candidatesTotal"], "luck": stats["luck"], "matured": stats["matured"], "immature": stats["immature"], "candidates": stats["candidates"]}
-		reply["payments"] = map[string]interface{}{"paymentsTotal": stats["paymentsTotal"], "payments": stats["payments"]}
-		reply["miners"] = map[string]interface{}{"hashrate": stats["hashrate"], "minersTotal": stats["minersTotal"], "miners": stats["miners"]}
+		reply["blocks"] = map[string]interface{}{"totalBlocks": stats["totalBlocks"], "totalBlocksSolo": stats["totalBlocksSolo"], "maturedTotal": stats["maturedTotal"], "immatureTotal": stats["immatureTotal"], "candidatesTotal": stats["candidatesTotal"], "luck": stats["luck"], "matured": stats["matured"], "immature": stats["immature"], "candidates": stats["candidates"]}
+		reply["payments"] = map[string]interface{}{"totalMinersPaid": 0, "paymentsTotal": stats["paymentsTotal"], "payments": stats["payments"]}
+		reply["miners"] = map[string]interface{}{"hashrate": stats["hashrate"], "minersTotal": stats["minersTotal"], "minersSolo": stats["minersTotal"], "miners": stats["miners"]}
 		reply["now"] = util.MakeTimestamp() / 1000
-		reply["stats"] = map[string]interface{}{"poolstats": stats["stats"], "hashrate": stats["hashrate"], "minersTotal": stats["minersTotal"]}
+		reply["stats"] = map[string]interface{}{"poolstats": stats["stats"], "hashrate": stats["hashrate"], "hashrateSolo": stats["hashrate"], "minersTotal": stats["minersTotal"]}
 		reply["config"] = apiServer.GetConfigIndex()
+		reply["charts"] = map[string]interface{}{}
 	}
 
 	err = json.NewEncoder(writer).Encode(reply)
@@ -185,6 +186,10 @@ func (apiServer *ApiServer) AllStatsIndex(writer http.ResponseWriter, _ *http.Re
 func (apiServer *ApiServer) GetConfigIndex() map[string]interface{} {
 	stats := make(map[string]interface{})
 
+	stats["poolHost"] = apiServer.stratum.config.PoolHost
+	stats["blockchainExplorer"] = apiServer.stratum.config.BlockchainExplorer
+	stats["transactionExplorer"] = apiServer.stratum.config.TransactionExploer
+	stats["version"] = "1.0.0"
 	stats["algo"] = apiServer.stratum.config.Algo
 	stats["coin"] = apiServer.stratum.config.Coin
 	stats["coinUnits"] = apiServer.stratum.config.CoinUnits
@@ -194,9 +199,15 @@ func (apiServer *ApiServer) GetConfigIndex() map[string]interface{} {
 	stats["fixedDiffAddressSeparator"] = apiServer.stratum.config.Stratum.FixedDiff.AddressSeparator
 	stats["ports"] = apiServer.stratum.config.Stratum.Ports
 	stats["unlockDepth"] = apiServer.stratum.config.UnlockerConfig.Depth
+	unlockTime, _ := time.ParseDuration(apiServer.stratum.config.UnlockerConfig.Interval)
+	unlockInterval := int64(unlockTime / time.Second)
+	stats["unlockInterval"] = unlockInterval
 	stats["poolFee"] = apiServer.stratum.config.UnlockerConfig.PoolFee
 	stats["paymentMixin"] = apiServer.stratum.config.PaymentsConfig.Mixin
 	stats["paymentMinimum"] = apiServer.stratum.config.PaymentsConfig.Threshold
+	paymentTime, _ := time.ParseDuration(apiServer.stratum.config.PaymentsConfig.Interval)
+	paymentInterval := int64(paymentTime / time.Second)
+	stats["paymentInterval"] = paymentInterval
 
 	return stats
 }
@@ -219,6 +230,7 @@ func (apiServer *ApiServer) StatsIndex(writer http.ResponseWriter, _ *http.Reque
 		reply["now"] = util.MakeTimestamp() / 1000
 		reply["stats"] = stats["stats"]
 		reply["hashrate"] = stats["hashrate"]
+		reply["hashrateSolo"] = stats["hashrate"]
 		reply["minersTotal"] = stats["minersTotal"]
 		reply["maturedTotal"] = stats["maturedTotal"]
 		reply["immatureTotal"] = stats["immatureTotal"]

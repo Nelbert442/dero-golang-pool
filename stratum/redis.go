@@ -26,7 +26,9 @@ type BlockData struct {
 	Difficulty     int64    `json:"difficulty"`
 	TotalShares    int64    `json:"shares"`
 	Orphan         bool     `json:"orphan"`
+	Solo           bool     `json:"solo"`
 	Hash           string   `json:"hash"`
+	Address        string   `json:"address"`
 	Nonce          string   `json:"-"`
 	PowHash        string   `json:"-"`
 	Reward         uint64   `json:"-"`
@@ -89,7 +91,7 @@ func (blockData *BlockData) RoundKey() string {
 }
 
 func (blockData *BlockData) key() string {
-	return join(blockData.Orphan, blockData.Nonce, blockData.serializeHash(), blockData.Timestamp, blockData.Difficulty, blockData.TotalShares, blockData.Reward)
+	return join(blockData.Orphan, blockData.Nonce, blockData.serializeHash(), blockData.Timestamp, blockData.Difficulty, blockData.TotalShares, blockData.Reward, blockData.Solo, blockData.Address)
 }
 
 func (redisClient *RedisClient) formatKey(args ...interface{}) string {
@@ -263,7 +265,7 @@ func (redisClient *RedisClient) checkPoWExist(height int64, params *SubmitParams
 	return val == 0, err
 }
 
-func (redisClient *RedisClient) WriteShare(login, id string, params *SubmitParams, diff int64, height int64, window time.Duration) (bool, error) {
+func (redisClient *RedisClient) WriteShare(login, id string, params *SubmitParams, diff int64, height int64, window time.Duration, solo bool, address string) (bool, error) {
 	exist, err := redisClient.checkPoWExist(height, params)
 	if err != nil {
 		return false, err
@@ -279,22 +281,22 @@ func (redisClient *RedisClient) WriteShare(login, id string, params *SubmitParam
 	ts := ms / 1000
 
 	_, err = tx.Exec(func() error {
-		redisClient.writeShare(tx, ms, ts, login, id, diff, window)
+		redisClient.writeShare(tx, ms, ts, login, id, diff, window, solo, address)
 		tx.HIncrBy(redisClient.formatKey("stats"), "roundShares", diff) // [DERO:stats] -- increments roundShares with each submitted share
 		return nil
 	})
 	return false, err
 }
 
-func (redisClient *RedisClient) writeShare(tx *redis.Multi, ms, ts int64, login, id string, diff int64, expire time.Duration) {
-	tx.HIncrBy(redisClient.formatKey("shares", "roundCurrent"), login, diff)                                   // [DERO:shares:roundCurrent] -- minerID and hashes this round
-	tx.ZAdd(redisClient.formatKey("hashrate"), redis.Z{Score: float64(ts), Member: join(diff, login, id, ms)}) // [DERO:hashrate] -- [shareDiff:minerID:timeSubmitted] with score of timeSubmitted
-	tx.ZAdd(redisClient.formatKey("hashrate", login), redis.Z{Score: float64(ts), Member: join(diff, id, ms)}) // [DERO:hashrate:minerID] -- [shareDiff:id:timeSubmitted] with score of timeSubmitted
-	tx.Expire(redisClient.formatKey("hashrate", login), expire)                                                // [DERO:hashrate:minerID]Will delete hashrates for miners that gone
-	tx.HSet(redisClient.formatKey("miners", login), "lastShare", strconv.FormatInt(ts, 10))                    // [DERO:miners:minerID] Sets time of last share submitted by login (miner id)
+func (redisClient *RedisClient) writeShare(tx *redis.Multi, ms, ts int64, login, id string, diff int64, expire time.Duration, solo bool, address string) {
+	tx.HIncrBy(redisClient.formatKey("shares", "roundCurrent"), login, diff)                                                  // [DERO:shares:roundCurrent] -- minerID and hashes this round
+	tx.ZAdd(redisClient.formatKey("hashrate"), redis.Z{Score: float64(ts), Member: join(diff, login, id, ms, solo, address)}) // [DERO:hashrate] -- [shareDiff:minerID:timeSubmitted] with score of timeSubmitted
+	tx.ZAdd(redisClient.formatKey("hashrate", login), redis.Z{Score: float64(ts), Member: join(diff, id, ms, solo, address)}) // [DERO:hashrate:minerID] -- [shareDiff:id:timeSubmitted] with score of timeSubmitted
+	tx.Expire(redisClient.formatKey("hashrate", login), expire)                                                               // [DERO:hashrate:minerID]Will delete hashrates for miners that gone
+	tx.HSet(redisClient.formatKey("miners", login), "lastShare", strconv.FormatInt(ts, 10))                                   // [DERO:miners:minerID] Sets time of last share submitted by login (miner id)
 }
 
-func (redisClient *RedisClient) WriteBlock(login, id string, params *SubmitParams, diff, roundDiff int64, height int64, window time.Duration, feeReward int64, blockHash string) (bool, error) {
+func (redisClient *RedisClient) WriteBlock(login, id string, params *SubmitParams, diff, roundDiff int64, height int64, window time.Duration, feeReward int64, blockHash string, solo bool, address string) (bool, error) {
 	exist, err := redisClient.checkPoWExist(height, params)
 	if err != nil {
 		return false, err
@@ -310,8 +312,10 @@ func (redisClient *RedisClient) WriteBlock(login, id string, params *SubmitParam
 	ts := ms / 1000
 
 	cmds, err := tx.Exec(func() error {
-		redisClient.writeShare(tx, ms, ts, login, id, diff, window)
+		redisClient.writeShare(tx, ms, ts, login, id, diff, window, solo, address)
 		tx.HSet(redisClient.formatKey("stats"), "lastBlockFound", strconv.FormatInt(ts, 10))
+		// TODO: when writeblock is called for solo, then throw an if/else around this
+		tx.HSet(redisClient.formatKey("stats"), "lastBlockFoundSolo", strconv.FormatInt(ts, 10))
 		tx.HDel(redisClient.formatKey("stats"), "roundShares")
 		tx.ZIncrBy(redisClient.formatKey("finders"), 1, login)
 		tx.HIncrBy(redisClient.formatKey("miners", login), "blocksFound", 1)
@@ -322,7 +326,7 @@ func (redisClient *RedisClient) WriteBlock(login, id string, params *SubmitParam
 	if err != nil {
 		return false, err
 	} else {
-		sharesMap, _ := cmds[10].(*redis.StringStringMapCmd).Result()
+		sharesMap, _ := cmds[11].(*redis.StringStringMapCmd).Result()
 		totalShares := int64(0)
 		for _, v := range sharesMap {
 			n, _ := strconv.ParseInt(v, 10, 64)
@@ -330,7 +334,9 @@ func (redisClient *RedisClient) WriteBlock(login, id string, params *SubmitParam
 		}
 		tempParams := []string{params.Id, params.JobId, params.Nonce, params.Result}
 		paramsJoined := strings.Join(tempParams, ":")
-		s := join(blockHash, paramsJoined, ts, roundDiff, totalShares, feeReward)
+		log.Printf("paramsJoined: %v", paramsJoined)
+		s := join(blockHash, paramsJoined, ts, roundDiff, totalShares, feeReward, solo, address)
+		log.Printf("s: %v", s)
 		cmd := redisClient.client.ZAdd(redisClient.formatKey("blocks", "candidates"), redis.Z{Score: float64(height), Member: s})
 		return false, cmd.Err()
 	}
@@ -558,7 +564,7 @@ func (redisClient *RedisClient) FlushStaleStats(window, largeWindow time.Duratio
 func convertCandidateResults(raw *redis.ZSliceCmd) []*BlockData {
 	var result []*BlockData
 	for _, v := range raw.Val() {
-		// "blockHex:minerID:round:nonce:timestamp:diff:totalShares:extraReward"
+		// "blockHex:minerID:round:nonce:_:timestamp:diff:totalShares:extraReward:solo:address"
 		block := BlockData{}
 		block.Height = int64(v.Score)
 		block.RoundHeight = block.Height
@@ -571,6 +577,8 @@ func convertCandidateResults(raw *redis.ZSliceCmd) []*BlockData {
 		block.TotalShares, _ = strconv.ParseInt(fields[7], 10, 64)
 		//block.ExtraReward, _ = new(big.Int).SetString(fields[9], 10)
 		block.candidateKey = v.Member.(string)
+		block.Solo, _ = strconv.ParseBool(fields[9])
+		block.Address = fields[10][0:7] + "..." + fields[10][len(fields[10])-7:len(fields[10])]
 		result = append(result, &block)
 	}
 	return result
@@ -617,6 +625,10 @@ func (redisClient *RedisClient) CollectStats(smallWindow time.Duration, maxBlock
 	matured := convertBlockResults(cmds[5].(*redis.ZSliceCmd))
 	stats["matured"] = matured
 	stats["maturedTotal"] = cmds[8].(*redis.IntCmd).Val()
+
+	stats["totalBlocks"] = cmds[6].(*redis.IntCmd).Val() + cmds[7].(*redis.IntCmd).Val() + cmds[8].(*redis.IntCmd).Val()
+	// TODO: Update once solo/pool are split
+	stats["totalBlocksSolo"] = cmds[6].(*redis.IntCmd).Val() + cmds[7].(*redis.IntCmd).Val() + cmds[8].(*redis.IntCmd).Val()
 
 	payments := convertPaymentsResults(cmds[10].(*redis.ZSliceCmd))
 	stats["payments"] = payments
@@ -750,7 +762,7 @@ func convertBlockResults(rows ...*redis.ZSliceCmd) []*BlockData {
 	var result []*BlockData
 	for _, row := range rows {
 		for _, v := range row.Val() {
-			// "orphan:nonce:blockHash:timestamp:diff:totalShares:rewardInDERO"
+			// "orphan:nonce:blockHash:timestamp:diff:totalShares:rewardInDERO:solo:address"
 			block := BlockData{}
 			block.Height = int64(v.Score)
 			block.RoundHeight = block.Height
@@ -764,6 +776,8 @@ func convertBlockResults(rows ...*redis.ZSliceCmd) []*BlockData {
 			block.RewardString = fields[6]
 			block.ImmatureReward = fields[6]
 			block.immatureKey = v.Member.(string)
+			block.Solo, _ = strconv.ParseBool(fields[7])
+			block.Address = fields[8][0:7] + "..." + fields[8][len(fields[8])-7:len(fields[8])]
 			result = append(result, &block)
 		}
 	}

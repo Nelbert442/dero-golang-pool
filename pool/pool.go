@@ -1,6 +1,9 @@
 package pool
 
 type Config struct {
+	PoolHost              string         `json:"poolHost"`
+	BlockchainExplorer    string         `json:"blockchainExplorer"`
+	TransactionExploer    string         `json:"transactionExplorer"`
 	Address               string         `json:"address"`
 	ConfigRefreshInterval string         `json:"ConfigRefreshInterval"`
 	BypassShareValidation bool           `json:"bypassShareValidation"`
