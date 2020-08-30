@@ -1,98 +1,141 @@
-<style>
-    .paymentsStatHolder > span{
-        display: inline-block;
-        border-radius: 5px;
-        padding: 1px 9px;
-        border: 1px solid #e5e5e5;
-        margin: 2px;
-    }
-    .paymentsStatHolder > span > span{
-        font-weight: bold;
-    }
-    #payments_rows > tr > td{
-        vertical-align: middle;
-        font-family: 'Inconsolata', monospace;
-        font-size: 0.95em;
-        text-align: center;
-    }
-</style>
+<ul class="nav nav-tabs" id="blocksTabs">
+</ul>
 
-<div class="paymentsStatHolder">
-    <span class="bg-primary">Total Payments: <span id="paymentsTotal"></span></span>
-    <span class="bg-info">Total Miners Paid: <span id="paymentsTotalPaid"></span></span>
-    <span class="bg-info">Minimum Payment Threshold: <span id="paymentsMinimum"></span></span>
-    <span class="bg-info">Denomination Unit: <span id="paymentsDenomination"></span></span>
+<div class="tab-content" id="tab-content">
 </div>
 
-<hr>
+<script id="siblingTabTemplate" type="text/x-handlebars-template">
+	<li id="blockTabs{{coin}}" role="presentation" class="{{active}}"><a href="#{{coin}}">{{coin}} {{symbol}}</a></li>
+</script>
 
-<div class="table-responsive">
-    <table class="table table-hover table-striped">
-        <thead>
-        <tr>
-            <th><i class="fa fa-clock-o"></i> Time Sent</th>
-            <th><i class="fa fa-paw"></i> Transaction Hash</th>
-            <th><i class="fa fa-money"></i> Amount</th>
-            <!-- <th><i class="fa fa-tag"></i> Fee</th> -->
-            <th><i class="fa fa-sitemap"></i> Mixin</th>
-            <th><i class="fa fa-group"></i> Payees</th>
-        </tr>
-        </thead>
-        <tbody id="payments_rows">
+<script id="siblingTemplate" type="text/x-handlebars-template">
+	<div role="tabpanel" class="tab-pane {{active}}" id="{{coin}}">
+      <!-- Statistics -->
+      <div class="row paymentsStats">
 
-        </tbody>
-    </table>
-</div>
+          <!-- Total Payments -->
+          <div class="col-lg-3 col-sm-6">
+              <div class="infoBox hoverExpandEffect mergedBg">
+                  <div class="icon">
+                      <span class="fa fa-money"></span>
+                  </div>
+                  <div class="content">
+                      <div class="text"><span data-tkey="paymentsTotal">Total Payments</span></div>
+                      <div class="value"><span id="paymentsTotal{{coin}}">N/A</span> <span class="smallText">(<strong><span id="paymentsTotalPaid{{coin}}">N/A</span></strong> <span data-tkey="minersCount">miners</span>)</span></div>
+                  </div>
+              </div>
+          </div>
 
-<p class="text-center">
-    <button type="button" class="btn btn-default" id="loadMorePayments">Load More</button>
-</p>
+          <!-- Minimum Payment Threshold -->
+          <div class="col-lg-3 col-sm-6">
+              <div class="infoBox hoverExpandEffect mergedBg">
+                  <div class="icon">
+                      <span class="fa fa-dollar"></span>
+                  </div>
+                  <div class="content">
+                      <div class="text"><span data-tkey="paymentsMinimum">Minimum Payout</span></div>
+                      <div class="value"><span id="paymentsMinimum{{coin}}">N/A</span></div>
+                  </div>
+              </div>
+          </div>
 
+          <!-- Payment Interval -->
+          <div class="col-lg-3 col-sm-6">
+              <div class="infoBox hoverExpandEffect mergedBg">
+                  <div class="icon">
+                      <span class="fa fa-clock-o"></span>
+                  </div>
+                  <div class="content">
+                      <div class="text"><span data-tkey="paymentsInterval">Payment Interval</span></div>
+                      <div class="value"><span id="paymentsInterval{{coin}}">N/A</span></div>
+                  </div>
+              </div>
+          </div>
 
+          <!-- Denomination Unit -->
+          <div class="col-lg-3 col-sm-6">
+              <div class="infoBox hoverExpandEffect mergedBg">
+                  <div class="icon">
+                      <span class="fa fa-hashtag"></span>
+                  </div>
+                  <div class="content">
+                      <div class="text"><span data-tkey="paymentsDenomination">Denomination Unit</span></div>
+                      <div class="value"><span id="paymentsDenomination{{coin}}">N/A</span></div>
+                  </div>
+              </div>
+          </div>
+
+      </div>
+
+      <!-- Report -->
+      <div class="card push-up-10">
+          <div id="paymentsReport{{coin}}" class="table-responsive">
+              <table class="table table-hover table-striped">
+                  <thead>
+                  <tr>
+                      <th class="col1"><span data-tkey="timeSent">Time Sent</span></th>
+                      <th class="col2"><span data-tkey="transactionHash">Transaction Hash</span></th>
+                      <th class="col3"><span data-tkey="amount">Amount</span></th>
+                      <th class="col4"><span data-tkey="fee">Fee</span></th>
+                      <th class="col5"><span data-tkey="mixin">Mixin</span></th>
+                      <th class="col6"><span data-tkey="payees">Payees</span></th>
+                  </tr>
+                  </thead>
+                  <tbody id="paymentsReport{{coin}}_rows">
+
+                  </tbody>
+              </table>
+          </div>
+      </div>
+
+      <p class="text-center push-up-10">
+          <button type="button" class="btn btn-default" id="loadMorePayments{{coin}}"><span data-tkey="loadMore">Load More</span></button>
+      </p>
+  </div>
+</script>
+
+<!-- Javascript -->
 <script>
+	let xhrGetPayments = {}
+	let ranOnce = false
+	// Update current page
+	currentPage = {
+		destroy: function () {
+			if (xhrGetPayments) {
+				Object.keys(xhrGetPayments)
+					.forEach(key => {
+						if (xhrGetPayments[key])
+							xhrGetPayments[key].abort();
+						$(`#loadMorePayments${key}`)
+							.off('click')
+					})
+			}
+			$('#blocksTabs a')
+				.off('click')
+		},
+		update: function (updateKey) {
+			let stats = updateKey === parentCoin ? lastStats : mergedStats[updateKey]
+			if (stats) {
+				updateText(`paymentsTotal${updateKey}`, stats.payments.paymentsTotal.toString());
+				updateText(`paymentsTotalPaid${updateKey}`, stats.payments.totalMinersPaid.toString());
+				updateText(`paymentsInterval${updateKey}`, getReadableTime(stats.config.paymentInterval));
+				updateText(`paymentsMinimum${updateKey}`, getReadableCoin(stats, stats.config.paymentMinimum, 7));
+				updateText(`paymentsDenomination${updateKey}`, getReadableCoin(stats, stats.config.coinUnits, 7));
+				payments_renderPayments(stats.payments.payments, stats);
+			}
+		}
+	};
 
-    function getTransactionUrl(id) {
-        return transactionExplorer.replace('{symbol}', "DERO".toLowerCase()).replace('{id}', id);
-    }
+	function RunOnce () {
+		$('#blocksTabs a')
+			.click(function (e) {
+				e.preventDefault()
+				$(this)
+					.tab('show')
+			})
+		return true
+	}
 
-    currentPage = {
-        destroy: function(){
-            if (xhrGetPayments) xhrGetPayments.abort();
-        },
-        update: function(){
-            updateText('paymentsTotal', lastStats.payments.paymentsTotal.toString());
-            updateText('paymentsTotalPaid', lastStats.stats.minersTotal.toString());
-            updateText('paymentsMinimum', getReadableCoins(100, 4));
-            updateText('paymentsDenomination', getReadableCoins(100000, 4));
-            renderPayments(lastStats.payments.payments);
-        }
-    };
-
-
-    var xhrGetPayments;
-    $('#loadMorePayments').click(function(){
-        if (xhrGetPayments) xhrGetPayments.abort();
-        xhrGetPayments = $.ajax({
-            url: api + '/allstats',
-            data: {
-                time: $('#payments_rows').children().last().data('time')
-            },
-            dataType: 'json',
-            cache: 'false',
-            success: function(data){
-                renderPayments(data);
-            }
-        });
-    });
-
-
-    function getPaymentCells(payment){
-        return '<td>' + formatDate(payment.time) + '</td>' +
-                '<td>' + formatPaymentLink(payment.hash) + '</td>' +
-                '<td>' + getReadableCoins(payment.amount, 5, true) + '</td>' +
-                //'<td>' + getReadableCoins(payment.fee, 5, true) + '</td>' +
-                '<td>' + payment.mixin + '</td>' +
-                '<td>' + payment.recipients + '</td>';
-    }
+	payments_InitTemplate(xhrGetPayments, ranOnce)
 
 </script>

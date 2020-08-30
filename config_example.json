@@ -1,11 +1,16 @@
 {
+	"poolHost": "127.0.0.1",
+	"blockchainExplorer": "http://127.0.0.1:8081/block/{id}",
+	"transactionExplorer": "http://127.0.0.1:8081/tx/{id}",
 	"address": "dEToUEe3q57XoqLgbuDE7DUmoB6byMtNBWtz85DmLAHAC8wSpetw4ggLVE4nB3KRMRhnFdxRT3fnh9geaAMmGrhP2UDY18gVNr",
-	"ConfigRefreshInterval": "5s",
 	"bypassShareValidation": false,
 
 	"threads": 2,
 	"algo": "astrobwt",
 	"coin": "DERO",
+	"coinUnits": 1000000000000,
+	"coinDecimalPlaces": 4,
+	"coinDifficultyTarget": 27,
 
 	"trustedSharesCount": 30,
 	"blockRefreshInterval": "450ms",
@@ -116,7 +121,7 @@
 		"enabled": true,
 		"interval": "30s",
 		"mixin": 8,
-		"minPayment": 100,
+		"minPayment": 1000000,
 		"bgsave": true,
 		"walletHost": "127.0.0.1",
 		"walletPort": "30309"

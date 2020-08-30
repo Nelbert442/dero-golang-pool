@@ -50,6 +50,15 @@ Copy the `config_example.json` file of your choice to `config.json` then overvie
 Explanation for each field:
 ```javascript
 {
+	/* Pool host that will be displayed on frontend for miners to connect to */
+	"poolHost": "127.0.0.1",
+
+	/* Blockchain explorer, i.e. explorer.dero.io */
+	"blockchainExplorer": "http://127.0.0.1:8081/block/{id}",
+
+	/* Transaction explorer, i.e. explorer.dero.io */
+	"transactionExplorer": "http://127.0.0.1:8081/tx/{id}",
+
     /*  Mining pool address */
 	"address": "dEToUEe3q57XoqLgbuDE7DUmoB6byMtNBWtz85DmLAHAC8wSpetw4ggLVE4nB3KRMRhnFdxRT3fnh9geaAMmGrhP2UDY18gVNr",
 
@@ -64,6 +73,15 @@ Explanation for each field:
 
 	/* 	Defines coin name, used in redis stores etc. */
 	"coin": "DERO",
+
+	/* Defines the base of DERO, 12 decimal places */
+	"coinUnits": 1000000000000,
+
+	/* Defines decimal places for frontend displaying */
+	"coinDecimalPlaces": 4,
+
+	/* Defines the difficulty target (in seconds) on average for a block to be found */
+	"coinDifficultyTarget": 27,
 
 	/* Used for defining how many validated shares to submit in a row before passThru hashing [trusted] */
 	"trustedSharesCount": 30,

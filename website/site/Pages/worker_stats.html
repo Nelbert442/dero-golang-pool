@@ -1,152 +1,216 @@
+<!-- Worker Statistics -->
+<h3><span data-tkey="minerStats">Your Stats & Payment History</span></h3>
 
-<script>
+<ul class="nav nav-tabs" id="blocksTabs">
+</ul>
 
-function loadScript(url, callback){
-  var script = document.createElement("script")
-    script.type = "text/javascript";
+<div class="tab-content" id="tab-content">
+</div>
 
-  if (script.readyState){  //IE
-    script.onreadystatechange = function(){
-      if (script.readyState == "loaded" ||
-          script.readyState == "complete"){
-        script.onreadystatechange = null;
-        callback();
-      }
-    };
-  } else {  //Others
-    script.onload = function(){
-      callback();
-    };
-  }
-
-  script.src = url;
-  document.getElementsByTagName("head")[0].appendChild(script);
-}
-
-$('#addressSetButton').click(function(){
-  $("#graphs").empty();
-  var address = $('#yourAddress').val();
-  fetchAddressWorkers(address);
-});
-
-// Fetches the workers that are known for an address and creates the graphs.
-function fetchAddressWorkers(address) {
-  $.ajax({
-    url: api + '/allstats',
-    data: {
-      address: address,
-    },
-    dataType: 'json',
-    cache: 'false',
-    success: function(data){
-      for (var i=0; i<data.workers.length; i++) {
-        getWorkerGraphData(data.workers[i], address, function(graphData, rangeMax) {
-          var new_id = 'chart_' + graphData[0].name;
-          var $template = $("#worker_chart").clone().prop('id', new_id);
-          if (graphData[0].y.length < 5) {
-            $template.append('<br>Not enough data yet for worker: ' + graphData[0].name);
-            $template.appendTo("#graphs");
-          } else {
-            var layout = {
-              title: 'Hashrate worker: ' + graphData[0].name,
-              autosize: false,
-              width: 1000,
-              height: 500,
-              yaxis: {
-                autorange: false,
-                range: [0, rangeMax + 500],
-                type: 'linear'
-              }
-            }
-            $template.appendTo("#graphs");
-            Plotly.newPlot(new_id, graphData, layout);
-          }
-          $('#' + new_id).show();
-        });
-      }
-    }
-  });
-}
-
-// Gets worker graph data.
-function getWorkerGraphData(worker, address, dataHandler) {
-  var worker_address = address + '+' + worker;
-  $.ajax({
-    url: api + '/allstats',
-    data: {
-      address: worker_address,
-    },
-    dataType: 'json',
-    cache: 'false',
-    success: function(data){
-      var graphData = {
-        names: [],
-        values: []
-      };
-
-      var rangeMax = 0;
-      for (var i = 0; i< data['charts']['hashrate'].length; i++) {
-        xy = data['charts']['hashrate'][i];
-        graphData.names.push(new Date(xy[0]*1000).toUTCString());
-        if (xy[1] > rangeMax) {
-          rangeMax = xy[1];
-        }
-        graphData.values.push(xy[1]);
-      }
-
-      dataHandler([{
-        x: graphData.names,
-        y: graphData.values,
-        type: 'scatter',
-        name: worker,
-        mode: 'lines',
-        fill: 'tonexty',
-        connectgaps: true,
-        autosize: false
-      }], rangeMax);
-    }
-  });
-}
+<script id="siblingTabTemplate" type="text/x-handlebars-template">
+	<li id="blockTab{{coin}}" role="presentation" class="{{active}}"><a href="#{{coin}}" data-coin="{{coin}}">{{coin}} {{symbol}}</a></li>
 </script>
 
-<h1>Individual worker stats</h1>
-<br>
-To show individual worker statistics; you will need to configure your miner with
-a worker name. Simply append the worker name you like to your wallet address
-using the following format:
-<br>
-<i>wallet_address+workername</i><br>
-<br>
+<script id="siblingTemplate" type="text/x-handlebars-template">
+	<div role="tabpanel" class="tab-pane {{active}}" id="{{coin}}">
+        <div id="workerStats{{coin}}">
+            <div class="input-group">
+                <input class="form-control" id="yourStatsInput{{coin}}" type="text" data-tplaceholder="enterYourAddress" placeholder="Enter Your {{coin}} Address">
+                <span class="input-group-btn"><button class="btn btn-default" type="button" id="lookUp{{coin}}">
+                    <span><i class="fa fa-search"></i> <span data-tkey="lookup">Lookup</span></span>
+                    <span><i class="fa fa-refresh fa-spin"></i> <span data-tkey="searching">Searching...</span></span>
+                </button></span>
+            </div>
+            <div id="addressError{{coin}}"></div>
 
-Note: that it might take a few hours before the stats on this page start to show
-meaningful data. It's on our TODO list to speed this up.
-<br><br>
+            <!-- Hashrate -->
+            <div class="yourStats{{coin}} push-up-20">
+                <h4><i class="fa fa-dashboard"></i>&nbsp; <span data-tkey="hashRate">Hash Rate</span></h4>
+            <div class="row card">
+                    <div class="col-sm-6 stats push-up-10">
+                        <div><i class="fa fa-tachometer"></i> <span data-tkey="currentHashRate">Current Hash Rate</span>: <span id="yourHashrateHolder{{coin}}"></span></div>
+                        <div id="minerAvgHR{{coin}}"><i class="fa fa-tachometer"></i> <span data-data-tkey="averageHashRate">Average 1/6/24-hour Hash Rate</span>:
+                            <span id="yourHR1h{{coin}}"></span> / <span id="yourHR6h{{coin}}"></span> / <span id="yourHR24h{{coin}}"></span></div>
+                        <div><i class="fa fa-clock-o"></i> <span data-tkey="lastShare">Last Share Submitted</span>: <span id="yourLastShare{{coin}}"></span></div>
+                        <div><i class="fa fa-cloud-upload"></i> <span data-tkey="totalHashes">Total Hashes Submitted</span>: <span id="yourHashes{{coin}}"></span></div>
+                    </div>
+                    <div class="col-sm-6">
+                        <div class="userChart{{coin}} push-up-10" data-chart="user_hashrate_{{coin}}">
+                            <div class="chart">
 
-<div class="form-group">
-  <label class="col-sm-2 col-form-label col-form-label-lg" for="yourAddress">DERO address:</label>
-  <div class="col-sm-8">
-    <input class="form-control" id="yourAddress" type="text" placeholder="Enter Your Address">
-  </div>
-  <span>
-    <button class="btn btn-default" type="button" id="addressSetButton">
-      <span><i class="fa fa-check"></i> Show</span>
-    </button>
-  </span>
-</div>
-<hr>
+                            </div>
+                        </div>
+                    </div>
+            </div>
+            </div>
 
-<div id="worker_chart" style="display:none"></div>
-<div id="graphs">
-</div>
+            <!-- Payments -->
+            <div class="yourStats{{coin}} push-up-20">
+                <h4><i class="fa fa-money"></i>&nbsp; <span data-tkey="payments">Payments</span></h4>
+                <div class="row card">
+                    <div class="col-sm-6 stats push-up-10">
+                        <div><i class="fa fa-bank"></i> <span data-tkey="pendingBalance">Pending Balance</span>: <span id="yourPendingBalance{{coin}}"></span></div>
+                        <div><i class="fa fa-money"></i> <span data-tkey="totalPaid">Total Paid</span>: <span id="yourPaid{{coin}}"></span></div>
+                        <div><i class="fa fa-money card-icon"></i> <span data-tkey="last24hPaid" class="card-label">Last 24h Paid</span>: <span id="paid24h{{coin}}"></span></div>
+                        <div><i class="fa fa-money card-icon"></i> <span data-tkey="last7dPaid" class="card-label">Last 7d Paid</span>: <span id="paid7d{{coin}}"></span></div>
+                        <div class="card-separate-text"><i class="fa fa-star card-icon"></i> <span class="card-label">Round contribution</span>: <span id="yourRoundShareProportion{{coin}}"></span>%
+                        <span id="slush_round_info"> (shares), <span id="yourRoundScoreProportion{{coin}}"></span>% (<a target="_blank" href="#payments">score</a>)</span></span></div>
+                        <div><i class="fa fa-money"></i> <span data-tkey="payoutEstimate">Current Payout Estimate</span>: <span id="yourPayoutEstimate{{coin}}"></span></div>
+                    </div>
+                    <div class="col-sm-6">
+                        <div class="userChart{{coin}} push-up-10" data-chart="user_payments_{{coin}}">
+                            <div class="chart">
 
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Workers -->
+            <h4 class="yourStats{{coin}} yourWorkers{{coin}} push-up-20"><i class="fa fa-server"></i>&nbsp; <span data-tkey="workerStats">Workers Statistics</span></h4>
+            <div class="yourStats{{coin}} yourWorkers{{coin}} card">
+                <div class="table-responsive workersReport{{coin}}">
+                    <table class="table table-hover table-striped workerStats">
+                        <thead>
+                        <tr>
+                            <th class="col1 sort"><span data-tkey="status">Status</span> <i class="fa fa-sort"></i></th>
+                            <th class="col2 sort"><span data-tkey="workerName">Worker Name</span> <i class="fa fa-sort"></i></th>
+                            <th class="col3 sort"><span data-tkey="hashRate">Hash Rate</span> <i class="fa fa-sort"></i></th>
+                            <th class="col4 sort avghr" title="Average hashrate over the last hour (only includes times the worker was active)"><span data-data-tkey="hashRate1h">HR (1h)</span> <i class="fa fa-sort"></i></th>
+                    <th class="col5 sort avghr" title="Average hashrate over the last six hours (only includes times the worker was active)"><span data-data-tkey="hashRate6h">HR (6h)</span> <i class="fa fa-sort"></i></th>
+                    <th class="col6 sort avghr" title="Average hashrate over the last day (only includes times the worker was active)"><span data-data-tkey="hashRate24h">HR (24h)</span> <i class="fa fa-sort"></i></th>
+                            <th class="col7 sort"><span data-tkey="lastShare">Last Share Submitted</span> <i class="fa fa-sort"></i></th>
+                            <th class="col8 sort"><span data-tkey="totalHashes">Total Hashes Submitted</span> <i class="fa fa-sort"></i></th>
+                        </tr>
+                        </thead>
+                        <tbody id="workersReport_rows_{{coin}}">
+
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Payments -->
+            <h4 class="yourStats{{coin}} push-up-20"><i class="fa fa-money"></i>&nbsp; <span data-tkey="paymentsHistory">Payments History</span></h4>
+            <div class="yourStats{{coin}} card">
+                <div id="workerPayments{{coin}}" class="table-responsive">
+                    <table class="table table-hover table-striped">
+                        <thead>
+                        <tr>
+                            <th class="col1"><span data-tkey="timeSent">Time Sent</span></th>
+                            <th class="col2"><span data-tkey="transactionHash">Transaction Hash</span></th>
+                            <th class="col3"><span data-tkey="amount">Amount</span></th>
+                            <th class="col4"><span data-tkey="mixin">Mixin</span></th>
+                        </tr>
+                        </thead>
+                        <tbody id="paymentsReport_rows_{{coin}}">
+
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <p class="yourStats{{coin}} text-center push-up-10">
+                <button type="button" class="btn btn-default" id="loadMorePayments{{coin}}"><span data-tkey="loadMore">Load More</span></button>
+            </p>
+
+        </div>
+
+    </div>
+</script>
+
+<!-- Javascript -->
 <script>
-loadScript("https://cdn.plot.ly/plotly-1.2.0.min.js", function() {
-var urlWalletAddress = location.search.split('wallet=')[1] || 0;
-var address = urlWalletAddress || docCookies.getItem('mining_address');
+	let xhrGetPayments = {}
+	let xhrAddressPoll = {}
+	let addressTimeout = {}
+	let ranOnce = false
+	// Update current page
+	currentPage = {
+		destroy: function () {
+			$(`#yourLastShare${lastStats.config.coin}`)
+				.timeago('dispose');
+			if (mergedApis) {
+				Object.keys(mergedApis)
+					.forEach(key => {
+						if (mergedApis[key])
+							$(`#yourLastShare${key}`)
+							.timeago('dispose');
+					})
+			}
+			if (xhrAddressPoll[lastStats.config.coin])
+				xhrAddressPoll[lastStats.config.coin].abort();
+			if (xhrAddressPoll) {
+				Object.keys(xhrAddressPoll)
+					.forEach(key => {
+						if (xhrAddressPoll[key])
+							xhrAddressPoll[key].abort();
+					})
+			}
+			if (addressTimeout[lastStats.config.coin])
+				clearTimeout(addressTimeout[lastStats.config.coin])
 
-if (address) {
-	$('#yourAddress').val(address);
-	fetchAddressWorkers(address);
-}
-});
+			if (addressTimeout) {
+				Object.keys(addressTimeout)
+					.forEach(key => {
+						if (addressTimeout[key])
+							clearTimeout(addressTimeout[key])
+					})
+			}
+			if (xhrGetPayments[lastStats.config.coin])
+				xhrGetPayments[lastStats.config.coin].abort();
+
+			if (xhrGetPayments) {
+				Object.keys(xhrGetPayments)
+					.forEach(key => {
+						if (xhrGetPayments[key])
+							xhrGetPayments[key].abort();
+					})
+			}
+
+		},
+		update: function (updateKey) {}
+	};
+
+	function RunOnce () {
+		$('#blocksTabs a')
+			.click(function (e) {
+				e.preventDefault()
+				$(this)
+					.tab('show')
+				let coin = $(this)
+					.data('coin')
+				$(`#lookUp${coin}`)
+					.click();
+			})
+		return true
+	}
+
+	// Charts settings
+	var graphSettings = {
+		type: 'line',
+		width: '100%',
+		height: '140',
+		lineColor: '#03a9f4',
+		fillColor: 'rgba(3, 169, 244, .4)',
+		spotColor: null,
+		minSpotColor: null,
+		maxSpotColor: null,
+		highlightLineColor: '#236d26',
+		spotRadius: 3,
+		chartRangeMin: 0,
+		drawNormalOnTop: false,
+		tooltipFormat: '<b>{{y}}</b> &ndash; {{offset:names}}'
+	};
+
+	// Handle charts tooltip
+	$(function () {
+		$('[data-toggle="tooltip"]')
+			.tooltip();
+	});
+
+
+	workerstats_InitTemplate(ranOnce, addressTimeout, xhrAddressPoll)
+
 </script>

@@ -1,466 +1,333 @@
-
 <!DOCTYPE html>
-<html>
-<head lang="en">
+<html lang="en">
 
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, minimum-scale=1">
+<head>
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, minimum-scale=1">
 
-    <title>DERO Mining Pool</title>
+	<title>Deropools.Nelbert442.com</title>
+	<meta name="Description" content="Deropools.Nelbert442.com.  DERO Cryptocurrency mining. Mine direct to exchange or wallet.  Low pool fees and fast payments!">
+	<meta name="keywords" content="DERO, mining, pool, nelbert442, cryptocurrency, exchange, bitrex, coinmarketcap, tradeogre, payments, coinbase, escodex, bitrex">
 
-    <!-- favicon -->
-	<link rel="shortcut icon" type="image/x-icon" href="favicon.ico">
+	<script src="//cdnjs.cloudflare.com/ajax/libs/jquery/2.2.4/jquery.min.js"></script>
+	<script src="//cdnjs.cloudflare.com/ajax/libs/jquery-timeago/1.6.3/jquery.timeago.min.js"></script>
+	<script src="//cdnjs.cloudflare.com/ajax/libs/jquery-sparklines/2.1.2/jquery.sparkline.min.js"></script>
+	<script src="//cdnjs.cloudflare.com/ajax/libs/Chart.js/2.7.3/Chart.min.js"></script>
+	<script src="https://cdnjs.cloudflare.com/ajax/libs/mustache.js/3.0.1/mustache.min.js"></script>
+	<script src="https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.24.0/moment.min.js"></script>
+	<link href="//netdna.bootstrapcdn.com/bootstrap/3.1.1/css/bootstrap.min.css" rel="stylesheet">
+	<script src="//netdna.bootstrapcdn.com/bootstrap/3.1.1/js/bootstrap.min.js"></script>
+	<link href="//netdna.bootstrapcdn.com/font-awesome/4.7.0/css/font-awesome.min.css" rel="stylesheet">
 
-    <script src="//cdnjs.cloudflare.com/ajax/libs/jquery/2.1.1/jquery.min.js"></script>
-    <script src="//cdnjs.cloudflare.com/ajax/libs/jquery-timeago/1.4.0/jquery.timeago.min.js"></script>
-    <script src="//cdnjs.cloudflare.com/ajax/libs/jquery-sparklines/2.1.2/jquery.sparkline.min.js"></script>
-
-    <link href="//netdna.bootstrapcdn.com/bootstrap/3.1.1/css/bootstrap.min.css" rel="stylesheet">
-    <script src="//netdna.bootstrapcdn.com/bootstrap/3.1.1/js/bootstrap.min.js"></script>
-
-    <link href="//netdna.bootstrapcdn.com/font-awesome/4.1.0/css/font-awesome.min.css" rel="stylesheet">
-    <link href="//fonts.googleapis.com/css?family=Inconsolata" rel="stylesheet" type="text/css">
-
-    <script src="config.js"></script>
-    <script src="custom.js"></script>
-
-    <style>
-        @import url(//fonts.googleapis.com/css?family=Montserrat:400,700);
-        #coinName{
-            text-transform: capitalize;
-        }
-        body {
-            padding-top: 65px;
-            padding-bottom: 80px;
-            overflow-y: scroll;
-        }
-        .container{
-            font-size: 1.2em;
-        }
-        #loading{
-            font-size: 2em;
-        }
-        .stats {
-            margin-bottom: 10px;
-            margin-top: 5px;
-        }
-        .stats:last-child{
-            width: auto;
-        }
-        .stats > h3 > i{
-            font-size: 0.80em;
-            width: 21px;
-        }
-        .stats > div{
-            padding: 5px 0;
-        }
-        .stats > div > .fa {
-            width: 25px;
-        }
-        .stats > div > span:first-of-type{
-            font-weight: bold;
-        }
-        #stats_updated{
-            opacity: 0;
-            float: right;
-            margin-left: 30px;
-            color: #e8e8e8;
-            line-height: 47px;
-            font-size: 0.9em;
-        }
-
-        footer{
-            position: fixed;
-            bottom: 0;
-            width: 100%;
-            background-color: #f5f5f5;
-        }
-
-        footer > div{
-            margin: 10px auto;
-            text-align: center;
-        }
-
-        #modeButtons {
-            margin: 9px 9px 0px 0px;
-        }
-
-        .navbar-header .navbar-brand {
-            text-transform: uppercase;
-            font-family: Montserrat,"Helvetica Neue",Helvetica,Arial,sans-serif;
-            font-weight: 700;
-        }
-
-        .navbar-header .navbar-brand span{
-            font-size: 70%;
-            padding-left: 23px;
-        }
-
-        .navbar-header .navbar-brand:focus {
-            outline: 0;
-        }
-
-    </style>
-
-    <link href="custom.css" rel="stylesheet">
-
+	<link href="themes/default.css?" rel="stylesheet">
+	<link href="themes/custom.css" rel="stylesheet">
 </head>
+
 <body>
-<script>
+
+	<div id="wrapper">
+
+		<!-- Navigation -->
+		<div class="nav-side-menu">
+			<div class="brand"><a href="/"><span id="coinSymbol"></span> <span data-tkey="miningPool">Mining Pool</span></a></div>
+			<i class="fa fa-bars fa-2x toggle-btn" data-toggle="collapse" data-target="#menu-content"></i>
+			<div class="menu-list">
+				<ul id="menu-content" class="menu-content collapsed out">
+
+					<li><a class="hot_link" data-page="home.html" href="#">
+							<i class="fa fa-home"></i> <span data-tkey="dashboard">Dashboard</span>
+						</a></li>
+
+						<!--
+					<li><a class="hot_link" data-page="worker_stats.html" href="#worker_stats">
+							<i class="fa fa-dashboard"></i> <span data-tkey="yourStats">Worker Statistics</span>
+						</a></li>
+					-->
+
+					<li><a class="hot_link" data-page="getting_started.html" href="#getting_started">
+							<i class="fa fa-rocket"></i> <span data-tkey="gettingStarted">Getting Started</span>
+						</a></li>
+
+					<li><a class="hot_link" data-page="pool_blocks.html" href="#pool_blocks">
+							<i class="fa fa-cubes"></i> <span data-tkey="poolBlocks">Pool Blocks</span>
+						</a></li>
+
+					<li><a class="hot_link" data-page="payments.html" href="#payments">
+							<i class="fa fa-money"></i> <span data-tkey="payments">Payments</span>
+						</a></li>
+
+					<!--
+						<li><a class="hot_link" data-page="top10miners.html" href="#top10miners">
+							<i class="fa fa-trophy"></i> <span data-tkey="top10miners">Top 10 miners</span>
+						</a></li>
+
+						<li><a class="hot_link" data-page="market.html" href="#market">
+							<i class="fa fa-bank"></i> <span data-tkey="market">Market / Calculator</span>
+						</a></li>
+					-->
+
+					<!--
+					<li><a class="hot_link" data-page="settings.html" href="#settings">
+							<i class="fa fa-gears"></i> <span data-tkey="settings">Settings</span>
+						</a></li>
+					<li><a class="hot_link" data-page="faq.html" href="#faq">
+							<i class="fa fa-comments"></i> <span data-tkey="faq">FAQ</span>
+						</a></li>
+					-->
+				</ul>
+			</div>
+
+		</div>
+
+		<!-- Top Bar -->
+		<div id="top-bar">
+			<div><span data-tkey="network">Network</span>: <strong><span id="g_networkHashrate"><span data-tkey="na">N/A</span></span></strong></div>
+			<div><span data-tkey="poolProp">Prop Pool</span>: <strong><span id="g_poolHashrate"><span data-tkey="na">N/A</span></span></strong></div>
+			<div><span data-tkey="poolSolo">Solo Pool</span>: <strong><span id="g_poolHashrateSolo"><span data-tkey="na">N/A</span></span></strong></div>
+			<div><span data-tkey="you">You</span>: <strong><span id="g_userHashrate"><span tkey="na">N/A</span></span></strong></div>
+			<div><span id="statsUpdated"><span data-tkey="statsUpdated">Stats Updated</span> &nbsp;</span></div>
+			<div id="langSelector"></div>
+		</div>
+
+		<!-- Page content -->
+		<div id="page-wrapper">
+			<div id="page"></div>
+			<p id="loading" class="text-center"><i class="fa fa-circle-o-notch fa-spin"></i></p>
+		</div>
+
+	</div>
+
+	<!-- Footer -->
+	<footer>
+		<div class="text-muted">
+			<span data-tkey="poweredBy">Powered by</span> <a target="_blank" href="https://git.dero.io/Nelbert442/dero-golang-pool"><i class="fa fa-github"></i> dero-golang-pool</a>
+			<span id="poolVersion"></span>
+			<span class="hidden-xs"><span data-tkey="openSource">open sourced under the</span> <a href="http://www.gnu.org/licenses/gpl-2.0.html">GPL</a></span>
+		</div>
+	</footer>
+
+	<!-- Javascript -->
+	<script src="config.js?"></script>
+	<script src="lang/languages.js"></script>
+	<script src="js/common.js"></script>
+	<script src="js/custom.js"></script>
+	<script>
+		// Store last pool statistics
+		let lastStats;
+		let mergedStats = {};
+		let blockExplorers = {};
+		let mergedApis = {};
+
+		function getUrlVars () {
+			let vars = {};
+			let location = window.location.href.replace('#worker_stats', '');
+			let parts = location.replace(/[?&]+([^=&]+)=([^&]*)/gi, function (m, key, value) {
+				vars[key] = value;
+			});
+			return vars;
+		}
+
+		function getUrlParam (parameter, defaultvalue) {
+			let urlparameter = defaultvalue;
+			if (window.location.href.indexOf(parameter) > -1) {
+				urlparameter = getUrlVars()[parameter];
+			}
+			return urlparameter;
+		}
 
 
-    var docCookies = {
-        getItem: function (sKey) {
-            return decodeURIComponent(document.cookie.replace(new RegExp("(?:(?:^|.*;)\\s*" + encodeURIComponent(sKey).replace(/[\-\.\+\*]/g, "\\$&") + "\\s*\\=\\s*([^;]*).*$)|^.*$"), "$1")) || null;
-        },
-        setItem: function (sKey, sValue, vEnd, sPath, sDomain, bSecure) {
-            if (!sKey || /^(?:expires|max\-age|path|domain|secure)$/i.test(sKey)) { return false; }
-            var sExpires = "";
-            if (vEnd) {
-                switch (vEnd.constructor) {
-                    case Number:
-                        sExpires = vEnd === Infinity ? "; expires=Fri, 31 Dec 9999 23:59:59 GMT" : "; max-age=" + vEnd;
-                        break;
-                    case String:
-                        sExpires = "; expires=" + vEnd;
-                        break;
-                    case Date:
-                        sExpires = "; expires=" + vEnd.toUTCString();
-                        break;
-                }
-            }
-            document.cookie = encodeURIComponent(sKey) + "=" + encodeURIComponent(sValue) + sExpires + (sDomain ? "; domain=" + sDomain : "") + (sPath ? "; path=" + sPath : "") + (bSecure ? "; secure" : "");
-            return true;
-        },
-        removeItem: function (sKey, sPath, sDomain) {
-            if (!sKey || !this.hasItem(sKey)) { return false; }
-            document.cookie = encodeURIComponent(sKey) + "=; expires=Thu, 01 Jan 1970 00:00:00 GMT" + ( sDomain ? "; domain=" + sDomain : "") + ( sPath ? "; path=" + sPath : "");
-            return true;
-        },
-        hasItem: function (sKey) {
-            return (new RegExp("(?:^|;\\s*)" + encodeURIComponent(sKey).replace(/[\-\.\+\*]/g, "\\$&") + "\\s*\\=")).test(document.cookie);
-        }
-    };
+		// Get current miner address
+		function getCurrentAddress (coin) {
+			let address = ''
+			if (coin) {
+				let urlWalletAddress = getUrlParam(coin, 0);
+				address = urlWalletAddress || docCookies.getItem(`mining_address_${coin}`);
+			}
+			return address;
+		}
 
-    function getTransactionUrl(id) {
-        return transactionExplorer.replace('{symbol}', "DERO".toLowerCase()).replace('{id}', id);
-    }
+		// Pulse live update
+		function pulseLiveUpdate () {
+			let stats_update = document.getElementById('statsUpdated');
+			stats_update.style.transition = 'opacity 100ms ease-out';
+			stats_update.style.opacity = 1;
+			setTimeout(function () {
+				stats_update.style.transition = 'opacity 7000ms linear';
+				stats_update.style.opacity = 0;
+			}, 500);
+		}
 
-    $.fn.update = function(txt){
-        var el = this[0];
-        if (el.textContent !== txt)
-            el.textContent = txt;
-        return this;
-    };
+		// Update live informations
+		function updateLiveStats (data, key) {
+			pulseLiveUpdate();
+			if (key !== parentCoin) {
+				mergedStats[key] = data;
+			} else {
+				lastStats = data;
+				if (lastStats && lastStats.stats && lastStats.payments.totalMinersPaid.toString() == '-1') {
+					lastStats.pool.totalMinersPaid = 0;
+				}
+				updateIndex();
+			}
+			if (currentPage) currentPage.update(key);
+		}
 
-    function updateTextClasses(className, text){
-        var els = document.getElementsByClassName(className);
-        for (var i = 0; i < els.length; i++){
-            var el = els[i];
-            if (el.textContent !== text)
-                el.textContent = text;
-        }
-    }
+		// Update global informations
+		function updateIndex () {
+			updateText('coinSymbol', lastStats.config.coin);
+			updateText('g_networkHashrate', getReadableHashRateString(lastStats.network.DERO.difficulty / lastStats.config.coinDifficultyTarget) + '/sec');
+			updateText('g_poolHashrate', getReadableHashRateString(lastStats.stats.hashrate) + '/sec');
+			updateText('g_poolHashrateSolo', getReadableHashRateString(lastStats.stats.hashrateSolo) + '/sec');
+			if (lastStats.miners && lastStats.miners.hashrate) {
+				updateText('g_userHashrate', getReadableHashRateString(lastStats.miners.hashrate) + '/sec');
+			} else {
+				updateText('g_userHashrate', 'N/A');
+			}
+			updateText('poolVersion', lastStats.config.version);
+		}
 
-    function updateText(elementId, text){
-        var el = document.getElementById(elementId);
-        if(el.textContent)
-        {
-            if (el.textContent !== text){
-                el.textContent = text;
-            }
-        }
-        else
-        {
-            el.textContent = text
-        }
-        return el;
-    }
+		// Load live statistics
+		function loadLiveStats (reload) {
 
 
-    var currentPage;
-    var lastStats;
+			let apiURL = api + '/allstats';
+			/*
+			let address = getCurrentAddress();
+			if (address) {
+				apiURL = apiURL + '?address=' + encodeURIComponent(address);
+			}
+			*/
 
-    function getReadableCoins(coins, digits, withoutSymbol){
-        var amount = (parseInt(coins || 0) / 1000000000000).toFixed(digits || (1000000000000).toString().length - 1);
-        return amount + (withoutSymbol ? '' : (' ' + "DERO"));
-    }
+			if (xhrLiveStats[parentCoin]) {
+				xhrLiveStats[parentCoin].abort();
+			}
 
-    function formatDate(time){
-        if (!time) return '';
-        return new Date(parseInt(time) * 1000).toLocaleString();
-    }
-
-    function formatPaymentLink(hash){
-        return '<a target="explorer" href="' + getTransactionUrl(hash) + '">' + hash + '</a>';
-    }
-
-    function getPaymentRowElement(payment, jsonString){
-
-        var row = document.createElement('tr');
-        row.setAttribute('data-json', jsonString);
-        row.setAttribute('data-time', payment.time);
-        row.setAttribute('id', 'paymentRow' + payment.time);
-
-        row.innerHTML = getPaymentCells(payment);
-
-        return row;
-    }
+			$.get(apiURL, function (data) {
+				updateLiveStats(data, parentCoin);
+				if (!reload) {
+					routePage(fetchLiveStats(api, parentCoin));
+				}
+			});
 
 
-    function parsePayment(serializedPayment){
-        //var parts = serializedPayment.split(':');
-        return {
-            time: serializedPayment.timestamp,
-            hash: serializedPayment.tx,
-            amount: serializedPayment.amount,
-            fee: 0,
-            mixin: 8,
-            recipients: serializedPayment.address
-        };
-    }
+			Object.keys(mergedApis)
+				.some(key => {
+					let apiUrl = `${mergedApis[key].api}/allstats`
+					// if (xhrLiveStats[key]){
+					//     xhrLiveStats[key].abort();
+					// }
 
-    function renderPayments(paymentsResults){
+					$.get(apiUrl, function (data) {
+						updateLiveStats(data, key);
+						if (!reload) {
+							routePage(fetchLiveStats(mergedApis[key].api, key));
+						}
+					});
+				})
+		}
 
-        var $paymentsRows = $('#payments_rows');
+		// Fetch live statistics
+		let xhrLiveStats = {};
 
-        for (var i = 0; i < paymentsResults.length; i++){
+		function fetchLiveStats (endPoint, key) {
+			let apiURL = endPoint + '/allstats';
+			/*
+			let address = getCurrentAddress(key);
+			if (address) {
+				apiURL = apiURL + '?address=' + encodeURIComponent(address);
+			}
+			*/
 
-            var payment = parsePayment(paymentsResults[i]);
-
-            var paymentJson = JSON.stringify(payment);
-
-            var existingRow = document.getElementById('paymentRow' + payment.time);
-
-            if (existingRow && existingRow.getAttribute('data-json') !== paymentJson){
-                $(existingRow).replaceWith(getPaymentRowElement(payment, paymentJson));
-            }
-            else if (!existingRow){
-
-                var paymentElement = getPaymentRowElement(payment, paymentJson);
-
-                var inserted = false;
-                var rows = $paymentsRows.children().get();
-                for (var f = 0; f < rows.length; f++) {
-                    var pTime = parseInt(rows[f].getAttribute('data-time'));
-                    if (pTime < payment.time){
-                        inserted = true;
-                        $(rows[f]).before(paymentElement);
-                        break;
-                    }
-                }
-                if (!inserted)
-                    $paymentsRows.append(paymentElement);
-            }
-
-        }
-    }
-
-    function pulseLiveUpdate(){
-        var stats_update = document.getElementById('stats_updated');
-        stats_update.style.transition = 'opacity 100ms ease-out';
-        stats_update.style.opacity = 1;
-        setTimeout(function(){
-            stats_update.style.transition = 'opacity 7000ms linear';
-            stats_update.style.opacity = 0;
-        }, 500);
-    }
-
-    window.onhashchange = function(){
-        routePage();
-    };
+			// if (xhrLiveStats[key] && xhrLiveStats[key].status !== 200){
+			//     xhrLiveStats[key].abort();
+			// }
 
 
-    function fetchLiveStats() {
-        $.ajax({
-            url: api + '/allstats',
-            dataType: 'json',
-            cache: 'false'
-        }).done(function(data){
-            pulseLiveUpdate();
-            lastStats = data;
-            updateIndex();
-            currentPage.update();
-        }).always(function () {
-            fetchLiveStats();
-        });
-    }
+			xhrLiveStats[key] = $.ajax({
+					url: apiURL,
+					dataType: 'json',
+					cache: 'false'
+				})
+				.done(function (data) {
+					updateLiveStats(data, key);
+				})
+				.always(function () {
+					fetchLiveStats(endPoint, key);
+				});
+		}
 
-    function fetchHealthState() {
-        $.ajax({
-            url: api + '/allstats',
-            dataType: 'json',
-            cache: 'false'
-        }).done(function(data){
-            if (data) {
-	        $('#health_warning').hide(100);
-	    } else {
-	        $('#health_warning').show(100);
-            }
-        });
-    }
-    // Every 5 seconds check the health status.
-    setInterval(fetchHealthState, 5000);
-    fetchHealthState();
+		// Fetch Block and Transaction Explorer Urls
+		let xhrBlockExplorers;
+		let xhrMergedApis;
 
+		function fetchBlockExplorers () {
+			let apiURL = api + '/allstats';
 
-    function floatToString(float) {
-        return float.toFixed(6).replace(/[0\.]+$/, '');
-    }
+			xhrBlockExplorers = $.ajax({
+					url: apiURL,
+					dataType: 'json',
+					cache: 'false'
+				})
+				.done(function (data) {
+					blockExplorers = data;
+				})
 
+			apiURL = api + '/allstats';
 
-    var xhrPageLoading;
-    function routePage(loadedCallback) {
-
-        if (currentPage) currentPage.destroy();
-        $('#page').html('');
-        $('#loading').show();
-
-        if (xhrPageLoading)
-            xhrPageLoading.abort();
-
-        $('.hot_link').parent().removeClass('active');
-        var $link = $('a.hot_link[href="' + (window.location.hash || '#') + '"]');
-
-        $link.parent().addClass('active');
-        var page = $link.data('page');
-
-        xhrPageLoading = $.ajax({
-            url: 'pages/' + page,
-            cache: false,
-            success: function (data) {
-                $('#loading').hide();
-                $('#page').show().html(data);
-                currentPage.update();
-                if (loadedCallback) loadedCallback();
-            }
-        });
-    }
-
-    function updateIndex(){
-        //updateText('coinName', lastStats.config.coin);
-        updateText('poolVersion', "1.0");
-    }
-
-    function getBlockchainUrl(id) {
-        return blockchainExplorer.replace('{symbol}', "DERO".toLowerCase()).replace('{id}', id);
-    }
-
-    $(function(){
-        $("head").append("<link rel='stylesheet' href=" + themeCssLight + ">");
-        $("head").append("<link rel='stylesheet' href=" + themeCssDark + ">");
-        $('link[href="' + themeCssLight + '"]').prop('disabled', true);
-
-        $.get(api + '/allstats', function(data){
-            lastStats = data;
-            updateIndex();
-            routePage(fetchLiveStats);
-        });
-    });
-
-    function toggleDarkMode(){
-        $('link[href="' + themeCssDark + '"]').prop('disabled', false);
-        $('link[href="' + themeCssLight + '"]').prop('disabled', true);
-    }
-
-    function toggleLightMode(){
-        $('link[href="' + themeCssLight + '"]').prop('disabled', false);
-        $('link[href="' + themeCssDark + '"]').prop('disabled', true);
-    }
+			xhrMergedApis = $.ajax({
+					url: apiURL,
+					dataType: 'json',
+					cache: 'false',
+				})
+				.done(function (data) {
+					mergedApis = data;
+					loadLiveStats()
+				})
+		}
 
 
-</script>
+		// Initialize
+		$(function () {
+			// Load current theme if not default
+			if (themeCss && themeCss != 'themes/default.css') {
+				$("head")
+					.append("<link rel='stylesheet' href=" + themeCss + ">");
+			}
 
-<div class="navbar navbar-inverse navbar-fixed-top" role="navigation">
-    <div class="container">
-        <div class="navbar-header">
-            <button type="button" class="navbar-toggle" data-toggle="collapse" data-target=".navbar-collapse">
-                <span class="sr-only">Toggle navigation</span>
-                <span class="icon-bar"></span>
-                <span class="icon-bar"></span>
-                <span class="icon-bar"></span>
-            </button>
-            <a class="navbar-brand page-scroll" href="/">
-                <img src="favicon.ico" class="favIcon"> DERO Pool
-            </a>
-        </div>
-        <div class="collapse navbar-collapse">
-            <ul class="nav navbar-nav">
+			// Add support informations to menu
+			if (typeof telegram !== 'undefined' && telegram) {
+				$('#menu-content')
+					.append('<li><a target="_new" href="' + telegram + '"><i class="fa fa-telegram"></i> <span data-tkey="telegram">Telegram group</span></a></li>');
+			}
+			if (typeof discord !== 'undefined' && discord) {
+				$('#menu-content')
+					.append('<li><a target="_new" href="' + discord + '"><i class="fa fa-ticket"></i> <span data-tkey="discord">Discord</span></a></li>');
+			}
+			if (typeof email !== 'undefined' && email) {
+				$('#menu-content')
+					.append('<li><a target="_new" href="mailto:' + email + '"><i class="fa fa-envelope"></i> <span data-tkey="contactUs">Contact Us</span></a></li>');
+			}
+			if (typeof facebook !== 'undefined' && facebook) {
+				$('#menu-content')
+					.append('<li><a target="_new" href="' + facebook + '"><i class="fa fa-facebook"></i> <span data-tkey="facebook">Facebook</span></a></li>');
+			}
+			if (typeof langs !== 'undefined' && langs) {
+				$('#menu-content')
+					.append('<div id="mLangSelector"></div>');
+				renderLangSelector();
+			}
 
-                <li class="active"><a class="hot_link" data-page="home.html" href="#">
-                    <i class="fa fa-home"></i> Home
-                </a></li>
 
-                <li><a class="hot_link" data-page="pool_blocks.html" href="#pool_blocks">
-                    <i class="fa fa-cubes"></i> Pool Blocks
-                </a></li>
+			if (xhrBlockExplorers)
+				xhrBlockExplorers.abort();
+			if (xhrMergedApis)
+				xhrMergedApis.abort();
+			fetchBlockExplorers()
 
-                <li><a class="hot_link" data-page="payments.html" href="#payments">
-                    <i class="fa fa-paper-plane-o"></i> Payments
-                </a></li>
+		});
 
-                <li><a class="hot_link" data-page="worker_stats.html" href="#worker_stats">
-                    <i class="fa fa-tachometer"></i> Worker Stats
-                </a></li>
-
-                <li class="dropdown">
-                  <a class="dropdown-toggle" data-toggle="dropdown" href="#"><i class="fa fa-comments"></i> Support
-                    <span class="caret"></span>
-                  </a>
-                  <ul class="dropdown-menu">
-                    <li>
-                      <a class="hot_link" data-page="getting_started.html" href="#getting_started">
-                        <i class="fa fa-rocket"></i> Getting Started </a>
-                    </li>
-                    <li>
-                      <a class="hot_link" data-page="support.html" href="#support">
-                        <i class="fa fa-comments"></i> Contact </a>
-                    </li>
-                    <li>
-                        <a class="hot_link" data-page="network_stats.html" href="#network_stats">
-                            <i class="fa fa-rocket"></i> Network.Dero.IO </a>
-                    </li>
-                  </ul>
-                </li>
-
-                <li><a class="hot_link" data-page="settings.html" href="#settings">
-                    <i class="fa fa-cog"></i> Settings
-                </a></li>
-            </ul>
-            <div id="stats_updated">Stats Updated &nbsp;<i class="fa fa-bolt"></i></div>
-            <div>
-                <button id="buttonLightMode" onclick="toggleLightMode()" class="btn btn-primary">
-                    <i class="fa fa-sun-o"></i>
-                </button>
-                <button id="buttonDarkMode" onclick="toggleDarkMode()" class="btn btn-primary active">
-                    <i class="fa fa-moon-o"></i>
-                </button>
-            </div>
-        </div>
-
-    </div>
-</div>
-
-<div class="container">
-
-    <div id="page"></div>
-
-    <p id="loading" class="text-center"><i class="fa fa-circle-o-notch fa-spin"></i></p>
-
-</div>
-
-<footer>
-    <div id="health_warning">
-        This pool is not healthy! Contact the admin for support.
-    </div>
-    <div class="text-muted">
-        Powered by <a target="_blank"
-          href="https://git.dero.io/Nelbert442/dero-golang-pool"><i class="fa fa-github"></i> dero-golang-pool</a>
-        <span id="poolVersion"></span>
-        open sourced under the <a href="http://www.gnu.org/licenses/gpl-2.0.html">GPL</a>
-    </div>
-</footer>
-
+	</script>
 
 </body>
+
 </html>
