@@ -269,10 +269,10 @@ Once `config.json` has "website"."enabled" set to true, it will listen by defaul
 
 website.go is the runner, which just starts the listenandserve on the port defined, then serves up content within /website/Pages , feel free to make modifications to folder structure, just be sure to update website.go
 
-![DERO Pool Home](https://git.dero.io/Nelbert442/dero-golang-pool/raw/branch/master/images/home.png) 
-![DERO Pool GS](https://git.dero.io/Nelbert442/dero-golang-pool/raw/branch/master/images/gettingstarted.png)
-![DERO Pool Blocks](https://git.dero.io/Nelbert442/dero-golang-pool/raw/branch/master/images/poolBlock.png)
-![DERO Pool Pay](https://git.dero.io/Nelbert442/dero-golang-pool/raw/branch/master/images/poolpayment.png)
+![DERO Pool Home](https://git.dero.io/Nelbert442/dero-golang-pool/raw/branch/master/images/home.PNG) 
+![DERO Pool GS](https://git.dero.io/Nelbert442/dero-golang-pool/raw/branch/master/images/gettingstarted.PNG)
+![DERO Pool Blocks](https://git.dero.io/Nelbert442/dero-golang-pool/raw/branch/master/images/poolBlock.PNG)
+![DERO Pool Pay](https://git.dero.io/Nelbert442/dero-golang-pool/raw/branch/master/images/poolpayment.PNG)
 
 Credits
 ---------
