@@ -698,7 +698,9 @@ function poolBlocks_RenderBlocks (blocksResults, stats) {
 
 	candidateResults = blocksResults.candidates
 	immatureResults = blocksResults.immature
+	immatureSoloResults = blocksResults.immatureSolo
 	matureResults = blocksResults.matured
+	matureSoloResults = blocksResults.maturedSolo
 
 	/* Parse mature first */
 	if (matureResults) {
@@ -731,11 +733,71 @@ function poolBlocks_RenderBlocks (blocksResults, stats) {
 			}
 		}
 	}
+	if (matureSoloResults) {
+		for (var i = 0; i < matureSoloResults.length; i++) {
+			var block = poolBlocks_ParseBlock(matureSoloResults[i], stats);
+			var blockJson = JSON.stringify(block);
+
+			var existingRow = document.getElementById(`blockRow${stats.config.coin}${block.height}`);
+			if (existingRow && existingRow.getAttribute(`data-json`) !== blockJson) {
+				$(existingRow)
+					.replaceWith(getBlockRowElement(block, blockJson, stats));
+			} else if (!existingRow) {
+				var blockElement = getBlockRowElement(block, blockJson, stats);
+
+				var inserted = false;
+				var rows = $blocksRows.children()
+					.get();
+				for (var f = 0; f < rows.length; f++) {
+					var bHeight = parseInt(rows[f].getAttribute(`data-height`));
+					if (bHeight < block.height) {
+						inserted = true;
+						$(rows[f])
+							.before(blockElement);
+						break;
+					}
+				}
+				if (!inserted) {
+					$blocksRows.append(blockElement);
+				}
+			}
+		}
+	}
 
 	/* Parse immature next */
 	if (immatureResults) {
 		for (var i = 0; i < immatureResults.length; i++) {
 			var block = poolBlocks_ParseBlock(immatureResults[i], stats);
+			var blockJson = JSON.stringify(block);
+
+			var existingRow = document.getElementById(`blockRow${stats.config.coin}${block.height}`);
+			if (existingRow && existingRow.getAttribute(`data-json`) !== blockJson) {
+				$(existingRow)
+					.replaceWith(getBlockRowElement(block, blockJson, stats));
+			} else if (!existingRow) {
+				var blockElement = getBlockRowElement(block, blockJson, stats);
+
+				var inserted = false;
+				var rows = $blocksRows.children()
+					.get();
+				for (var f = 0; f < rows.length; f++) {
+					var bHeight = parseInt(rows[f].getAttribute(`data-height`));
+					if (bHeight < block.height) {
+						inserted = true;
+						$(rows[f])
+							.before(blockElement);
+						break;
+					}
+				}
+				if (!inserted) {
+					$blocksRows.append(blockElement);
+				}
+			}
+		}
+	}
+	if (immatureSoloResults) {
+		for (var i = 0; i < immatureSoloResults.length; i++) {
+			var block = poolBlocks_ParseBlock(immatureSoloResults[i], stats);
 			var blockJson = JSON.stringify(block);
 
 			var existingRow = document.getElementById(`blockRow${stats.config.coin}${block.height}`);
@@ -881,9 +943,9 @@ function poolBlocks_InitTemplate (ranOnce, displayedChart, xhrGetBlocks) {
 				poolBlocks_Setup(mergedApis[key].api, mergedStats[key])
 			}
 
-			updateText(`blocksTotal${key}`, mergedStats[key].pool.totalBlocks.toString());
-			if (mergedStats[key].pool.lastBlockFound) {
-				var d = new Date(parseInt(mergedStats[key].pool.lastBlockFound * 1000))
+			updateText(`blocksTotal${key}`, mergedStats[key].blocks.totalBlocks.toString());
+			if (mergedStats[key].stats.poolstats.lastBlockFound) {
+				var d = new Date(parseInt(mergedStats[key].stats.poolstats.lastBlockFound * 1000))
 					.toISOString();
 				$(`#lastBlockFound${key}`)
 					.timeago('update', d);
@@ -894,9 +956,9 @@ function poolBlocks_InitTemplate (ranOnce, displayedChart, xhrGetBlocks) {
 					.update('Never');
 			}
 
-			updateText(`blocksTotalSolo${key}`, mergedStats[key].pool.totalBlocksSolo.toString());
-			if (mergedStats[key].pool.lastBlockFoundSolo) {
-				var d = new Date(parseInt(mergedStats[key].pool.lastBlockFoundSolo * 1000))
+			updateText(`blocksTotalSolo${key}`, mergedStats[key].blocks.totalBlocksSolo.toString());
+			if (mergedStats[key].stats.poolstats.lastBlockFoundSolo) {
+				var d = new Date(parseInt(mergedStats[key].stats.poolstats.lastBlockFoundSolo * 1000))
 					.toISOString();
 				$(`#lastBlockFoundSolo${key}`)
 					.timeago('update', d);
@@ -1368,31 +1430,33 @@ function payments_GetPaymentRowElement (payment, jsonString, stats) {
 // Render payments data
 function payments_renderPayments (paymentsResults, stats) {
 	var $paymentsRows = $(`#paymentsReport${stats.config.coin}_rows`);
-	for (var i = 0; i < paymentsResults.length; i++) {
-		var payment = payments_ParsePayment(paymentsResults[i]);
-		var paymentJson = JSON.stringify(payment);
-		var existingRow = document.getElementById(`paymentRow${stats.config.coin}${payment.time}`);
+	if (paymentsResults) {
+		for (var i = 0; i < paymentsResults.length; i++) {
+			var payment = payments_ParsePayment(paymentsResults[i]);
+			var paymentJson = JSON.stringify(payment);
+			var existingRow = document.getElementById(`paymentRow${stats.config.coin}${payment.time}`);
 
-		if (existingRow && existingRow.getAttribute(`data-json`) !== paymentJson) {
-			$(existingRow)
-				.replaceWith(payments_GetPaymentRowElement(payment, paymentJson, stats));
-		} else if (!existingRow) {
-			var paymentElement = payments_GetPaymentRowElement(payment, paymentJson, stats);
+			if (existingRow && existingRow.getAttribute(`data-json`) !== paymentJson) {
+				$(existingRow)
+					.replaceWith(payments_GetPaymentRowElement(payment, paymentJson, stats));
+			} else if (!existingRow) {
+				var paymentElement = payments_GetPaymentRowElement(payment, paymentJson, stats);
 
-			var inserted = false;
-			var rows = $paymentsRows.children()
-				.get();
-			for (var f = 0; f < rows.length; f++) {
-				var pTime = parseInt(rows[f].getAttribute(`data-time`));
-				if (pTime < payment.time) {
-					inserted = true;
-					$(rows[f])
-						.before(paymentElement);
-					break;
+				var inserted = false;
+				var rows = $paymentsRows.children()
+					.get();
+				/*for (var f = 0; f < rows.length; f++) {
+					var pTime = parseInt(rows[f].getAttribute(`data-time`));
+					if (pTime < payment.time) {
+						inserted = true;
+						$(rows[f])
+							.before(paymentElement);
+						break;
+					}
+				}*/
+				if (!inserted) {
+					$paymentsRows.append(paymentElement);
 				}
-			}
-			if (!inserted) {
-				$paymentsRows.append(paymentElement);
 			}
 		}
 	}
@@ -2422,7 +2486,7 @@ function workerstats_RenderPayments (paymentsResults, stats) {
 			var inserted = false;
 			var rows = $paymentsRows.children()
 				.get();
-			for (var f = 0; f < rows.length; f++) {
+			/*for (var f = 0; f < rows.length; f++) {
 				var pTime = parseInt(rows[f].getAttribute('data-time'));
 				if (pTime && pTime < payment.time) {
 					inserted = true;
@@ -2430,7 +2494,7 @@ function workerstats_RenderPayments (paymentsResults, stats) {
 						.before(paymentElement);
 					break;
 				}
-			}
+			}*/
 			if (!inserted) {
 				$paymentsRows.append(paymentElement);
 			}
@@ -2450,7 +2514,7 @@ function workerstats_RenderPayments (paymentsResults, stats) {
 			var inserted = false;
 			var rows = $paymentsRows.children()
 				.get();
-			for (var f = 0; f < rows.length; f++) {
+			/*for (var f = 0; f < rows.length; f++) {
 				var pTime = parseInt(rows[f].getAttribute('data-time'));
 				if (pTime && pTime === summaryData.time) {
 					inserted = true;
@@ -2458,7 +2522,7 @@ function workerstats_RenderPayments (paymentsResults, stats) {
 						.before(summaryElement);
 					break;
 				}
-			}
+			}*/
 			if (!inserted) {
 				$paymentsRows.append(summaryElement);
 			}
@@ -2644,8 +2708,13 @@ function sortElementList (container, siblings, stats) {
 
 
 function home_InitTemplate (parentStats, siblingStats) {
-	$('#networkLastBlockFound')
-		.timeago('update', new Date(parentStats.stats.poolstats.lastBlockFound * 1000).toISOString());
+	if (parentStats.stats.poolstats.lastBlockFound) {
+		$('#networkLastBlockFound')
+			.timeago('update', new Date(parentStats.stats.poolstats.lastBlockFound * 1000).toISOString());
+	} else {
+		$('#networkLastBlockFound')
+			.update('Never');
+	}
 
 	let coin = parentStats.config.coin
 	let minerInfo = []
@@ -2718,13 +2787,13 @@ function home_InitTemplate (parentStats, siblingStats) {
 					lastBlockFound = lastChildBlockFound
 			}
 
-			updateText(`networkHashrate${key}`, getReadableHashRateString(siblingStats[key].network.difficulty / siblingStats[key].config.coinDifficultyTarget) + '/sec');
-			updateText(`networkDifficulty${key}`, formatNumber(siblingStats[key].network.difficulty.toString(), ' '));
-			updateText(`blockchainHeight${key}`, formatNumber(siblingStats[key].network.height.toString(), ' '));
+			updateText(`networkHashrate${key}`, getReadableHashRateString(siblingStats[key].network.DERO.difficulty / siblingStats[key].config.coinDifficultyTarget) + '/sec');
+			updateText(`networkDifficulty${key}`, formatNumber(siblingStats[key].network.DERO.difficulty.toString(), ' '));
+			updateText(`blockchainHeight${key}`, formatNumber(siblingStats[key].network.DERO.height.toString(), ' '));
 			//        updateText(`networkLastReward${key}`, getReadableCoin(siblingStats[key], siblingStats[key].lastblock.reward));
-			updateText(`poolMiners${key}`, `${siblingStats[key].pool.miners}/${siblingStats[key].pool.minersSolo}`);
-			updateText(`blocksTotal${key}`, `${siblingStats[key].pool.totalBlocks}/${siblingStats[key].pool.totalBlocksSolo}`);
-			updateText(`currentEffort${key}`, (siblingStats[key].pool.roundHashes / siblingStats[key].network.difficulty * 100)
+			updateText(`poolMiners${key}`, `${siblingStats[key].miners.miners}/${siblingStats[key].miners.minersSolo}`);
+			updateText(`blocksTotal${key}`, `${siblingStats[key].blocks.totalBlocks}/${siblingStats[key].blocks.totalBlocksSolo}`);
+			updateText(`currentEffort${key}`, (siblingStats[key].stats.poolstats.roundShares / siblingStats[key].network.DERO.difficulty * 100)
 				.toFixed(1) + '%');
 		})
 

@@ -40,6 +40,7 @@ type Miner struct {
 	address   string
 	paymentID string
 	fixedDiff uint64
+	isSolo    bool
 	ip        string
 }
 
@@ -53,9 +54,9 @@ func (job *Job) submit(nonce string) bool {
 	return false
 }
 
-func NewMiner(id string, address string, paymentid string, fixedDiff uint64, ip string) *Miner {
+func NewMiner(id string, address string, paymentid string, fixedDiff uint64, isSolo bool, ip string) *Miner {
 	shares := make(map[int64]int64)
-	return &Miner{id: id, address: address, paymentID: paymentid, fixedDiff: fixedDiff, ip: ip, shares: shares}
+	return &Miner{id: id, address: address, paymentID: paymentid, fixedDiff: fixedDiff, isSolo: isSolo, ip: ip, shares: shares}
 }
 
 func (cs *Session) getJob(t *BlockTemplate) *JobReplyData {
@@ -174,9 +175,6 @@ func (m *Miner) storeShare(diff int64) {
 func (m *Miner) processShare(s *StratumServer, cs *Session, job *Job, t *BlockTemplate, nonce string, params *SubmitParams) (bool, string) {
 
 	// Var definitions
-	var isSolo bool
-	// TODO: update with login id when solo is being used
-	isSolo = false
 	checkPowHashBig := false
 	success := false
 	var result string = params.Result
@@ -204,6 +202,13 @@ func (m *Miner) processShare(s *StratumServer, cs *Session, job *Job, t *BlockTe
 		shareType = "Trusted"
 	} else {
 		shareType = "Valid"
+	}
+
+	// Append share type, solo or pool for logging assistance
+	if m.isSolo {
+		shareType = shareType + " SOLO"
+	} else {
+		shareType = shareType + " POOL"
 	}
 
 	hashBytes, _ = hex.DecodeString(result)
@@ -274,13 +279,18 @@ func (m *Miner) processShare(s *StratumServer, cs *Session, job *Job, t *BlockTe
 			atomic.AddInt64(&m.accepts, 1)
 			atomic.AddInt64(&r.Accepts, 1)
 			atomic.StoreInt64(&r.LastSubmissionAt, now)
-			log.Printf("Block found at height %d, diff: %v, blid: %s, by miner: %v@%v, ratio: %.4f", t.Height, t.Difficulty, blockSubmitReply.BLID, m.id, cs.ip, ratio)
+			if m.isSolo {
+				log.Printf("SOLO Block found at height %d, diff: %v, blid: %s, by miner: %v@%v, ratio: %.4f", t.Height, t.Difficulty, blockSubmitReply.BLID, m.id, cs.ip, ratio)
+			} else {
+				log.Printf("POOL Block found at height %d, diff: %v, blid: %s, by miner: %v@%v, ratio: %.4f", t.Height, t.Difficulty, blockSubmitReply.BLID, m.id, cs.ip, ratio)
+			}
 
 			// Immediately refresh current BT and send new jobs
 			s.refreshBlockTemplate(true)
 
 			// Redis store of successful block
-			_, err := s.backend.WriteBlock(params.Id, params.JobId, params, cs.difficulty, int64(t.Difficulty), int64(t.Height), s.hashrateExpiration, 0, blockSubmitReply.BLID, isSolo, m.address)
+			// Watch for errs .. had one in testing: Failed to insert block data into backend: ERR no such key
+			_, err := s.backend.WriteBlock(params.Id, params.JobId, params, cs.difficulty, int64(t.Difficulty), int64(t.Height), s.hashrateExpiration, 0, blockSubmitReply.BLID, m.isSolo, m.address)
 			if err != nil {
 				log.Println("Failed to insert block data into backend:", err)
 			}
@@ -298,7 +308,7 @@ func (m *Miner) processShare(s *StratumServer, cs *Session, job *Job, t *BlockTe
 	m.storeShare(cs.difficulty)
 
 	// Redis store of successful share
-	_, err := s.backend.WriteShare(params.Id, params.JobId, params, cs.difficulty, int64(t.Height), s.hashrateExpiration, isSolo, m.address)
+	_, err := s.backend.WriteShare(params.Id, params.JobId, params, cs.difficulty, int64(t.Height), s.hashrateExpiration, m.isSolo, m.address)
 	if err != nil {
 		log.Println("Failed to insert share data into backend:", err)
 	}

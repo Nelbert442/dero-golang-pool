@@ -28,7 +28,7 @@ func (s *StratumServer) handleLoginRPC(cs *Session, params *LoginParams) (*JobRe
 
 	var id string
 	// Login validation / splitting optimized by Peppinux (https://github.com/peppinux)
-	address, workID, paymentid, fixDiff := s.splitLoginString(params.Login)
+	address, workID, paymentid, fixDiff, isSolo := s.splitLoginString(params.Login)
 
 	// PaymentID Length Validation
 	if paymentid != "" {
@@ -48,13 +48,23 @@ func (s *StratumServer) handleLoginRPC(cs *Session, params *LoginParams) (*JobRe
 		id = address + "+" + paymentid
 	}
 
-	// If workID is used, then append with ~, this will be easily deciphered later for payments. In future, could store id and values separately so that address payout is clearer
+	// If solo is used, then add solo: to front of id for redis logging
+	if isSolo {
+		if id != "" {
+			// If id is not "" (default value upon var), then it must have a paymentid
+			id = "solo~" + id
+		} else {
+			id = "solo~" + address
+		}
+	}
+
+	// If workID is used, then append with work separator, this will be easily deciphered later for payments. In future, could store id and values separately so that address payout is clearer
 	if workID != address && workID != "" {
 		if id != "" {
-			// If id is not "" (default value upon var), then it must have a paymentid and have been set. So append ~workID to it
+			// If id is not "" (default value upon var), then it must have a paymentid or is solo and has been set. So append workID to it
 			id = id + s.config.Stratum.WorkerID.AddressSeparator + workID
 		} else {
-			// If id is "" (default value upon var), then it does not have paymentid and append ~workID to address normally
+			// If id is "" (default value upon var), then it does not have paymentid and append workID to address normally
 			id = address + s.config.Stratum.WorkerID.AddressSeparator + workID
 		}
 	} else {
@@ -76,12 +86,12 @@ func (s *StratumServer) handleLoginRPC(cs *Session, params *LoginParams) (*JobRe
 
 	miner, ok := s.miners.Get(id)
 	if !ok {
-		log.Printf("Registering new miner: %s@%s, Address: %s, PaymentID: %s, fixedDiff: %v", id, cs.ip, address, paymentid, fixDiff)
-		miner = NewMiner(id, address, paymentid, fixDiff, cs.ip)
+		log.Printf("Registering new miner: %s@%s, Address: %s, PaymentID: %s, fixedDiff: %v, isSolo: %v", id, cs.ip, address, paymentid, fixDiff, isSolo)
+		miner = NewMiner(id, address, paymentid, fixDiff, isSolo, cs.ip)
 		s.registerMiner(miner)
 	}
 
-	log.Printf("Miner connected %s@%s, Address: %s, PaymentID: %s, fixedDiff: %v", id, cs.ip, address, paymentid, fixDiff)
+	log.Printf("Miner connected %s@%s, Address: %s, PaymentID: %s, fixedDiff: %v, isSolo: %v", id, cs.ip, address, paymentid, fixDiff, isSolo)
 
 	s.registerSession(cs)
 	miner.heartbeat()
@@ -193,9 +203,18 @@ func (s *StratumServer) refreshBlockTemplate(bcast bool) {
 }
 
 // Optimized splitting functions with runes from @Peppinux (https://github.com/peppinux)
-func (s *StratumServer) splitLoginString(loginWorkerPair string) (addr, wid, pid string, diff uint64) {
+func (s *StratumServer) splitLoginString(loginWorkerPair string) (addr, wid, pid string, diff uint64, isSolo bool) {
 	currParam := paramAddr // String always starts with ADDRESS
 	currSubstr := ""       // Substring starts empty
+
+	// Check for solo:
+	if strings.Index(loginWorkerPair, "solo~") != -1 {
+		isSolo = true
+		loginWorkerPair = loginWorkerPair[5:len(loginWorkerPair)] // shave off 5 since solo: is 5 chars, but isSolo will return true to be used to append solo: afterwards [retains addr result properly]
+		log.Printf("%s", loginWorkerPair)
+	} else {
+		isSolo = false
+	}
 
 	// Since input vals from json are string, need to convert to a rune array, then references just use [0] slice since these are just '@', '+', '.' in config.json
 	widAddrSep := []rune(s.config.Stratum.WorkerID.AddressSeparator)

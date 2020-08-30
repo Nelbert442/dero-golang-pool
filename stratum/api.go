@@ -168,11 +168,11 @@ func (apiServer *ApiServer) AllStatsIndex(writer http.ResponseWriter, _ *http.Re
 	stats := apiServer.getStats()
 	if stats != nil {
 
-		reply["blocks"] = map[string]interface{}{"totalBlocks": stats["totalBlocks"], "totalBlocksSolo": stats["totalBlocksSolo"], "maturedTotal": stats["maturedTotal"], "immatureTotal": stats["immatureTotal"], "candidatesTotal": stats["candidatesTotal"], "luck": stats["luck"], "matured": stats["matured"], "immature": stats["immature"], "candidates": stats["candidates"]}
-		reply["payments"] = map[string]interface{}{"totalMinersPaid": 0, "paymentsTotal": stats["paymentsTotal"], "payments": stats["payments"]}
-		reply["miners"] = map[string]interface{}{"hashrate": stats["hashrate"], "minersTotal": stats["minersTotal"], "minersSolo": stats["minersTotal"], "miners": stats["miners"]}
+		reply["blocks"] = map[string]interface{}{"totalBlocks": stats["totalBlocks"], "totalBlocksSolo": stats["totalBlocksSolo"], "maturedTotal": stats["maturedTotal"], "maturedTotalSolo": stats["maturedTotalSolo"], "immatureTotal": stats["immatureTotal"], "immatureTotalSolo": stats["immatureTotalSolo"], "candidatesTotal": stats["candidatesTotal"], "luck": stats["luck"], "matured": stats["matured"], "maturedSolo": stats["maturedSolo"], "immature": stats["immature"], "immatureSolo": stats["immatureSolo"], "candidates": stats["candidates"]}
+		reply["payments"] = map[string]interface{}{"totalMinersPaid": stats["totalMinersPaid"], "paymentsTotal": stats["paymentsTotal"], "payments": stats["payments"]}
+		reply["miners"] = map[string]interface{}{"hashrate": stats["hashrate"], "hashrateSolo": stats["hashrateSolo"], "minersTotal": stats["minersTotal"], "minersTotalSolo": stats["minersTotalSolo"], "miners": stats["miners"], "minersSolo": stats["minersSolo"]}
 		reply["now"] = util.MakeTimestamp() / 1000
-		reply["stats"] = map[string]interface{}{"poolstats": stats["stats"], "hashrate": stats["hashrate"], "hashrateSolo": stats["hashrate"], "minersTotal": stats["minersTotal"]}
+		reply["stats"] = map[string]interface{}{"poolstats": stats["stats"], "hashrate": stats["hashrate"], "hashrateSolo": stats["hashrateSolo"], "minersTotal": stats["minersTotal"]}
 		reply["config"] = apiServer.GetConfigIndex()
 		reply["charts"] = map[string]interface{}{}
 	}
@@ -231,7 +231,7 @@ func (apiServer *ApiServer) StatsIndex(writer http.ResponseWriter, _ *http.Reque
 		reply["now"] = util.MakeTimestamp() / 1000
 		reply["stats"] = stats["stats"]
 		reply["hashrate"] = stats["hashrate"]
-		reply["hashrateSolo"] = stats["hashrate"]
+		reply["hashrateSolo"] = stats["hashrateSolo"]
 		reply["minersTotal"] = stats["minersTotal"]
 		reply["maturedTotal"] = stats["maturedTotal"]
 		reply["immatureTotal"] = stats["immatureTotal"]

@@ -234,10 +234,14 @@
 				.timeago('dispose');
 		},
 		update: function (updateKey) {
-			if (lastStats)
+			if (lastStats.stats.poolstats.lastBlockFound) {
 				$('#networkLastBlockFound')
 				.timeago('update', new Date(lastStats.stats.poolstats.lastBlockFound * 1000)
 					.toISOString());
+			} else {
+				$('#networkLastBlockFound')
+					.update('Never');
+			}
 
 			let stats = updateKey === parentCoin ? lastStats : mergedStats[updateKey]
 			if (stats) {
@@ -267,7 +271,7 @@
 				updateText(`networkLastReward${updateKey}`, getReadableCoin(stats, rewardMinusNetworkFee));
 
 
-				updateText(`poolMiners${updateKey}`, `${stats.miners.minersTotal}/${stats.miners.minersSolo}`);
+				updateText(`poolMiners${updateKey}`, `${stats.miners.minersTotal}/${stats.miners.minersTotalSolo}`);
 				updateText(`blocksTotal${updateKey}`, `${stats.blocks.totalBlocks}/${stats.blocks.totalBlocksSolo}`);
 				updateText(`currentEffort${updateKey}`, (stats.stats.poolstats.roundShares / stats.network.DERO.difficulty * 100)
 					.toFixed(1) + '%');

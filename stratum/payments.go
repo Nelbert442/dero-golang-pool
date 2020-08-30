@@ -103,7 +103,6 @@ func (u *PayoutsProcessor) process(s *StratumServer) {
 	}*/
 	mustPay := 0
 	minersPaid := 0
-	//var paymentSplice []map[string]interface{}
 	totalAmount := big.NewInt(0)
 	payees, err := u.backend.GetPayees()
 	if err != nil {
@@ -151,8 +150,8 @@ func (u *PayoutsProcessor) process(s *StratumServer) {
 		// We already do this for when the miner connects, we need to get those details/vars or just regen them as well as re-validate JUST TO BE SURE prior to attempting to send
 		// NOTE: The issue with grabbing from the miners arr (s.miners), is that if they're not actively mining but get rewards from a past round, the query will not return their detail for payout
 
-		address, workID, paymentID, fixDiff := s.splitLoginString(login)
-		_, _ = workID, fixDiff
+		address, workID, paymentID, fixDiff, isSolo := s.splitLoginString(login)
+		_, _, _ = workID, fixDiff, isSolo
 
 		// Validate Address
 		validatedAddress, err := globals.ParseValidateAddress(address)

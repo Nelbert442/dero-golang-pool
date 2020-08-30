@@ -13,11 +13,12 @@ Golang Mining Pool for DERO
 * API in JSON for easy integration to web frontend
 * Utils functions and switch for mining algorithm support, this way you can modify which mining algo is required from config.json with ease and update code in only a couple places
 * Support for fixed difficulty with minimum difficulty settings on a per-port basis
+* Support of pool and solo mining
+* PROP Payment Scheme
+* Light-weight webpage with built-in functionalities for more, but template used to get off the ground running.
 
 ##### Future Features
-* (FUTURE) Support of pool and solo mining
-* (FUTURE) User-friendly design for webpage
-* (FUTURE) PROP/PPLNS and other pool schemes support
+* (FUTURE) PPLNS and potentially other pool schemes support
 * (FUTURE) Support for variable difficulties
 
 #### Requirements

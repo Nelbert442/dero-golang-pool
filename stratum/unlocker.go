@@ -178,9 +178,20 @@ func (u *BlockUnlocker) unlockAndCreditMiners(s *StratumServer) {
 	if err != nil {
 		u.halt = true
 		u.lastFail = err
-		log.Printf("Failed to get block candidates from backend: %v", err)
+		log.Printf("Failed to get immature block candidates from backend: %v", err)
 		return
 	}
+
+	immatureSolo, err := u.backend.GetImmatureBlocksSolo(currentHeight - u.config.Depth)
+	if err != nil {
+		u.halt = true
+		u.lastFail = err
+		log.Printf("Failed to get immature solo block candidates from backend: %v", err)
+		return
+	}
+
+	// Add on immatureSolo to the immature var so all are processed
+	immature = append(immature, immatureSolo...)
 
 	if len(immature) == 0 {
 		log.Println("No immature blocks to credit miners")
@@ -342,9 +353,19 @@ func (u *BlockUnlocker) calculateRewards(s *StratumServer, block *BlockData) (*b
 	minersProfit, poolProfit := chargeFee(revenue, u.config.PoolFee)
 
 	//log.Printf("roundHeight: %v, Nonce: %s", block.RoundHeight, block.Nonce)
-	shares, err := u.backend.GetRoundShares(block.RoundHeight, block.Nonce)
-	if err != nil {
-		return nil, nil, nil, nil, err
+	var shares map[string]int64
+	var err error
+
+	if block.Solo {
+		shares, err = u.backend.GetRoundSharesSolo(block.RoundHeight, block.Nonce)
+		if err != nil {
+			return nil, nil, nil, nil, err
+		}
+	} else {
+		shares, err = u.backend.GetRoundShares(block.RoundHeight, block.Nonce)
+		if err != nil {
+			return nil, nil, nil, nil, err
+		}
 	}
 
 	//log.Printf("shares: %v, totalShares: %v, minersProfit: %v", shares, block.TotalShares, minersProfit)
@@ -369,7 +390,7 @@ func calculateRewardsForShares(s *StratumServer, shares map[string]int64, total 
 
 	for login, n := range shares {
 		// Split away for workers, paymentIDs etc. just to compound the shares associated with a given address
-		address, _, _, _ := s.splitLoginString(login)
+		address, _, _, _, _ := s.splitLoginString(login)
 
 		percent := big.NewRat(n, total)
 		workerReward := new(big.Rat).Mul(reward, percent)

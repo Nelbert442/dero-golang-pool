@@ -14,7 +14,9 @@
 			<div class="stats">
 				<div><i class="fa fa-key"></i> <span data-tkey="usernameDesc">This is your wallet address</span></div>
 				<div id="paymentId"><i class="fa fa-exchange"></i> <span data-tkey="paymentId">Exchange Payment ID</span>: <span><u data-tkey="childaddress">walletaddress</u><span id="paymentIdSeparator"></span><u data-tkey="addrPaymentId">paymentID</u></span></div>
-				<div><i class="fa fa-server"></i> <span data-tkey="workName2">Worker Name</span>: <span><u data-tkey="childaddress">walletaddress</u><span id="workIDAddressSeparator"></span><u data-tkey="workName2">workerName</u></span></div>
+				<div><i class="fa fa-cubes"></i> <span data-tkey="workName2">Worker Name</span>: <span><u data-tkey="childaddress">walletaddress</u><span id="workIDAddressSeparator"></span><u data-tkey="workName2">workerName</u></span></div>
+				<div><i class="fa fa-cubes"></i> <span data-tkey="workName2">Fixed Difficulty</span>: <span><u data-tkey="childaddress">walletaddress</u><span id="fixedDiffSeparator"></span><u data-tkey="fixedDiff2">10000</u></span></div>
+				<div><i class="fa fa-cubes"></i> <span data-tkey="workName2">Solo Mining</span>: <span id="soloSeparator"></span><span><u data-tkey="childaddress">walletaddress</u></span></div>
 			</div>
 		</div>
 
@@ -212,6 +214,7 @@
 			updateText('paymentIdSeparator', lastStats.config.payIDAddressSeparator);
 			updateText('fixedDiffSeparator', lastStats.config.fixedDiffAddressSeparator);
 			updateText('workIDAddressSeparator', lastStats.config.workIDAddressSeparator);
+			updateText('soloSeparator', "solo~");
 			let childCoins = Object.keys(mergedStats)
 				.join(' or ')
 			updateText('paymentChildCoins', `${childCoins} wallet address`);
