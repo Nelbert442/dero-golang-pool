@@ -237,19 +237,10 @@
 		update: function (updateKey) {
 			if (lastStats.stats.poolstats.lastBlockFound) {
 				$('#networkLastBlockFound')
-				.timeago('update', new Date(lastStats.stats.poolstats.lastBlockFound * 1000)
+				.timeago('update', new Date(lastStats.lastblock.DERO.timestamp * 1000)
 					.toISOString());
 			} else {
 				$('#networkLastBlockFound')
-					.update('Never');
-			}
-
-			if (lastStats.stats.poolstats.lastBlockFoundSolo) {
-				$('#networkLastBlockFoundSolo')
-				.timeago('update', new Date(lastStats.stats.poolstats.lastBlockFoundSolo * 1000)
-					.toISOString());
-			} else {
-				$('#networkLastBlockFoundSolo')
 					.update('Never');
 			}
 

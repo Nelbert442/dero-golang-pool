@@ -612,6 +612,7 @@ function poolBlocks_GenerateChart (data, displayedChart) {
 function poolBlocks_ParseBlock (serializedBlock, stats) {
 	//var parts = serializedBlock.split(':');
 	let block = {}
+	let orphaned = null
 
 	block = {
 		height: serializedBlock.height,
@@ -625,23 +626,24 @@ function poolBlocks_ParseBlock (serializedBlock, stats) {
 		reward: serializedBlock.reward
 	};
 
-	var toGo = stats.config.depth - (stats.network.height - block.height - 1);
+	var toGo = stats.config.unlockDepth - (stats.network.DERO.height - block.height);
 	if (toGo > 1) {
 		block.maturity = toGo + ' to go';
 	} else if (toGo == 1) {
 		block.maturity = "<i class='fa fa-spinner fa-spin'></i>";
 	} else if (toGo <= 0) {
 		block.maturity = "<i class='fa fa-unlock-alt'></i>";
+		orphaned = block.orphaned
 	}
 
-	switch (block.orphaned) {
+	switch (orphaned) {
 		case false:
 			block.status = 'unlocked';
-			block.maturity = "<i class='fa fa-unlock-alt'></i>";
+			//block.maturity = "<i class='fa fa-unlock-alt'></i>";
 			break;
 		case true:
 			block.status = 'orphaned';
-			block.maturity = "<i class='fa fa-times'></i>";
+			//block.maturity = "<i class='fa fa-times'></i>";
 			block.reward = 0;
 			break;
 		default:
@@ -969,7 +971,7 @@ function poolBlocks_InitTemplate (ranOnce, displayedChart, xhrGetBlocks) {
 					.update('Never');
 			}
 
-			updateText(`blocksMaturityCount${key}`, mergedStats[key].config.depth.toString());
+			updateText(`blocksMaturityCount${key}`, mergedStats[key].config.unlockDepth.toString());
 
 			//$(`#averageLuck${key}`)
 			//	.html(formatLuck(mergedStats[key].pool.totalDiff, mergedStats[key].pool.totalShares));
@@ -1820,7 +1822,7 @@ function market_CalcEstimateProfit (marketPrices) {
 			$(`#calcHashHolder`)
 				.append(rendered)
 		}
-		let profit = (hashRate * 86400 / lastStats.network.difficulty) * lastStats.lastblock.reward;
+		let profit = (hashRate * 86400 / lastStats.network.DERO.difficulty) * lastStats.lastblock.DERO.reward;
 		if (profit) {
 			updateText(`calcHashAmount${coin}1`, getReadableCoin(lastStats, profit));
 			updateText(`calcHashAmount${coin}2`, market_GetCurrencyPriceText(lastStats, profit, marketPrices));
@@ -1851,7 +1853,7 @@ function market_CalcEstimateProfit (marketPrices) {
 						.append(rendered)
 				}
 
-				let profit = (hashRate * 86400 / mergedStats[key].network.difficulty) * mergedStats[key].lastblock.reward;
+				let profit = (hashRate * 86400 / mergedStats[key].network.DERO.difficulty) * mergedStats[key].lastblock.DERO.reward;
 				if (profit) {
 					updateText(`calcHashAmount${key}1`, getReadableCoin(mergedStats[key], profit));
 					updateText(`calcHashAmount${key}2`, market_GetCurrencyPriceText(mergedStats[key], profit, marketPrices));
@@ -2710,7 +2712,7 @@ function sortElementList (container, siblings, stats) {
 function home_InitTemplate (parentStats, siblingStats) {
 	if (parentStats.stats.poolstats.lastBlockFound) {
 		$('#networkLastBlockFound')
-			.timeago('update', new Date(parentStats.stats.poolstats.lastBlockFound * 1000).toISOString());
+			.timeago('update', new Date(parentStats.lastblock.DERO.timestamp * 1000).toISOString());
 	} else {
 		$('#networkLastBlockFound')
 			.update('Never');
@@ -2749,8 +2751,12 @@ function home_InitTemplate (parentStats, siblingStats) {
 	}
 
 	let lastBlockFound = null
+	let lastBlockFoundSolo = null
 	if (parentStats.stats.poolstats.lastBlockFound) {
 		lastBlockFound = parseInt(parentStats.stats.poolstats.lastBlockFound * 1000);
+	}
+	if (parentStats.stats.poolstats.lastBlockFoundSolo) {
+		lastBlockFound = parseInt(parentStats.stats.poolstats.lastBlockFoundSolo * 1000);
 	}
 
 
@@ -2777,7 +2783,7 @@ function home_InitTemplate (parentStats, siblingStats) {
 
 			efforts.push({
 				coin: key,
-				effort: `${(siblingStats[key].pool.roundHashes / siblingStats[key].network.difficulty * 100).toFixed(1)}%`,
+				effort: `${(siblingStats[key].pool.roundHashes / siblingStats[key].network.DERO.difficulty * 100).toFixed(1)}%`,
 				symbol: siblingStats[key].config.symbol
 			});
 
