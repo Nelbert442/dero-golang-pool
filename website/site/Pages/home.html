@@ -44,12 +44,12 @@
 				<span class="fa fa-history"></span>
 			</div>
 			<div class="content">
-				<div class="text"><span data-tkey="blockSolvedTime">Blocks Found Every</span></div>
+				<div class="text"><span data-tkey="blockSolvedTime">Blocks Found Every</span> (PROP/SOLO)</div>
 				<div class="value">
-					<span class="smallText" id="blockSolvedTime">N/A</span> <span class="smallText">(<span class="smallText">estimated</span>)</span>
+					<span class="smallText" id="blockSolvedTime">N/A/N/A</span> <span class="smallText">(<span class="smallText">estimated</span>)</span>
 				</div>
 				<div class="value">
-					<span class="smallText">LAST BLOCK: <span id="poolLastBlockFound">Never</span>
+					<span class="smallText">LAST BLOCK: <span id="poolLastBlockFound">Never</span>/<span id="poolLastBlockFoundSolo">Never</span>
 				</div>
 			</div>
 		</div>
@@ -227,10 +227,11 @@
 <script>
 	// Update current page
 	let lastBlockFound = null
+	let lastBlockFoundSolo = null
 
 	currentPage = {
 		destroy: function () {
-			$('#networkLastBlockFound,#poolLastBlockFound')
+			$('#networkLastBlockFound,#poolLastBlockFound,#poolLastBlockFoundSolo')
 				.timeago('dispose');
 		},
 		update: function (updateKey) {
@@ -240,6 +241,15 @@
 					.toISOString());
 			} else {
 				$('#networkLastBlockFound')
+					.update('Never');
+			}
+
+			if (lastStats.stats.poolstats.lastBlockFoundSolo) {
+				$('#networkLastBlockFoundSolo')
+				.timeago('update', new Date(lastStats.stats.poolstats.lastBlockFoundSolo * 1000)
+					.toISOString());
+			} else {
+				$('#networkLastBlockFoundSolo')
 					.update('Never');
 			}
 
@@ -253,14 +263,25 @@
 					.removeAttr('title')
 					.data('ts', '')
 					.update('Never')
+				if (!lastBlockFoundSolo)
+					$('#poolLastBlockFoundSolo')
+					.removeAttr('title')
+					.data('ts', '')
+					.update('Never')
 
 				if (stats.stats.poolstats.lastBlockFound) {
 					let lastChildBlockFound = parseInt(stats.stats.poolstats.lastBlockFound * 1000)
 					if (lastChildBlockFound > lastBlockFound) {
 						lastBlockFound = lastChildBlockFound
 						$('#poolLastBlockFound')
-							.timeago('update', new Date(lastBlockFound)
-								.toISOString());
+							.timeago('update', new Date(lastBlockFound).toISOString());
+					}
+
+					let lastChildBlockFoundSolo = parseInt(stats.stats.poolstats.lastBlockFoundSolo * 1000)
+					if (lastChildBlockFoundSolo > lastBlockFoundSolo) {
+						lastBlockFoundSolo = lastChildBlockFoundSolo
+						$('#poolLastBlockFoundSolo')
+							.timeago('update', new Date(lastBlockFoundSolo).toISOString());
 					}
 				}
 
@@ -287,13 +308,13 @@
 				updateText('hashPower', hashPower.toFixed(2) + '%');
 
 
-				updateText('blockSolvedTime', getReadableTime(lastStats.network.DERO.difficulty / lastStats.stats.hashrate));
+				updateText('blockSolvedTime', `${getReadableTime(lastStats.network.DERO.difficulty / lastStats.stats.hashrate)}/${getReadableTime(lastStats.network.DERO.difficulty / lastStats.stats.hashrateSolo)}`);
 			}
 		}
 	};
 
 	// Enable timeago on last block found
-	$('#networkLastBlockFound,#poolLastBlockFound')
+	$('#networkLastBlockFound,#poolLastBlockFound,#poolLastBlockFoundSolo')
 		.timeago();
 
 

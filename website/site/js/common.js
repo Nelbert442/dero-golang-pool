@@ -2830,10 +2830,19 @@ function home_InitTemplate (parentStats, siblingStats) {
 
 	if (lastBlockFound) {
 		$('#poolLastBlockFound')
-			.timeago('update', new Date(lastBlockFound)
-				.toISOString());
+			.timeago('update', new Date(lastBlockFound).toISOString())
 	} else {
 		$('#poolLastBlockFound')
+			.removeAttr('title')
+			.data('ts', '')
+			.update('Never');
+	}
+
+	if (lastBlockFoundSolo) {
+		$('#poolLastBlockFoundSolo')
+			.timeago('update', new Date(lastBlockFoundSolo).toISOString())
+	} else {
+		$('#poolLastBlockFoundSolo')
 			.removeAttr('title')
 			.data('ts', '')
 			.update('Never');
