@@ -62,10 +62,10 @@
 				<span class="fa fa-line-chart"></span>
 			</div>
 			<div class="content">
-				<div class="text"><span data-tkey="currentEffort">Current Effort</span></div>
+				<div class="text"><span data-tkey="currentEffort">Current Effort</span> (PROP/SOLO)</div>
 				<div class="value">
 					{{#efforts}}
-						<span class="smallText" id="currentEffort{{coin}}">{{effort}}</span><sup>{{symbol}}</sup>&nbsp;
+						<span class="smallText" id="currentEffort{{coin}}">{{effort}}/{{effortSolo}}</span><sup>{{symbol}}</sup>&nbsp;
 					{{/efforts}}
 				</div>
 			</div>
@@ -273,8 +273,7 @@
 
 				updateText(`poolMiners${updateKey}`, `${stats.miners.minersTotal}/${stats.miners.minersTotalSolo}`);
 				updateText(`blocksTotal${updateKey}`, `${stats.blocks.totalBlocks}/${stats.blocks.totalBlocksSolo}`);
-				updateText(`currentEffort${updateKey}`, (stats.stats.poolstats.roundShares / stats.network.DERO.difficulty * 100)
-					.toFixed(1) + '%');
+				updateText(`currentEffort${updateKey}`, `${((stats.stats.poolstats.roundShares / stats.network.DERO.difficulty * 100).toFixed(1) + '%')}/${((stats.stats.poolstats.roundSharesSolo / stats.network.DERO.difficulty * 100).toFixed(1) + '%')}`);
 
 
 				let el = updateText('lastHash', lastStats.lastblock.DERO.hash)
