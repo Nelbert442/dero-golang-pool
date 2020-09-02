@@ -357,10 +357,13 @@ func (u *BlockUnlocker) calculateRewards(s *StratumServer, block *BlockData) (*b
 	var err error
 
 	if block.Solo {
-		shares, err = u.backend.GetRoundSharesSolo(block.RoundHeight, block.Nonce)
+		/*shares, err = u.backend.GetRoundSharesSolo(block.RoundHeight, block.Nonce, block.Address)
 		if err != nil {
 			return nil, nil, nil, nil, err
-		}
+		}*/
+		rewards := make(map[string]int64)
+		rewards[block.Address] += int64(block.Reward)
+		return revenue, minersProfit, poolProfit, rewards, nil
 	} else {
 		shares, err = u.backend.GetRoundShares(block.RoundHeight, block.Nonce)
 		if err != nil {

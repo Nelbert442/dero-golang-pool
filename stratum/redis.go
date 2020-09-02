@@ -153,7 +153,7 @@ func (redisClient *RedisClient) GetRoundShares(height int64, nonce string) (map[
 	return result, nil
 }
 
-func (redisClient *RedisClient) GetRoundSharesSolo(height int64, nonce string) (map[string]int64, error) {
+/*func (redisClient *RedisClient) GetRoundSharesSolo(height int64, nonce, soloLogin string) (map[string]int64, error) {
 	result := make(map[string]int64)
 
 	cmd := redisClient.client.HGetAllMap(redisClient.formatRoundSolo(height, nonce))
@@ -163,10 +163,12 @@ func (redisClient *RedisClient) GetRoundSharesSolo(height int64, nonce string) (
 	sharesMap, _ := cmd.Result()
 	for login, v := range sharesMap {
 		n, _ := strconv.ParseInt(v, 10, 64)
-		result[login] = n
+		if login == soloLogin {
+			result[login] = n
+		}
 	}
 	return result, nil
-}
+}*/
 
 func (redisClient *RedisClient) GetBalance(login string) (uint64, error) {
 	cmd := redisClient.client.HGet(redisClient.formatKey("miners", login), "balance")
@@ -670,7 +672,8 @@ func convertCandidateResults(raw *redis.ZSliceCmd) []*BlockData {
 		//block.ExtraReward, _ = new(big.Int).SetString(fields[9], 10)
 		block.candidateKey = v.Member.(string)
 		block.Solo, _ = strconv.ParseBool(fields[9])
-		block.Address = fields[10][0:11] + "..." + fields[10][len(fields[10])-5:len(fields[10])]
+		//block.Address = fields[10][0:11] + "..." + fields[10][len(fields[10])-5:len(fields[10])]
+		block.Address = fields[10]
 		result = append(result, &block)
 	}
 	return result
@@ -970,7 +973,8 @@ func convertBlockResults(rows ...*redis.ZSliceCmd) []*BlockData {
 			block.ImmatureReward = fields[6]
 			block.immatureKey = v.Member.(string)
 			block.Solo, _ = strconv.ParseBool(fields[7])
-			block.Address = fields[8][0:11] + "..." + fields[8][len(fields[8])-5:len(fields[8])]
+			//block.Address = fields[8][0:11] + "..." + fields[8][len(fields[8])-5:len(fields[8])]
+			block.Address = fields[8]
 			result = append(result, &block)
 		}
 	}
