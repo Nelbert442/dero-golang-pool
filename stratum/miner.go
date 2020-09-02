@@ -289,7 +289,6 @@ func (m *Miner) processShare(s *StratumServer, cs *Session, job *Job, t *BlockTe
 			s.refreshBlockTemplate(true)
 
 			// Redis store of successful block
-			// Watch for errs .. had one in testing: Failed to insert block data into backend: ERR no such key
 			_, err := s.backend.WriteBlock(params.Id, params.JobId, params, cs.difficulty, int64(t.Difficulty), int64(t.Height), s.hashrateExpiration, 0, blockSubmitReply.BLID, m.isSolo, m.address)
 			if err != nil {
 				log.Println("Failed to insert block data into backend:", err)
