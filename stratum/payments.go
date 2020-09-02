@@ -21,6 +21,11 @@ type PayoutsProcessor struct {
 	lastFail error
 }
 
+type PayoutTracker struct {
+	Destinations []rpc.Destinations
+	PaymentIDs   []string
+}
+
 /* Used when integrating with derosuite functions, currently not being used but in place incase functions are used later
 type Transfer struct {
 	rAddress	*address.Address
@@ -101,6 +106,12 @@ func (u *PayoutsProcessor) process(s *StratumServer) {
 		log.Println("Payments suspended due to last critical error:", u.lastFail)
 		return
 	}*/
+	maxAddresses := u.config.MaxAddresses
+	var payoutList []rpc.Destinations
+	var paymentIDPayeeList []rpc.Destinations
+	var payIDList []string
+
+	walletURL := fmt.Sprintf("http://%s:%v/json_rpc", u.config.WalletHost, u.config.WalletPort)
 	mustPay := 0
 	minersPaid := 0
 	totalAmount := big.NewInt(0)
@@ -111,15 +122,16 @@ func (u *PayoutsProcessor) process(s *StratumServer) {
 	}
 
 	for _, login := range payees {
+		log.Printf("Checking balance: %v", login)
 		amount, _ := u.backend.GetBalance(login)
 		//log.Printf("Amount: %v, login: %v", amount, login)
 		if !u.reachedThreshold(amount) {
 			continue
 		}
 		mustPay++
+		log.Printf("Pending payout for: %v", login)
 
 		// Check if we have enough funds
-		walletURL := fmt.Sprintf("http://%s:%v/json_rpc", u.config.WalletHost, u.config.WalletPort)
 		poolBalanceObj, err := u.rpc.GetBalance(walletURL)
 		if err != nil {
 			// TODO: mark sick maybe for tracking and frontend reporting?
@@ -137,21 +149,22 @@ func (u *PayoutsProcessor) process(s *StratumServer) {
 		}
 
 		// Lock payments for current payout
-		err = u.backend.LockPayouts(login, int64(amount))
+		/*err = u.backend.LockPayouts(login, int64(amount))
 		if err != nil {
 			log.Printf("Failed to lock payment for %s: %v", login, err)
 			//u.halt = true
 			//u.lastFail = err
 			break
 		}
-		log.Printf("Locked payment for %s, %v DERO", login, amount)
+		log.Printf("Locked payment for %s, %v DERO", login, amount)*/
 
 		// Address validations
 		// We already do this for when the miner connects, we need to get those details/vars or just regen them as well as re-validate JUST TO BE SURE prior to attempting to send
 		// NOTE: The issue with grabbing from the miners arr (s.miners), is that if they're not actively mining but get rewards from a past round, the query will not return their detail for payout
 
-		address, workID, paymentID, fixDiff, isSolo := s.splitLoginString(login)
-		_, _, _ = workID, fixDiff, isSolo
+		address, _, paymentID, _, _ := s.splitLoginString(login)
+
+		log.Printf("Split login. Address: %v, paymentID: %v", address, paymentID)
 
 		// Validate Address
 		validatedAddress, err := globals.ParseValidateAddress(address)
@@ -159,8 +172,31 @@ func (u *PayoutsProcessor) process(s *StratumServer) {
 
 		if err != nil {
 			log.Printf("Invalid address format. Will not process payments - %v", address)
-			break
+			//break
+			continue
 		}
+
+		currAddr := rpc.Destinations{
+			Amount:  amount,
+			Address: address,
+		}
+
+		// If paymentID, put in an array that'll be walked through one at a time versus combining addresses/amounts.
+		if paymentID != "" {
+			log.Printf("Adding to paymentID List: %v, %v", paymentID, currAddr)
+			//payIDList = append(payIDList, currAddr)
+			paymentIDPayeeList = append(paymentIDPayeeList, currAddr)
+			payIDList = append(payIDList, paymentID)
+		} else {
+			log.Printf("Adding to payoutList List: %v", currAddr)
+			payoutList = append(payoutList, currAddr)
+		}
+	}
+
+	payIDTracker := &PayoutTracker{Destinations: paymentIDPayeeList, PaymentIDs: payIDList}
+
+	// If there are payouts to be processed
+	if len(payoutList) > 0 || len(payIDList) > 0 {
 
 		// Send DERO - Native, TODO)
 		// Issues with mutex and also running wallet process locally (with --rpc-server), as it can't get a lock to generate the transaction.
@@ -221,80 +257,166 @@ func (u *PayoutsProcessor) process(s *StratumServer) {
 
 		// Send DERO - RPC (working)
 		var currPayout rpc.Transfer_Params
+		var lastPos int
+		//var txNum int
 		currPayout.Mixin = u.config.Mixin
 		currPayout.Unlock_time = 0
 		currPayout.Get_tx_key = true
 		currPayout.Do_not_relay = false
 		currPayout.Get_tx_hex = true
-		currPayout.Payment_ID = paymentID
 
-		currPayout.Destinations = []rpc.Destinations{
-			rpc.Destinations{
-				Amount:  amount,
-				Address: address,
-			},
-		}
+		// Payout paymentID addresses, one at a time since paymentID is used in the tx generation and is a non-array input
+		for p, payee := range payIDTracker.Destinations {
+			// TODO: Process payid list
+			log.Printf("I'm in payID arr. %v", payIDTracker.Destinations)
+			currPayout.Payment_ID = payIDTracker.PaymentIDs[p]
+			currPayout.Destinations = append(currPayout.Destinations, payee)
 
-		paymentOutput, err := u.rpc.SendTransaction(walletURL, currPayout)
+			log.Printf("currPayout: %v", currPayout)
 
-		if err != nil {
-			log.Printf("Error with transaction: %v", err)
-			// Unlock payments for current payout
-			err = u.backend.UnlockPayouts()
+			paymentOutput, err := u.rpc.SendTransaction(walletURL, currPayout)
+
 			if err != nil {
-				log.Printf("Failed to unlock payment for %s: %v", login, err)
+				log.Printf("Error with transaction: %v", err)
+				break
+			}
+			log.Printf("Success: %v", paymentOutput)
+			// Log transaction hash
+			txHash := paymentOutput.Tx_hash_list
+			txFee := paymentOutput.Fee_list
+			// As pool owner, you probably want to store keys so that you can prove a send if required.
+			txKey := paymentOutput.Tx_key_list
+
+			if txHash == nil {
+				log.Printf("Failed to generate transaction. It was sent successfully to rpc server, but no reply back.")
+
+				break
+			}
+
+			// Debit miner's balance and update stats
+			login := payee.Address + s.config.Stratum.PaymentID.AddressSeparator + currPayout.Payment_ID
+			amount := payee.Amount
+			err = u.backend.UpdateBalance(login, int64(amount))
+			if err != nil {
+				log.Printf("Failed to update balance for %s, %v DERO: %v", login, int64(amount), err)
 				//u.halt = true
 				//u.lastFail = err
 				break
 			}
-			log.Printf("Unlocked payment for %s, %v DERO", login, amount)
-			break
-		}
-		log.Printf("Success: %v", paymentOutput)
-		// Log transaction hash
-		// TODO: Possibly better way to handle the []string returned for Tx_hash_list and usage below for redis stores. Maybe a rune split approach will be necessary (especially if in future multiple tx in one return)
-		txHash := paymentOutput.Tx_hash_list
-		txFee := paymentOutput.Fee_list
-		// As pool owner, you probably want to store keys so that you can prove a send if required.
-		txKey := paymentOutput.Tx_key_list
 
-		if txHash == nil {
-			log.Printf("Failed to generate transaction. It was sent successfully to rpc server, but no reply back.")
-
-			// Unlock payments for current payout
-			err = u.backend.UnlockPayouts()
+			// Update stats for pool payments
+			err = u.backend.WritePayment(login, txHash[0], txKey[0], txFee[0], u.config.Mixin, int64(amount))
 			if err != nil {
-				log.Printf("Failed to unlock payment for %s: %v", login, err)
+				log.Printf("Failed to log payment data for %s, %v DERO, tx: %s, fee: %v, txKey: %v, Mixin: %v, error: %v", login, int64(amount), txHash[0], txFee[0], txKey[0], u.config.Mixin, err)
 				//u.halt = true
 				//u.lastFail = err
 				break
 			}
-			log.Printf("Unlocked payment for %s, %v DERO", login, amount)
 
-			break
+			minersPaid++
+			totalAmount.Add(totalAmount, big.NewInt(int64(amount)))
+			log.Printf("Paid %v DERO to %v, PaymentID: %v, TxHash: %v, Fee: %v, Mixin: %v", int64(amount), login, currPayout.Payment_ID, txHash[0], txFee[0], u.config.Mixin)
 		}
+		currPayout.Destinations = nil
 
-		// Debit miner's balance and update stats
-		err = u.backend.UpdateBalance(login, int64(amount))
-		if err != nil {
-			log.Printf("Failed to update balance for %s, %v DERO: %v", login, int64(amount), err)
-			//u.halt = true
-			//u.lastFail = err
-			break
+		// Payout non-paymentID addresses, max at a time according to maxAddresses in config
+		for i, value := range payoutList {
+			log.Printf("I'm in payoutList arr")
+			log.Printf("PayoutsList: %v", payoutList)
+
+			currPayout.Payment_ID = ""
+			log.Printf("Appending destination: %v", value)
+			currPayout.Destinations = append(currPayout.Destinations, value)
+
+			log.Printf("PayoutList Length: %v, i+1: %v, currPayout.Destinations: %v, maxAddresses: %v", len(payoutList), i+1, len(currPayout.Destinations), maxAddresses)
+			// Payout if maxAddresses is reached or the payout list ending is reached
+			if len(currPayout.Destinations) >= int(maxAddresses) || i+1 == len(payoutList) {
+				paymentOutput, err := u.rpc.SendTransaction(walletURL, currPayout)
+
+				if err != nil {
+					log.Printf("Error with transaction: %v", err)
+					break
+				}
+				log.Printf("Success: %v", paymentOutput)
+				// Log transaction hash
+				txHash := paymentOutput.Tx_hash_list
+				txFee := paymentOutput.Fee_list
+				// As pool owner, you probably want to store keys so that you can prove a send if required.
+				txKey := paymentOutput.Tx_key_list
+
+				if txHash == nil {
+					log.Printf("Failed to generate transaction. It was sent successfully to rpc server, but no reply back.")
+
+					break
+				}
+
+				log.Printf("txHash: %v, txFee: %v, txKey: %v, i: %v", txHash, txFee, txKey, i)
+				if len(payoutList) > 1 && maxAddresses > 1 {
+					log.Printf("Processing payoutList[lastPos:i]: %v, lastPos: %v, i: %v", payoutList[lastPos:i], lastPos, i)
+					payPos := i - lastPos
+					//for k, value := range payoutList[lastPos:i] {
+					for k := 0; k <= payPos; k++ {
+						log.Printf("Processing: %v", value)
+						// Debit miner's balance and update stats
+						// lastPos + k
+						//login := value.Address
+						//amount := value.Amount
+						login := payoutList[lastPos+k].Address
+						amount := payoutList[lastPos+k].Amount
+						log.Printf("Updating Balance: %v, %v", login, int64(amount))
+						err = u.backend.UpdateBalance(login, int64(amount))
+						if err != nil {
+							log.Printf("Failed to update balance for %s, %v DERO: %v", login, int64(amount), err)
+							//u.halt = true
+							//u.lastFail = err
+							break
+						}
+
+						// Update stats for pool payments
+						err = u.backend.WritePayment(login, txHash[0], txKey[0], txFee[0], u.config.Mixin, int64(amount))
+						if err != nil {
+							log.Printf("Failed to log payment data for %s, %v DERO, tx: %s, fee: %v, txKey: %v, Mixin: %v, error: %v", login, int64(amount), txHash[0], txFee[0], txKey[0], u.config.Mixin, err)
+							//u.halt = true
+							//u.lastFail = err
+							break
+						}
+
+						minersPaid++
+						totalAmount.Add(totalAmount, big.NewInt(int64(amount)))
+						log.Printf("Paid %v DERO to %v, TxHash: %v, Fee: %v, Mixin: %v", int64(amount), login, txHash[0], txFee[0], u.config.Mixin)
+					}
+				} else {
+					log.Printf("Processing payoutList[i]: %v", payoutList[i])
+					// Debit miner's balance and update stats
+					login := value.Address
+					amount := value.Amount
+					err = u.backend.UpdateBalance(login, int64(amount))
+					if err != nil {
+						log.Printf("Failed to update balance for %s, %v DERO: %v", login, int64(amount), err)
+						//u.halt = true
+						//u.lastFail = err
+						break
+					}
+
+					// Update stats for pool payments
+					err = u.backend.WritePayment(login, txHash[0], txKey[0], txFee[0], u.config.Mixin, int64(amount))
+					if err != nil {
+						log.Printf("Failed to log payment data for %s, %v DERO, tx: %s, fee: %v, txKey: %v, Mixin: %v, error: %v", login, int64(amount), txHash[0], txFee[0], txKey[0], u.config.Mixin, err)
+						//u.halt = true
+						//u.lastFail = err
+						break
+					}
+
+					minersPaid++
+					totalAmount.Add(totalAmount, big.NewInt(int64(amount)))
+					log.Printf("Paid %v DERO to %v, TxHash: %v, Fee: %v, Mixin: %v", int64(amount), login, txHash[0], txFee[0], u.config.Mixin)
+				}
+				// Empty currpayout destinations array
+				currPayout.Destinations = nil
+				//txNum++
+				lastPos = i + 1 // Increment lastPos so it'll be equal to i next round in loop (if required)
+			}
 		}
-
-		// Update stats for pool payments
-		err = u.backend.WritePayment(login, txHash[0], txKey[0], txFee[0], u.config.Mixin, int64(amount))
-		if err != nil {
-			log.Printf("Failed to log payment data for %s, %v DERO, tx: %s, fee: %v, txKey: %v, Mixin: %v, error: %v", login, int64(amount), txHash[0], txFee[0], txKey[0], u.config.Mixin, err)
-			//u.halt = true
-			//u.lastFail = err
-			break
-		}
-
-		minersPaid++
-		totalAmount.Add(totalAmount, big.NewInt(int64(amount)))
-		log.Printf("Paid %v DERO to %v, TxHash: %v, Fee: %v, Mixin: %v", int64(amount), login, txHash[0], txFee[0], u.config.Mixin)
 
 		// Wait for TX confirmation before further payouts
 		/*for {

@@ -201,6 +201,7 @@ Explanation for each field:
 		"enabled": false,			// Set payments enabled to true, utilized, or false, not utilized
 		"interval": "30s",			// Run payments in this interval
 		"mixin": 8,					// Define mixin for transactions
+		"maxAddresses": 2,			// Define maximum number of addresses to send a single TX to [Usually safer to keep lower, but 1-5 should suffice]
 		"minPayment": 100,			// Define the minimum payment (uint64). i.e.: 1 DERO = 1000000000000
 		"bgsave": true,				// Perform BGSAVE on Redis after successful payouts session
 		"walletHost": "127.0.0.1",	// Defines the host of the wallet daemon

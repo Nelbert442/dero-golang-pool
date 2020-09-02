@@ -121,6 +121,7 @@
 		"enabled": true,
 		"interval": "30s",
 		"mixin": 8,
+		"maxAddresses": 2,
 		"minPayment": 1000000,
 		"bgsave": true,
 		"walletHost": "127.0.0.1",

@@ -390,12 +390,17 @@ func calculateRewardsForShares(s *StratumServer, shares map[string]int64, total 
 
 	for login, n := range shares {
 		// Split away for workers, paymentIDs etc. just to compound the shares associated with a given address
-		address, _, _, _, _ := s.splitLoginString(login)
+		address, _, paymentID, _, _ := s.splitLoginString(login)
 
 		percent := big.NewRat(n, total)
 		workerReward := new(big.Rat).Mul(reward, percent)
 		workerRewardInt, _ := strconv.ParseInt(workerReward.FloatString(0), 10, 64)
-		rewards[address] += workerRewardInt
+		if paymentID != "" {
+			combinedAddr := address + s.config.Stratum.PaymentID.AddressSeparator + paymentID
+			rewards[combinedAddr] += workerRewardInt
+		} else {
+			rewards[address] += workerRewardInt
+		}
 	}
 	return rewards
 }

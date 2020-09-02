@@ -105,13 +105,14 @@ type UnlockerConfig struct {
 }
 
 type PaymentsConfig struct {
-	Enabled    bool   `json:"enabled"`
-	Interval   string `json:"interval"`
-	Mixin      uint64 `json:"mixin"`
-	Threshold  uint64 `json:"minPayment"`
-	BgSave     bool   `json:"bgsave"`
-	WalletHost string `json:"walletHost"`
-	WalletPort string `json:"walletPort"`
+	Enabled      bool   `json:"enabled"`
+	Interval     string `json:"interval"`
+	Mixin        uint64 `json:"mixin"`
+	MaxAddresses uint64 `json:"maxAddresses"`
+	Threshold    uint64 `json:"minPayment"`
+	BgSave       bool   `json:"bgsave"`
+	WalletHost   string `json:"walletHost"`
+	WalletPort   string `json:"walletPort"`
 }
 
 type Website struct {
