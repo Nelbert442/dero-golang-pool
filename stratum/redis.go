@@ -387,7 +387,7 @@ func (redisClient *RedisClient) GetCandidates(maxHeight int64) ([]*BlockData, er
 	if cmd.Err() != nil {
 		return nil, cmd.Err()
 	}
-	return convertCandidateResults(cmd), nil
+	return convertCandidateResults(cmd, false), nil
 }
 
 func (redisClient *RedisClient) GetImmatureBlocks(maxHeight int64) ([]*BlockData, error) {
@@ -396,7 +396,7 @@ func (redisClient *RedisClient) GetImmatureBlocks(maxHeight int64) ([]*BlockData
 	if cmd.Err() != nil {
 		return nil, cmd.Err()
 	}
-	return convertBlockResults(cmd), nil
+	return convertBlockResults(false, cmd), nil
 }
 
 func (redisClient *RedisClient) GetImmatureBlocksSolo(maxHeight int64) ([]*BlockData, error) {
@@ -405,7 +405,7 @@ func (redisClient *RedisClient) GetImmatureBlocksSolo(maxHeight int64) ([]*Block
 	if cmd.Err() != nil {
 		return nil, cmd.Err()
 	}
-	return convertBlockResults(cmd), nil
+	return convertBlockResults(false, cmd), nil
 }
 
 func (redisClient *RedisClient) WriteImmatureBlock(block *BlockData, roundRewards map[string]int64) error {
@@ -655,7 +655,7 @@ func (redisClient *RedisClient) FlushStaleStats(window, largeWindow time.Duratio
 	return total, nil
 }
 
-func convertCandidateResults(raw *redis.ZSliceCmd) []*BlockData {
+func convertCandidateResults(raw *redis.ZSliceCmd, hideFullAddr bool) []*BlockData {
 	var result []*BlockData
 	for _, v := range raw.Val() {
 		// "blockHex:minerID:round:nonce:_:timestamp:diff:totalShares:extraReward:solo:address"
@@ -672,8 +672,11 @@ func convertCandidateResults(raw *redis.ZSliceCmd) []*BlockData {
 		//block.ExtraReward, _ = new(big.Int).SetString(fields[9], 10)
 		block.candidateKey = v.Member.(string)
 		block.Solo, _ = strconv.ParseBool(fields[9])
-		//block.Address = fields[10][0:11] + "..." + fields[10][len(fields[10])-5:len(fields[10])]
-		block.Address = fields[10]
+		if hideFullAddr {
+			block.Address = fields[10][0:11] + "..." + fields[10][len(fields[10])-5:len(fields[10])]
+		} else {
+			block.Address = fields[10]
+		}
 		result = append(result, &block)
 	}
 	return result
@@ -716,23 +719,23 @@ func (redisClient *RedisClient) CollectStats(smallWindow time.Duration, maxBlock
 
 	result, _ := cmds[4].(*redis.StringStringMapCmd).Result()
 	stats["stats"] = convertStringMap(result)
-	candidates := convertCandidateResults(cmds[5].(*redis.ZSliceCmd))
+	candidates := convertCandidateResults(cmds[5].(*redis.ZSliceCmd), true)
 	stats["candidates"] = candidates
 	stats["candidatesTotal"] = cmds[10].(*redis.IntCmd).Val()
 
-	immature := convertBlockResults(cmds[6].(*redis.ZSliceCmd))
+	immature := convertBlockResults(true, cmds[6].(*redis.ZSliceCmd))
 	stats["immature"] = immature
 	stats["immatureTotal"] = cmds[11].(*redis.IntCmd).Val()
 
-	immatureSolo := convertBlockResults(cmds[7].(*redis.ZSliceCmd))
+	immatureSolo := convertBlockResults(true, cmds[7].(*redis.ZSliceCmd))
 	stats["immatureSolo"] = immatureSolo
 	stats["immatureSoloTotal"] = cmds[12].(*redis.IntCmd).Val()
 
-	matured := convertBlockResults(cmds[8].(*redis.ZSliceCmd))
+	matured := convertBlockResults(true, cmds[8].(*redis.ZSliceCmd))
 	stats["matured"] = matured
 	stats["maturedTotal"] = cmds[13].(*redis.IntCmd).Val()
 
-	maturedSolo := convertBlockResults(cmds[9].(*redis.ZSliceCmd))
+	maturedSolo := convertBlockResults(true, cmds[9].(*redis.ZSliceCmd))
 	stats["maturedSolo"] = maturedSolo
 	stats["maturedSoloTotal"] = cmds[14].(*redis.IntCmd).Val()
 
@@ -883,8 +886,8 @@ func (redisClient *RedisClient) CollectLuckStats(windows []int) (map[string]inte
 	if err != nil {
 		return stats, err
 	}
-	blocks := convertBlockResults(cmds[0].(*redis.ZSliceCmd), cmds[1].(*redis.ZSliceCmd))
-	blocksSolo := convertBlockResults(cmds[2].(*redis.ZSliceCmd), cmds[3].(*redis.ZSliceCmd))
+	blocks := convertBlockResults(true, cmds[0].(*redis.ZSliceCmd), cmds[1].(*redis.ZSliceCmd))
+	blocksSolo := convertBlockResults(true, cmds[2].(*redis.ZSliceCmd), cmds[3].(*redis.ZSliceCmd))
 
 	calcLuck := func(max int) (int, float64, float64) {
 		var total int
@@ -954,7 +957,7 @@ func (redisClient *RedisClient) CollectLuckStats(windows []int) (map[string]inte
 	return stats, nil
 }
 
-func convertBlockResults(rows ...*redis.ZSliceCmd) []*BlockData {
+func convertBlockResults(hideFullAddr bool, rows ...*redis.ZSliceCmd) []*BlockData {
 	var result []*BlockData
 	for _, row := range rows {
 		for _, v := range row.Val() {
@@ -973,8 +976,11 @@ func convertBlockResults(rows ...*redis.ZSliceCmd) []*BlockData {
 			block.ImmatureReward = fields[6]
 			block.immatureKey = v.Member.(string)
 			block.Solo, _ = strconv.ParseBool(fields[7])
-			//block.Address = fields[8][0:11] + "..." + fields[8][len(fields[8])-5:len(fields[8])]
-			block.Address = fields[8]
+			if hideFullAddr {
+				block.Address = fields[8][0:11] + "..." + fields[8][len(fields[8])-5:len(fields[8])]
+			} else {
+				block.Address = fields[8]
+			}
 			result = append(result, &block)
 		}
 	}
