@@ -56,15 +56,6 @@ func NewPayoutsProcessor(cfg *pool.PaymentsConfig, s *StratumServer) *PayoutsPro
 func (u *PayoutsProcessor) Start(s *StratumServer) {
 	log.Println("Starting payouts")
 
-	// Unlock payments when starting the process. This will re-attempt any potentially locked payments if errored out before unlocking
-	err := u.backend.UnlockPayouts()
-	if err != nil {
-		log.Printf("Failed to unlock payment")
-		//u.halt = true
-		//u.lastFail = err
-	}
-	log.Printf("Unlocked payment")
-
 	intv, _ := time.ParseDuration(u.config.Interval)
 	timer := time.NewTimer(intv)
 	log.Printf("Set payouts interval to %v", intv)
@@ -102,10 +93,7 @@ func (u *PayoutsProcessor) Start(s *StratumServer) {
 }
 
 func (u *PayoutsProcessor) process(s *StratumServer) {
-	/*if u.halt {
-		log.Println("Payments suspended due to last critical error:", u.lastFail)
-		return
-	}*/
+
 	maxAddresses := u.config.MaxAddresses
 	var payoutList []rpc.Destinations
 	var paymentIDPayeeList []rpc.Destinations
@@ -122,41 +110,24 @@ func (u *PayoutsProcessor) process(s *StratumServer) {
 	}
 
 	for _, login := range payees {
-		log.Printf("Checking balance: %v", login)
 		amount, _ := u.backend.GetBalance(login)
-		//log.Printf("Amount: %v, login: %v", amount, login)
 		if !u.reachedThreshold(amount) {
 			continue
 		}
 		mustPay++
-		log.Printf("Pending payout for: %v", login)
 
 		// Check if we have enough funds
 		poolBalanceObj, err := u.rpc.GetBalance(walletURL)
 		if err != nil {
 			// TODO: mark sick maybe for tracking and frontend reporting?
 			log.Printf("Error when getting balance from wallet %s. Will try again in %s", walletURL, u.config.Interval)
-			//u.halt = true
-			//u.lastFail = err
 			break
 		}
 		poolBalance := poolBalanceObj.UnlockedBalance
 		if poolBalance < amount {
 			log.Printf("Not enough balance for payment, need %v DERO, pool has %v DERO", amount, poolBalance)
-			//u.halt = true
-			//u.lastFail = err
 			break
 		}
-
-		// Lock payments for current payout
-		/*err = u.backend.LockPayouts(login, int64(amount))
-		if err != nil {
-			log.Printf("Failed to lock payment for %s: %v", login, err)
-			//u.halt = true
-			//u.lastFail = err
-			break
-		}
-		log.Printf("Locked payment for %s, %v DERO", login, amount)*/
 
 		// Address validations
 		// We already do this for when the miner connects, we need to get those details/vars or just regen them as well as re-validate JUST TO BE SURE prior to attempting to send
@@ -172,7 +143,6 @@ func (u *PayoutsProcessor) process(s *StratumServer) {
 
 		if err != nil {
 			log.Printf("Invalid address format. Will not process payments - %v", address)
-			//break
 			continue
 		}
 
@@ -183,12 +153,9 @@ func (u *PayoutsProcessor) process(s *StratumServer) {
 
 		// If paymentID, put in an array that'll be walked through one at a time versus combining addresses/amounts.
 		if paymentID != "" {
-			log.Printf("Adding to paymentID List: %v, %v", paymentID, currAddr)
-			//payIDList = append(payIDList, currAddr)
 			paymentIDPayeeList = append(paymentIDPayeeList, currAddr)
 			payIDList = append(payIDList, paymentID)
 		} else {
-			log.Printf("Adding to payoutList List: %v", currAddr)
 			payoutList = append(payoutList, currAddr)
 		}
 	}
@@ -258,7 +225,6 @@ func (u *PayoutsProcessor) process(s *StratumServer) {
 		// Send DERO - RPC (working)
 		var currPayout rpc.Transfer_Params
 		var lastPos int
-		//var txNum int
 		currPayout.Mixin = u.config.Mixin
 		currPayout.Unlock_time = 0
 		currPayout.Get_tx_key = true
@@ -267,12 +233,8 @@ func (u *PayoutsProcessor) process(s *StratumServer) {
 
 		// Payout paymentID addresses, one at a time since paymentID is used in the tx generation and is a non-array input
 		for p, payee := range payIDTracker.Destinations {
-			// TODO: Process payid list
-			log.Printf("I'm in payID arr. %v", payIDTracker.Destinations)
 			currPayout.Payment_ID = payIDTracker.PaymentIDs[p]
 			currPayout.Destinations = append(currPayout.Destinations, payee)
-
-			log.Printf("currPayout: %v", currPayout)
 
 			paymentOutput, err := u.rpc.SendTransaction(walletURL, currPayout)
 
@@ -299,8 +261,6 @@ func (u *PayoutsProcessor) process(s *StratumServer) {
 			err = u.backend.UpdateBalance(login, int64(amount))
 			if err != nil {
 				log.Printf("Failed to update balance for %s, %v DERO: %v", login, int64(amount), err)
-				//u.halt = true
-				//u.lastFail = err
 				break
 			}
 
@@ -308,8 +268,6 @@ func (u *PayoutsProcessor) process(s *StratumServer) {
 			err = u.backend.WritePayment(login, txHash[0], txKey[0], txFee[0], u.config.Mixin, int64(amount))
 			if err != nil {
 				log.Printf("Failed to log payment data for %s, %v DERO, tx: %s, fee: %v, txKey: %v, Mixin: %v, error: %v", login, int64(amount), txHash[0], txFee[0], txKey[0], u.config.Mixin, err)
-				//u.halt = true
-				//u.lastFail = err
 				break
 			}
 
@@ -321,14 +279,9 @@ func (u *PayoutsProcessor) process(s *StratumServer) {
 
 		// Payout non-paymentID addresses, max at a time according to maxAddresses in config
 		for i, value := range payoutList {
-			log.Printf("I'm in payoutList arr")
-			log.Printf("PayoutsList: %v", payoutList)
-
 			currPayout.Payment_ID = ""
-			log.Printf("Appending destination: %v", value)
 			currPayout.Destinations = append(currPayout.Destinations, value)
 
-			log.Printf("PayoutList Length: %v, i+1: %v, currPayout.Destinations: %v, maxAddresses: %v", len(payoutList), i+1, len(currPayout.Destinations), maxAddresses)
 			// Payout if maxAddresses is reached or the payout list ending is reached
 			if len(currPayout.Destinations) >= int(maxAddresses) || i+1 == len(payoutList) {
 				paymentOutput, err := u.rpc.SendTransaction(walletURL, currPayout)
@@ -350,25 +303,15 @@ func (u *PayoutsProcessor) process(s *StratumServer) {
 					break
 				}
 
-				log.Printf("txHash: %v, txFee: %v, txKey: %v, i: %v", txHash, txFee, txKey, i)
 				if len(payoutList) > 1 && maxAddresses > 1 {
-					log.Printf("Processing payoutList[lastPos:i]: %v, lastPos: %v, i: %v", payoutList[lastPos:i], lastPos, i)
 					payPos := i - lastPos
-					//for k, value := range payoutList[lastPos:i] {
 					for k := 0; k <= payPos; k++ {
-						log.Printf("Processing: %v", value)
 						// Debit miner's balance and update stats
-						// lastPos + k
-						//login := value.Address
-						//amount := value.Amount
 						login := payoutList[lastPos+k].Address
 						amount := payoutList[lastPos+k].Amount
-						log.Printf("Updating Balance: %v, %v", login, int64(amount))
 						err = u.backend.UpdateBalance(login, int64(amount))
 						if err != nil {
 							log.Printf("Failed to update balance for %s, %v DERO: %v", login, int64(amount), err)
-							//u.halt = true
-							//u.lastFail = err
 							break
 						}
 
@@ -376,8 +319,6 @@ func (u *PayoutsProcessor) process(s *StratumServer) {
 						err = u.backend.WritePayment(login, txHash[0], txKey[0], txFee[0], u.config.Mixin, int64(amount))
 						if err != nil {
 							log.Printf("Failed to log payment data for %s, %v DERO, tx: %s, fee: %v, txKey: %v, Mixin: %v, error: %v", login, int64(amount), txHash[0], txFee[0], txKey[0], u.config.Mixin, err)
-							//u.halt = true
-							//u.lastFail = err
 							break
 						}
 
@@ -393,8 +334,6 @@ func (u *PayoutsProcessor) process(s *StratumServer) {
 					err = u.backend.UpdateBalance(login, int64(amount))
 					if err != nil {
 						log.Printf("Failed to update balance for %s, %v DERO: %v", login, int64(amount), err)
-						//u.halt = true
-						//u.lastFail = err
 						break
 					}
 
@@ -402,8 +341,6 @@ func (u *PayoutsProcessor) process(s *StratumServer) {
 					err = u.backend.WritePayment(login, txHash[0], txKey[0], txFee[0], u.config.Mixin, int64(amount))
 					if err != nil {
 						log.Printf("Failed to log payment data for %s, %v DERO, tx: %s, fee: %v, txKey: %v, Mixin: %v, error: %v", login, int64(amount), txHash[0], txFee[0], txKey[0], u.config.Mixin, err)
-						//u.halt = true
-						//u.lastFail = err
 						break
 					}
 
@@ -413,30 +350,9 @@ func (u *PayoutsProcessor) process(s *StratumServer) {
 				}
 				// Empty currpayout destinations array
 				currPayout.Destinations = nil
-				//txNum++
 				lastPos = i + 1 // Increment lastPos so it'll be equal to i next round in loop (if required)
 			}
 		}
-
-		// Wait for TX confirmation before further payouts
-		/*for {
-			log.Printf("Waiting for tx confirmation: %v", txHash)
-			time.Sleep(txCheckInterval)
-			receipt, err := u.rpc.GetTxReceipt(txHash)
-			if err != nil {
-				log.Printf("Failed to get tx receipt for %v: %v", txHash, err)
-				continue
-			}
-			// Tx has been mined
-			if receipt != nil && receipt.Confirmed() {
-				if receipt.Successful() {
-					log.Printf("Payout tx successful for %s: %s", login, txHash)
-				} else {
-					log.Printf("Payout tx failed for %s: %s. Address contract throws on incoming tx.", login, txHash)
-				}
-				break
-			}
-		}*/
 	}
 
 	if mustPay > 0 {
