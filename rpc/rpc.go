@@ -171,6 +171,20 @@ func (r *RPCClient) GetBlockByHash(hash string) (*GetBlockHashReply, error) {
 	return reply, err
 }
 
+func (r *RPCClient) GetLastBlockHeader() (*GetBlockHashReply, error) {
+	rpcResp, err := r.doPost(r.Url.String(), "getlastblockheader", []string{})
+	if err != nil {
+		return nil, err
+	}
+
+	var reply *GetBlockHashReply
+	if rpcResp.Result != nil {
+		err = json.Unmarshal(*rpcResp.Result, &reply)
+	}
+
+	return reply, err
+}
+
 func (r *RPCClient) GetInfo() (*GetInfoReply, error) {
 	params := make(map[string]interface{})
 	rpcResp, err := r.doPost(r.Url.String(), "get_info", params)

@@ -235,7 +235,7 @@
 				.timeago('dispose');
 		},
 		update: function (updateKey) {
-			if (lastStats.stats.poolstats.lastBlockFound) {
+			if (lastStats.lastblock.DERO.timestamp) {
 				$('#networkLastBlockFound')
 				.timeago('update', new Date(lastStats.lastblock.DERO.timestamp * 1000)
 					.toISOString());

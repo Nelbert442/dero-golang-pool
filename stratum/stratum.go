@@ -163,18 +163,23 @@ func NewStratum(cfg *pool.Config) *StratumServer {
 					var diff big.Int
 					diff.SetUint64(currentWork.Difficulty)
 
-					prevBlock, getHashERR := v.GetBlockByHash(currentWork.Prev_Hash)
-					lastBlock := prevBlock.BlockHeader
+					//prevBlock, getHashERR := v.GetBlockByHash(currentWork.Prev_Hash)
+					prevBlock, getHashERR := v.GetLastBlockHeader()
 
 					if getHashERR != nil {
 						log.Printf("Error while retrieving block %s from node: %v", currentWork.Prev_Hash, getHashERR)
+					} else {
+						lastBlock := prevBlock.BlockHeader
+						//log.Printf("lastBlock: %v, height: %v", lastBlock, currentWork.Height)
+						//log.Printf("diff: %v, height: %v, timestamp: %v, reward: %v, hash: %v", lastBlock.Difficulty, lastBlock.Height, lastBlock.Timestamp, lastBlock.Reward, lastBlock.Hash)
+
+						writeLBErr := stratum.backend.WriteLastBlockState(cfg.Coin, lastBlock.Difficulty, lastBlock.Height, int64(lastBlock.Timestamp), int64(lastBlock.Reward), lastBlock.Hash)
+						err2 := stratum.backend.WriteNodeState(cfg.Coin, int64(currentWork.Height), &diff)
+						_, _ = writeLBErr, err2
 					}
 
-					writeLBErr := stratum.backend.WriteLastBlockState(cfg.Coin, lastBlock.Difficulty, lastBlock.Height, int64(lastBlock.Timestamp), int64(lastBlock.Reward), lastBlock.Hash)
-					err2 := stratum.backend.WriteNodeState(cfg.Coin, int64(currentWork.Height), &diff)
-
 					_, err := v.UpdateInfo()
-					if err != nil || err2 != nil || writeLBErr != nil {
+					if err != nil { //|| err2 != nil || writeLBErr != nil {
 						log.Printf("Unable to update info on upstream %s: %v", v.Name, err)
 						stratum.markSick()
 					} else {
