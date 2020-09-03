@@ -752,10 +752,23 @@ func (redisClient *RedisClient) CollectStats(smallWindow time.Duration, maxBlock
 	totalHashrate, miners := convertMinersStats(window, cmds[1].(*redis.ZSliceCmd))
 	totalHashrateSolo, minersSolo := convertMinersStats(window, cmds[3].(*redis.ZSliceCmd))
 	stats["miners"] = miners
-	stats["minersTotal"] = len(miners)
+	// Update connected miners / total based on offline value versus waiting for full expiration. When miner offline, their HR gets set to 0 as well, for more appropriate stats.
+	var numMiners int
+	for _, cMiner := range miners {
+		if !cMiner.Offline {
+			numMiners++
+		}
+	}
+	var numMinersSolo int
+	for _, cMinerSolo := range minersSolo {
+		if !cMinerSolo.Offline {
+			numMinersSolo++
+		}
+	}
+	stats["minersTotal"] = numMiners //len(miners)
 	stats["hashrate"] = totalHashrate
 	stats["minersSolo"] = minersSolo
-	stats["minersTotalSolo"] = len(minersSolo)
+	stats["minersTotalSolo"] = numMinersSolo //len(minersSolo)
 	stats["hashrateSolo"] = totalHashrateSolo
 	return stats, nil
 }
@@ -1062,6 +1075,7 @@ func convertMinersStats(window int64, raw *redis.ZSliceCmd) (int64, map[string]M
 
 		if miner.LastBeat < (now - window/2) {
 			miner.Offline = true
+			miner.HR = 0
 		}
 		totalHashrate += miner.HR
 		miners[id] = miner

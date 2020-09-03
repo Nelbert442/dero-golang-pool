@@ -83,7 +83,7 @@
 		<div id="top-bar">
 			<div><span data-tkey="network">Network</span>: <strong><span id="g_networkHashrate"><span data-tkey="na">N/A</span></span></strong></div>
 			<div><span data-tkey="poolProp">Pool</span>: <strong><span id="g_poolHashrate"><span data-tkey="na">N/A</span></span></strong></div>
-			<div><span data-tkey="poolSolo">Solo Pool</span>: <strong><span id="g_poolHashrateSolo"><span data-tkey="na">N/A</span></span></strong></div>
+			<div><span data-tkey="poolSolo">Solo</span>: <strong><span id="g_poolHashrateSolo"><span data-tkey="na">N/A</span></span></strong></div>
 			<!--<div><span data-tkey="you">You</span>: <strong><span id="g_userHashrate"><span tkey="na">N/A</span></span></strong></div>-->
 			<div><span id="statsUpdated"><span data-tkey="statsUpdated">Stats Updated</span> &nbsp;</span></div>
 			<div id="langSelector"></div>
@@ -178,11 +178,11 @@
 			updateText('g_networkHashrate', getReadableHashRateString(lastStats.network.DERO.difficulty / lastStats.config.coinDifficultyTarget) + '/sec');
 			updateText('g_poolHashrate', getReadableHashRateString(lastStats.stats.hashrate) + '/sec');
 			updateText('g_poolHashrateSolo', getReadableHashRateString(lastStats.stats.hashrateSolo) + '/sec');
-			if (lastStats.miners && lastStats.miners.hashrate) {
+			/*if (lastStats.miners && lastStats.miners.hashrate) {
 				updateText('g_userHashrate', getReadableHashRateString(lastStats.miners.hashrate) + '/sec');
 			} else {
 				updateText('g_userHashrate', 'N/A');
-			}
+			}*/
 			updateText('poolVersion', lastStats.config.version);
 		}
 
@@ -213,9 +213,9 @@
 			Object.keys(mergedApis)
 				.some(key => {
 					let apiUrl = `${mergedApis[key].api}/allstats`
-					// if (xhrLiveStats[key]){
-					//     xhrLiveStats[key].abort();
-					// }
+					if (xhrLiveStats[key]){
+						xhrLiveStats[key].abort();
+					}
 
 					$.get(apiUrl, function (data) {
 						updateLiveStats(data, key);
@@ -238,9 +238,9 @@
 			}
 			*/
 
-			// if (xhrLiveStats[key] && xhrLiveStats[key].status !== 200){
-			//     xhrLiveStats[key].abort();
-			// }
+			if (xhrLiveStats[key] && xhrLiveStats[key].status !== 200){
+			    xhrLiveStats[key].abort();
+			}
 
 
 			xhrLiveStats[key] = $.ajax({

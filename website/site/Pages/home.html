@@ -13,7 +13,7 @@
 				<span class="fa fa-dashboard"></span>
 			</div>
 			<div class="content">
-				<div class="text"><span data-tkey="poolHashrate">PROP/SOLO Pool Hash Rate</span></div>
+				<div class="text"><span data-tkey="poolHashrate">PROP/SOLO Hash Rate</span></div>
 				<div class="value"><span id="poolHashrate" class="smallText">N/A</span> <span class="smallText">(<span id="hashPower">0%</span>)</span></div>
 				<div class="value"><span id="poolHashrateSolo" class="smallText">N/A</span> <span class="smallText">(<span id="hashPowerSolo">0%</span>)</span></div>
 			</div>
@@ -195,7 +195,7 @@
 	</div>
 </script>
 
-<!-- Pool Charts -->
+<!-- Pool Charts 
 <div class="row">
 	<div class="col-sm-6 poolChart push-up-15">
 		<h4><span data-tkey="hashRate">Hash Rate</span></h4>
@@ -221,7 +221,7 @@
 			<div class="chart"></div>
 		</div>
 	</div>
-</div>
+</div>-->
 
 <!-- Javascript -->
 <script>
@@ -310,21 +310,21 @@
 
 
 	// Handle charts tooltip
-	$(function () {
+	/*$(function () {
 		$('[data-toggle="tooltip"]')
 			.tooltip();
-	});
+	});*/
 
 
 	// Render charts
-	var xhrRenderCharts;
+	/*var xhrRenderCharts;
 	$(function () {
 		xhrRenderCharts = $.ajax({
 			url: api + '/allstats',
 			cache: false,
 			success: home_CreateCharts
 		});
-	});
+	});*/
 
 	home_InitTemplate(lastStats, mergedStats)
 
