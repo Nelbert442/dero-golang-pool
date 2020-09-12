@@ -19,32 +19,35 @@ import (
 )
 
 type StratumServer struct {
-	luckWindow         int64
-	largeLuckWindow    int64
-	roundShares        int64
-	blockStats         map[int64]blockEntry
-	config             *pool.Config
-	miners             MinersMap
-	blockTemplate      atomic.Value
-	upstream           int32
-	upstreams          []*rpc.RPCClient
-	timeout            time.Duration
-	estimationWindow   time.Duration
-	blocksMu           sync.RWMutex
+	luckWindow      int64
+	largeLuckWindow int64
+	roundShares     int64
+	//blockStats         map[int64]blockEntry
+	config           *pool.Config
+	miners           MinersMap
+	blockTemplate    atomic.Value
+	upstream         int32
+	upstreams        []*rpc.RPCClient
+	timeout          time.Duration
+	estimationWindow time.Duration
+	//blocksMu           sync.RWMutex
 	sessionsMu         sync.RWMutex
 	sessions           map[*Session]struct{}
 	algo               string
 	trustedSharesCount int64
 	backend            *RedisClient
+	gravitonDB         *GravitonStore
 	hashrateExpiration time.Duration
 	failsCount         int64
 }
 
+/*
 type blockEntry struct {
 	height   int64
 	variance float64
 	hash     string
 }
+*/
 
 type Endpoint struct {
 	jobSequence uint64
@@ -80,13 +83,48 @@ const (
 )
 
 func NewStratum(cfg *pool.Config) *StratumServer {
-	stratum := &StratumServer{config: cfg, blockStats: make(map[int64]blockEntry)}
+	stratum := &StratumServer{config: cfg} //blockStats: make(map[int64]blockEntry)}
 
 	// Create new redis client/connection
 	if cfg.Redis.Enabled {
 		backend := NewRedisClient(&cfg.Redis, cfg.Coin)
 		stratum.backend = backend
 	}
+
+	// Startup/create new gravitondb (if it doesn't exist), write the configuration file (config.json) into storage for use / api surfacing later
+	stratum.gravitonDB = Graviton_backend
+	stratum.gravitonDB.NewGravDB(cfg.PoolHost)
+	stratum.gravitonDB.WriteConfig(cfg)
+
+	/* - testing just to output a val from db while development process is going
+	plConfig := stratum.gravitonDB.GetConfig(cfg.Coin)
+	if plConfig != nil {
+		log.Printf("Config: %v", plConfig)
+	}
+
+	blocks := stratum.gravitonDB.GetBlocksFound()
+	for _, value := range blocks.MinedBlocks {
+		log.Printf("Blocks found: %v", value)
+	}
+
+	paymentsProcessed := stratum.gravitonDB.GetProcessedPayments()
+	for _, value := range paymentsProcessed.MinerPayments {
+		log.Printf("Payments processed: %v", value)
+	}
+
+	paymentsPending := stratum.gravitonDB.GetPendingPayments()
+	for _, value := range paymentsPending {
+		log.Printf("Payments pending: %v", value)
+	}
+
+	blocksFound := stratum.gravitonDB.GetBlocksFound("matured")
+	for _, value := range blocksFound.MinedBlocks {
+		log.Printf("Matured blocks: %v", value)
+	}
+	*/
+
+	minerStats := stratum.gravitonDB.GetMinerIDRegistrations()
+	log.Printf("Miner: %v", minerStats)
 
 	// Set stratum.upstreams length based on cfg.Upstream only if they are set enabled: true. We use arr to simulate this and filter out cfg.Upstream objects
 	var arr []pool.Upstream
@@ -103,10 +141,10 @@ func NewStratum(cfg *pool.Config) *StratumServer {
 			log.Fatal(err)
 		} else {
 			stratum.upstreams[i] = client
-			log.Printf("Upstream: %s => %s", client.Name, client.Url)
+			log.Printf("[Stratum] Upstream: %s => %s", client.Name, client.Url)
 		}
 	}
-	log.Printf("Default upstream: %s => %s", stratum.rpc().Name, stratum.rpc().Url)
+	log.Printf("[Stratum] Default upstream: %s => %s", stratum.rpc().Name, stratum.rpc().Url)
 
 	stratum.miners = NewMinersMap()
 	stratum.sessions = make(map[*Session]struct{})
@@ -118,17 +156,23 @@ func NewStratum(cfg *pool.Config) *StratumServer {
 
 	refreshIntv, _ := time.ParseDuration(cfg.BlockRefreshInterval)
 	refreshTimer := time.NewTimer(refreshIntv)
-	log.Printf("Set block refresh every %v", refreshIntv)
+	log.Printf("[Stratum] Set block refresh every %v", refreshIntv)
 
 	hashExpiration, _ := time.ParseDuration(cfg.HashrateExpiration)
 	stratum.hashrateExpiration = hashExpiration
 
+	hashWindow, _ := time.ParseDuration(cfg.API.HashrateWindow)
+	stratum.estimationWindow = hashWindow
+
 	checkIntv, _ := time.ParseDuration(cfg.UpstreamCheckInterval)
 	checkTimer := time.NewTimer(checkIntv)
-	log.Printf("Set upstream check interval every %v", refreshIntv)
+	log.Printf("[Stratum] Set upstream check interval every %v", refreshIntv)
 
 	infoIntv, _ := time.ParseDuration(cfg.UpstreamCheckInterval)
 	infoTimer := time.NewTimer(infoIntv)
+	// TODO: Separate out individual config intervals for miner stats + lastblock stats
+	log.Printf("[Stratum] Set miner stats store interval every %v", refreshIntv)
+	log.Printf("[Stratum] Set lastblock stats store interval every %v", refreshIntv)
 
 	// Init block template
 	go stratum.refreshBlockTemplate(false)
@@ -159,7 +203,7 @@ func NewStratum(cfg *pool.Config) *StratumServer {
 			case <-infoTimer.C:
 				currentWork := stratum.currentWork()
 				poll := func(v *rpc.RPCClient) {
-					// Need to make sure that this isn't too heavy of action, to call GetBlockByHash here. Otherwise, need to store it in another fashion
+					// Need to make sure that this isn't too heavy of action, to call GetLastBlockHeader here. Otherwise, need to store it in another fashion
 					var diff big.Int
 					diff.SetUint64(currentWork.Difficulty)
 
@@ -167,20 +211,27 @@ func NewStratum(cfg *pool.Config) *StratumServer {
 					prevBlock, getHashERR := v.GetLastBlockHeader()
 
 					if getHashERR != nil {
-						log.Printf("Error while retrieving block %s from node: %v", currentWork.Prev_Hash, getHashERR)
+						log.Printf("[Stratum] Error while retrieving block %s from node: %v", currentWork.Prev_Hash, getHashERR)
 					} else {
 						lastBlock := prevBlock.BlockHeader
 						//log.Printf("lastBlock: %v, height: %v", lastBlock, currentWork.Height)
 						//log.Printf("diff: %v, height: %v, timestamp: %v, reward: %v, hash: %v", lastBlock.Difficulty, lastBlock.Height, lastBlock.Timestamp, lastBlock.Reward, lastBlock.Hash)
 
-						writeLBErr := stratum.backend.WriteLastBlockState(cfg.Coin, lastBlock.Difficulty, lastBlock.Height, int64(lastBlock.Timestamp), int64(lastBlock.Reward), lastBlock.Hash)
-						err2 := stratum.backend.WriteNodeState(cfg.Coin, int64(currentWork.Height), &diff)
-						_, _ = writeLBErr, err2
+						//writeLBErr := stratum.backend.WriteLastBlockState(cfg.Coin, lastBlock.Difficulty, lastBlock.Height, int64(lastBlock.Timestamp), int64(lastBlock.Reward), lastBlock.Hash)
+
+						lastblockDB := &LastBlock{Difficulty: lastBlock.Difficulty, Height: lastBlock.Height, Timestamp: int64(lastBlock.Timestamp), Reward: int64(lastBlock.Reward), Hash: lastBlock.Hash}
+						lastblockErr := stratum.gravitonDB.WriteLastBlock(lastblockDB)
+						if lastblockErr != nil {
+							log.Printf("[Stratum] Graviton DB err: %v", lastblockErr)
+						}
+
+						//err2 := stratum.backend.WriteNodeState(cfg.Coin, int64(currentWork.Height), &diff)
+						//_, _ = writeLBErr, err2
 					}
 
 					_, err := v.UpdateInfo()
-					if err != nil { //|| err2 != nil || writeLBErr != nil {
-						log.Printf("Unable to update info on upstream %s: %v", v.Name, err)
+					if err != nil {
+						log.Printf("[Stratum] Unable to update info on upstream %s: %v", v.Name, err)
 						stratum.markSick()
 					} else {
 						stratum.markOk()
@@ -188,6 +239,13 @@ func NewStratum(cfg *pool.Config) *StratumServer {
 				}
 				current := stratum.rpc()
 				poll(current)
+
+				// Write miner stats
+				log.Printf("[Stratum] Storing miner stats")
+				err := Graviton_backend.WriteMinerStats(stratum.miners)
+				if err != nil {
+					log.Printf("[Stratum] Err storing miner stats: %v", err)
+				}
 
 				// Async rpc call to not block on rpc timeout, ignoring current
 				go func() {
@@ -211,7 +269,7 @@ func NewEndpoint(cfg *pool.Port) *Endpoint {
 	e.instanceId = make([]byte, 4)
 	_, err := rand.Read(e.instanceId)
 	if err != nil {
-		log.Fatalf("Can't seed with random bytes: %v", err)
+		log.Fatalf("[Stratum] Can't seed with random bytes: %v", err)
 	}
 	//log.Printf("[NewEndpoint] e.config.Difficulty: %v", e.config.Difficulty)
 	e.targetHex = util.GetTargetHex(e.config.Difficulty)
@@ -237,15 +295,15 @@ func (e *Endpoint) Listen(s *StratumServer) {
 	bindAddr := fmt.Sprintf("%s:%d", e.config.Host, e.config.Port)
 	addr, err := net.ResolveTCPAddr("tcp", bindAddr)
 	if err != nil {
-		log.Fatalf("Error: %v", err)
+		log.Fatalf("[Stratum] Error: %v", err)
 	}
 	server, err := net.ListenTCP("tcp", addr)
 	if err != nil {
-		log.Fatalf("Error: %v", err)
+		log.Fatalf("[Stratum] Error: %v", err)
 	}
 	defer server.Close()
 
-	log.Printf("Stratum listening on %s", bindAddr)
+	log.Printf("[Stratum] Stratum listening on %s", bindAddr)
 	accept := make(chan int, e.config.MaxConn)
 	n := 0
 
@@ -276,13 +334,13 @@ func (s *StratumServer) handleClient(cs *Session, e *Endpoint) {
 	for {
 		data, isPrefix, err := connbuff.ReadLine()
 		if isPrefix {
-			log.Println("Socket flood detected from", cs.ip)
+			log.Println("[Stratum] Socket flood detected from", cs.ip)
 			break
 		} else if err == io.EOF {
-			log.Println("Client disconnected", cs.ip)
+			log.Println("[Stratum] Client disconnected", cs.ip)
 			break
 		} else if err != nil {
-			log.Println("Error reading:", err)
+			log.Println("[Stratum] Error reading:", err)
 			break
 		}
 
@@ -292,7 +350,7 @@ func (s *StratumServer) handleClient(cs *Session, e *Endpoint) {
 			var req JSONRpcReq
 			err = json.Unmarshal(data, &req)
 			if err != nil {
-				log.Printf("Malformed request from %s: %v", cs.ip, err)
+				log.Printf("[Stratum] Malformed request from %s: %v", cs.ip, err)
 				break
 			}
 			s.setDeadline(cs.conn)
@@ -310,11 +368,11 @@ func (s *StratumServer) handleClient(cs *Session, e *Endpoint) {
 // Handle messages , login and submit are common
 func (cs *Session) handleMessage(s *StratumServer, e *Endpoint, req *JSONRpcReq) error {
 	if req.Id == nil {
-		err := fmt.Errorf("Server disconnect request")
+		err := fmt.Errorf("[Stratum] Server disconnect request")
 		log.Println(err)
 		return err
 	} else if req.Params == nil {
-		err := fmt.Errorf("Server RPC request params")
+		err := fmt.Errorf("[Stratum] Server RPC request params")
 		log.Println(err)
 		return err
 	}
@@ -328,7 +386,7 @@ func (cs *Session) handleMessage(s *StratumServer, e *Endpoint, req *JSONRpcReq)
 		err := json.Unmarshal(*req.Params, &params)
 		//fmt.Printf("[login] %+v\n", params)
 		if err != nil {
-			log.Println("Unable to parse params")
+			log.Println("[Stratum] Unable to parse params")
 			return err
 		}
 		reply, errReply := s.handleLoginRPC(cs, &params)
@@ -341,7 +399,7 @@ func (cs *Session) handleMessage(s *StratumServer, e *Endpoint, req *JSONRpcReq)
 		err := json.Unmarshal(*req.Params, &params)
 		//fmt.Printf("[getJob] %+v\n", params)
 		if err != nil {
-			log.Println("Unable to parse params")
+			log.Println("[Stratum] Unable to parse params")
 			return err
 		}
 		reply, errReply := s.handleGetJobRPC(cs, &params)
@@ -354,7 +412,7 @@ func (cs *Session) handleMessage(s *StratumServer, e *Endpoint, req *JSONRpcReq)
 		err := json.Unmarshal(*req.Params, &params)
 		//fmt.Printf("[submit] %+v\n", params)
 		if err != nil {
-			log.Println("Unable to parse params")
+			log.Println("[Stratum] Unable to parse params")
 			return err
 		}
 		reply, errReply := s.handleSubmitRPC(cs, &params)
@@ -393,7 +451,7 @@ func (cs *Session) sendError(id *json.RawMessage, reply *ErrorReply, drop bool) 
 		return err
 	}
 	if drop {
-		return fmt.Errorf("Server disconnect request")
+		return fmt.Errorf("[Stratum] Server disconnect request")
 	}
 	return nil
 }
@@ -424,7 +482,7 @@ func (s *StratumServer) isActive(cs *Session) bool {
 }*/
 
 func (s *StratumServer) registerMiner(miner *Miner) {
-	s.miners.Set(miner.id, miner)
+	s.miners.Set(miner.Id, miner)
 }
 
 /*
@@ -457,7 +515,7 @@ func (s *StratumServer) checkUpstreams() {
 	for i, v := range s.upstreams {
 		ok, err := v.Check(10, s.config.Address)
 		if err != nil {
-			log.Printf("Upstream %v didn't pass check: %v", v.Name, err)
+			log.Printf("[Stratum] Upstream %v didn't pass check: %v", v.Name, err)
 		}
 		if ok && !backup {
 			candidate = int32(i)
@@ -466,7 +524,7 @@ func (s *StratumServer) checkUpstreams() {
 	}
 
 	if s.upstream != candidate {
-		log.Printf("Switching to %v upstream", s.upstreams[candidate].Name)
+		log.Printf("[Stratum] Switching to %v upstream", s.upstreams[candidate].Name)
 		atomic.StoreInt32(&s.upstream, candidate)
 	}
 }

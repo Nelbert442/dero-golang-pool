@@ -48,18 +48,18 @@ func NewApiServer(cfg *pool.APIConfig, s *StratumServer) *ApiServer {
 
 func (apiServer *ApiServer) Start() {
 	if apiServer.config.PurgeOnly {
-		log.Printf("Starting API in purge-only mode")
+		log.Printf("[API] Starting API in purge-only mode")
 	} else {
-		log.Printf("Starting API on %v", apiServer.config.Listen)
+		log.Printf("[API] Starting API on %v", apiServer.config.Listen)
 	}
 
 	apiServer.statsIntv, _ = time.ParseDuration(apiServer.config.StatsCollectInterval)
 	statsTimer := time.NewTimer(apiServer.statsIntv)
-	log.Printf("Set stats collect interval to %v", apiServer.statsIntv)
+	log.Printf("[API] Set stats collect interval to %v", apiServer.statsIntv)
 
 	purgeIntv, _ := time.ParseDuration(apiServer.config.PurgeInterval)
 	purgeTimer := time.NewTimer(purgeIntv)
-	log.Printf("Set purge interval to %v", purgeIntv)
+	log.Printf("[API] Set purge interval to %v", purgeIntv)
 
 	sort.Ints(apiServer.config.LuckWindow)
 
@@ -97,11 +97,12 @@ func (apiServer *ApiServer) listen() {
 	router.HandleFunc("/api/blocks", apiServer.BlocksIndex)
 	router.HandleFunc("/api/payments", apiServer.PaymentsIndex)
 	router.HandleFunc("/api/allstats", apiServer.AllStatsIndex)
+	router.HandleFunc("/api/health", apiServer.GetHealthIndex)
 	router.HandleFunc("/api/accounts/{login:dE[0-9a-zA-Z]{96}}", apiServer.AccountIndex)
 	router.NotFoundHandler = http.HandlerFunc(notFound)
 	err := http.ListenAndServe(apiServer.config.Listen, router)
 	if err != nil {
-		log.Fatalf("Failed to start API: %v", err)
+		log.Fatalf("[API] Failed to start API: %v", err)
 	}
 }
 
@@ -116,9 +117,9 @@ func (apiServer *ApiServer) purgeStale() {
 	start := time.Now()
 	total, err := apiServer.backend.FlushStaleStats(apiServer.hashrateWindow, apiServer.hashrateLargeWindow)
 	if err != nil {
-		log.Println("Failed to purge stale data from backend:", err)
+		log.Println("[API] Failed to purge stale data from backend:", err)
 	} else {
-		log.Printf("Purged stale stats from backend, %v shares affected, elapsed time %v", total, time.Since(start))
+		log.Printf("[API] Purged stale stats from backend, %v shares affected, elapsed time %v", total, time.Since(start))
 	}
 }
 
@@ -126,13 +127,13 @@ func (apiServer *ApiServer) collectStats() {
 	//start := time.Now()
 	stats, err := apiServer.backend.CollectStats(apiServer.hashrateWindow, apiServer.config.Blocks, apiServer.config.Payments)
 	if err != nil {
-		log.Printf("Failed to fetch stats from backend: %v", err)
+		log.Printf("[API] Failed to fetch stats from backend: %v", err)
 		return
 	}
 	if len(apiServer.config.LuckWindow) > 0 {
 		stats["luck"], err = apiServer.backend.CollectLuckStats(apiServer.config.LuckWindow)
 		if err != nil {
-			log.Printf("Failed to fetch luck stats from backend: %v", err)
+			log.Printf("[API] Failed to fetch luck stats from backend: %v", err)
 			return
 		}
 	}
@@ -149,19 +150,19 @@ func (apiServer *ApiServer) AllStatsIndex(writer http.ResponseWriter, _ *http.Re
 	reply := make(map[string]interface{})
 	nodes, err := apiServer.backend.GetNodeStates()
 	if err != nil {
-		log.Printf("Failed to get nodes stats from backend: %v", err)
+		log.Printf("[API] Failed to get nodes stats from backend: %v", err)
 	}
 	reply["nodes"] = nodes
 
 	network, err := apiServer.backend.GetLastNetworkStates()
 	if err != nil {
-		log.Printf("Failed to get network stats from backend: %v", err)
+		log.Printf("[API] Failed to get network stats from backend: %v", err)
 	}
 	reply["network"] = network
 
 	lastblock, err := apiServer.backend.GetLastBlockStates()
 	if err != nil {
-		log.Printf("Failed to get lastblock stats from backend: %v", err)
+		log.Printf("[API] Failed to get lastblock stats from backend: %v", err)
 	}
 	reply["lastblock"] = lastblock
 
@@ -179,7 +180,7 @@ func (apiServer *ApiServer) AllStatsIndex(writer http.ResponseWriter, _ *http.Re
 
 	err = json.NewEncoder(writer).Encode(reply)
 	if err != nil {
-		log.Println("Error serializing API response: ", err)
+		log.Println("[API] Error serializing API response: ", err)
 	}
 }
 
@@ -213,6 +214,26 @@ func (apiServer *ApiServer) GetConfigIndex() map[string]interface{} {
 	return stats
 }
 
+func (apiServer *ApiServer) GetHealthIndex(writer http.ResponseWriter, _ *http.Request) {
+	reply := make(map[string]interface{})
+
+	r := apiServer.stratum.rpc()
+	info, err := r.GetInfo()
+	if err != nil {
+		reply["health"] = ""
+		log.Printf("[API] Unable to get current blockchain height from node: %v", err)
+	} else {
+		reply["health"] = "OK"
+	}
+
+	reply["network"] = map[string]interface{}{"difficulty": info.Difficulty, "topoheight": info.Topoheight, "height": info.Height, "stableheight": info.Stableheight, "averageblocktime50": info.Averageblocktime50, "testnet": info.Testnet, "target": info.Target, "topblockhash": info.TopBlockHash, "txpoolsize": info.TxPoolSize, "totalsupply": info.TotalSupply, "version": info.Version}
+
+	err = json.NewEncoder(writer).Encode(reply)
+	if err != nil {
+		log.Println("[API] Error serializing API response: ", err)
+	}
+}
+
 func (apiServer *ApiServer) StatsIndex(writer http.ResponseWriter, _ *http.Request) {
 	writer.Header().Set("Content-Type", "application/json; charset=UTF-8")
 	writer.Header().Set("Access-Control-Allow-Origin", "*")
@@ -222,7 +243,7 @@ func (apiServer *ApiServer) StatsIndex(writer http.ResponseWriter, _ *http.Reque
 	reply := make(map[string]interface{})
 	nodes, err := apiServer.backend.GetNodeStates()
 	if err != nil {
-		log.Printf("Failed to get nodes stats from backend: %v", err)
+		log.Printf("[API] Failed to get nodes stats from backend: %v", err)
 	}
 	reply["nodes"] = nodes
 
@@ -240,7 +261,7 @@ func (apiServer *ApiServer) StatsIndex(writer http.ResponseWriter, _ *http.Reque
 
 	err = json.NewEncoder(writer).Encode(reply)
 	if err != nil {
-		log.Println("Error serializing API response: ", err)
+		log.Println("[API] Error serializing API response: ", err)
 	}
 }
 
@@ -261,7 +282,7 @@ func (apiServer *ApiServer) MinersIndex(writer http.ResponseWriter, _ *http.Requ
 
 	err := json.NewEncoder(writer).Encode(reply)
 	if err != nil {
-		log.Println("Error serializing API response: ", err)
+		log.Println("[API] Error serializing API response: ", err)
 	}
 }
 
@@ -285,7 +306,7 @@ func (apiServer *ApiServer) BlocksIndex(writer http.ResponseWriter, _ *http.Requ
 
 	err := json.NewEncoder(writer).Encode(reply)
 	if err != nil {
-		log.Println("Error serializing API response: ", err)
+		log.Println("[API] Error serializing API response: ", err)
 	}
 }
 
@@ -304,7 +325,7 @@ func (s *ApiServer) PaymentsIndex(w http.ResponseWriter, r *http.Request) {
 
 	err := json.NewEncoder(w).Encode(reply)
 	if err != nil {
-		log.Println("Error serializing API response: ", err)
+		log.Println("[API] Error serializing API response: ", err)
 	}
 }
 
@@ -329,20 +350,20 @@ func (apiServer *ApiServer) AccountIndex(writer http.ResponseWriter, r *http.Req
 		}
 		if err != nil {
 			writer.WriteHeader(http.StatusInternalServerError)
-			log.Printf("Failed to fetch stats from backend: %v", err)
+			log.Printf("[API] Failed to fetch stats from backend: %v", err)
 			return
 		}
 
 		stats, err := apiServer.backend.GetMinerStats(login, apiServer.config.Payments)
 		if err != nil {
 			writer.WriteHeader(http.StatusInternalServerError)
-			log.Printf("Failed to fetch stats from backend: %v", err)
+			log.Printf("[API] Failed to fetch stats from backend: %v", err)
 			return
 		}
 		workers, err := apiServer.backend.CollectWorkersStats(apiServer.hashrateWindow, apiServer.hashrateLargeWindow, login)
 		if err != nil {
 			writer.WriteHeader(http.StatusInternalServerError)
-			log.Printf("Failed to fetch stats from backend: %v", err)
+			log.Printf("[API] Failed to fetch stats from backend: %v", err)
 			return
 		}
 		for key, value := range workers {
@@ -356,7 +377,7 @@ func (apiServer *ApiServer) AccountIndex(writer http.ResponseWriter, r *http.Req
 	writer.WriteHeader(http.StatusOK)
 	err := json.NewEncoder(writer).Encode(reply.stats)
 	if err != nil {
-		log.Println("Error serializing API response: ", err)
+		log.Println("[API] Error serializing API response: ", err)
 	}
 }
 

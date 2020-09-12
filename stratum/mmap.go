@@ -12,7 +12,7 @@ var SHARD_COUNT = 32
 // To avoid lock bottlenecks this map is dived to several (SHARD_COUNT) map shards.
 type MinersMap []*MinersMapShared
 type MinersMapShared struct {
-	items        map[string]*Miner
+	Items        map[string]*Miner
 	sync.RWMutex // Read Write mutex, guards access to internal map.
 }
 
@@ -20,7 +20,7 @@ type MinersMapShared struct {
 func NewMinersMap() MinersMap {
 	m := make(MinersMap, SHARD_COUNT)
 	for i := 0; i < SHARD_COUNT; i++ {
-		m[i] = &MinersMapShared{items: make(map[string]*Miner)}
+		m[i] = &MinersMapShared{Items: make(map[string]*Miner)}
 	}
 	return m
 }
@@ -33,12 +33,12 @@ func (m MinersMap) GetShard(key string) *MinersMapShared {
 }
 
 // Sets the given value under the specified key.
-func (m *MinersMap) Set(key string, value *Miner) {
+func (m MinersMap) Set(key string, value *Miner) {
 	// Get map shard.
 	shard := m.GetShard(key)
 	shard.Lock()
 	defer shard.Unlock()
-	shard.items[key] = value
+	shard.Items[key] = value
 }
 
 // Retrieves an element from map under given key.
@@ -49,8 +49,17 @@ func (m MinersMap) Get(key string) (*Miner, bool) {
 	defer shard.RUnlock()
 
 	// Get item from shard.
-	val, ok := shard.items[key]
+	val, ok := shard.Items[key]
 	return val, ok
+}
+
+// Removes an element from the map.
+func (m MinersMap) Remove(key string) {
+	// Try to get shard.
+	shard := m.GetShard(key)
+	shard.Lock()
+	defer shard.Unlock()
+	delete(shard.Items, key)
 }
 
 // Returns the number of elements within the map.
@@ -59,13 +68,19 @@ func (m MinersMap) Count() int {
 	for i := 0; i < SHARD_COUNT; i++ {
 		shard := m[i]
 		shard.RLock()
-		count += len(shard.items)
+		count += len(shard.Items)
 		shard.RUnlock()
 	}
 	return count
 }
 
+// Checks if map is empty.
+func (m MinersMap) IsEmpty() bool {
+	return m.Count() == 0
+}
+
 // Looks up an item under specified key
+/*
 func (m *MinersMap) Has(key string) bool {
 	// Get shard
 	shard := m.GetShard(key)
@@ -77,20 +92,7 @@ func (m *MinersMap) Has(key string) bool {
 	return ok
 }
 
-// Removes an element from the map.
-func (m *MinersMap) Remove(key string) {
-	// Try to get shard.
-	shard := m.GetShard(key)
-	shard.Lock()
-	defer shard.Unlock()
-	delete(shard.items, key)
-}
-
-// Checks if map is empty.
-func (m *MinersMap) IsEmpty() bool {
-	return m.Count() == 0
-}
-
+// Unused/old code functions
 // Used by the Iter & IterBuffered functions to wrap two variables together over a channel,
 type Tuple struct {
 	Key string
@@ -132,3 +134,4 @@ func (m MinersMap) IterBuffered() <-chan Tuple {
 	}()
 	return ch
 }
+*/

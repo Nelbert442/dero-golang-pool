@@ -36,11 +36,11 @@ func (s *StratumServer) handleLoginRPC(cs *Session, params *LoginParams) (*JobRe
 			_, err := hex.DecodeString(paymentid)
 
 			if err != nil {
-				log.Printf("Invalid paymentID %s used for login by %s - %s", paymentid, cs.ip, params.Login)
+				log.Printf("[Handlers] Invalid paymentID %s used for login by %s - %s", paymentid, cs.ip, params.Login)
 				return nil, &ErrorReply{Code: -1, Message: "Invalid paymentID used for login"}
 			}
 		} else {
-			log.Printf("Invalid paymentID %s used for login by %s - %s", paymentid, cs.ip, params.Login)
+			log.Printf("[Handlers] Invalid paymentID %s used for login by %s - %s", paymentid, cs.ip, params.Login)
 			return nil, &ErrorReply{Code: -1, Message: "Invalid paymentID used for login"}
 		}
 
@@ -75,7 +75,7 @@ func (s *StratumServer) handleLoginRPC(cs *Session, params *LoginParams) (*JobRe
 	}
 
 	if !util.ValidateAddress(address, s.config.Address) {
-		log.Printf("Invalid address %s used for login by %s", address, cs.ip)
+		log.Printf("[Handlers] Invalid address %s used for login by %s", address, cs.ip)
 		return nil, &ErrorReply{Code: -1, Message: "Invalid address used for login"}
 	}
 
@@ -86,12 +86,13 @@ func (s *StratumServer) handleLoginRPC(cs *Session, params *LoginParams) (*JobRe
 
 	miner, ok := s.miners.Get(id)
 	if !ok {
-		log.Printf("Registering new miner: %s@%s, Address: %s, PaymentID: %s, fixedDiff: %v, isSolo: %v", id, cs.ip, address, paymentid, fixDiff, isSolo)
+		log.Printf("[Handlers] Registering new miner: %s@%s, Address: %s, PaymentID: %s, fixedDiff: %v, isSolo: %v", id, cs.ip, address, paymentid, fixDiff, isSolo)
 		miner = NewMiner(id, address, paymentid, fixDiff, isSolo, cs.ip)
 		s.registerMiner(miner)
+		Graviton_backend.WriteMinerIDRegistration(miner)
 	}
 
-	log.Printf("Miner connected %s@%s, Address: %s, PaymentID: %s, fixedDiff: %v, isSolo: %v", id, cs.ip, address, paymentid, fixDiff, isSolo)
+	log.Printf("[Handlers] Miner connected %s@%s, Address: %s, PaymentID: %s, fixedDiff: %v, isSolo: %v", id, cs.ip, address, paymentid, fixDiff, isSolo)
 
 	s.registerSession(cs)
 	miner.heartbeat()
@@ -142,14 +143,14 @@ func (s *StratumServer) handleSubmitRPC(cs *Session, params *SubmitParams) (*Sta
 	nonce := strings.ToLower(params.Nonce)
 	exist := job.submit(nonce)
 	if exist {
-		atomic.AddInt64(&miner.invalidShares, 1)
+		atomic.AddInt64(&miner.InvalidShares, 1)
 		return nil, &ErrorReply{Code: -1, Message: "Duplicate share"}
 	}
 
 	t := s.currentBlockTemplate()
 	if job.height != t.Height {
-		log.Printf("Stale share for height %d from %s@%s", job.height, miner.id, cs.ip)
-		atomic.AddInt64(&miner.staleShares, 1)
+		log.Printf("[Handlers] Stale share for height %d from %s@%s", job.height, miner.Id, cs.ip)
+		atomic.AddInt64(&miner.StaleShares, 1)
 		return nil, &ErrorReply{Code: -1, Message: "Block expired"}
 	}
 
@@ -161,7 +162,7 @@ func (s *StratumServer) handleSubmitRPC(cs *Session, params *SubmitParams) (*Sta
 }
 
 func (s *StratumServer) handleUnknownRPC(req *JSONRpcReq) *ErrorReply {
-	log.Printf("Unknown RPC method: %v", req)
+	log.Printf("[Handlers] Unknown RPC method: %v", req)
 	return &ErrorReply{Code: -1, Message: "Invalid method"}
 }
 
@@ -173,7 +174,7 @@ func (s *StratumServer) broadcastNewJobs() {
 	s.sessionsMu.RLock()
 	defer s.sessionsMu.RUnlock()
 	count := len(s.sessions)
-	log.Printf("Broadcasting new jobs to %d miners", count)
+	log.Printf("[Handlers] Broadcasting new jobs to %d miners", count)
 	bcast := make(chan int, 1024*16)
 	n := 0
 
@@ -186,7 +187,7 @@ func (s *StratumServer) broadcastNewJobs() {
 			//fmt.Printf("[Job Broadcast] %+v\n", reply)
 			<-bcast
 			if err != nil {
-				log.Printf("Job transmit error to %s: %v", cs.ip, err)
+				log.Printf("[Handlers] Job transmit error to %s: %v", cs.ip, err)
 				s.removeSession(cs)
 			} else {
 				s.setDeadline(cs.conn)
