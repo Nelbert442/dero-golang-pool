@@ -63,34 +63,93 @@ func NewMiner(id string, address string, paymentid string, fixedDiff uint64, isS
 	return &Miner{Id: id, Address: address, PaymentID: paymentid, FixedDiff: fixedDiff, IsSolo: isSolo, Ip: ip, Shares: shares, LastRoundShares: lastRoundShares}
 }
 
-func (cs *Session) getJob(t *BlockTemplate) *JobReplyData {
+func (cs *Session) calcVarDiff(currDiff float64, s *StratumServer) int64 {
+	var newDiff float64
+	timestamp := time.Now().Unix()
+
+	variance := s.config.Stratum.VarDiff.VariancePercent / 100 * float64(s.config.Stratum.VarDiff.TargetTime)
+	tMin := float64(s.config.Stratum.VarDiff.TargetTime) * (1 + variance)
+	tMax := float64(s.config.Stratum.VarDiff.TargetTime) * (1 - variance)
+
+	// Set last time varDiff config was handled, usually done initially and builds the map for timestamparr
+	if cs.VarDiff.LastRetargetTimestamp == 0 {
+		cs.VarDiff.LastRetargetTimestamp = timestamp - s.config.Stratum.VarDiff.RetargetTime/2
+		cs.VarDiff.LastTimeStamp = timestamp
+		cs.VarDiff.TimestampArr = make(map[int64]int64)
+
+		return int64(currDiff)
+	}
+
+	cs.VarDiff.LastTimeStamp = timestamp
+
+	if (timestamp - cs.VarDiff.LastRetargetTimestamp) < s.config.Stratum.VarDiff.RetargetTime {
+		return int64(currDiff)
+	}
+
+	cs.VarDiff.LastRetargetTimestamp = timestamp
+	cs.VarDiff.TimestampArr[timestamp] += timestamp
+
+	var avg float64
+	var sum int64
+	for _, v := range cs.VarDiff.TimestampArr {
+		sum = sum + v
+	}
+
+	avg = float64(sum) / float64(len(cs.VarDiff.TimestampArr))
+
+	log.Printf("[VARDIFF] targettime (%v) / avg (%v)", s.config.Stratum.VarDiff.TargetTime, avg)
+	diff := float64(time.Duration(s.config.Stratum.VarDiff.TargetTime)*time.Second) / (avg * currDiff)
+
+	if avg > tMax && currDiff > float64(s.config.Stratum.VarDiff.MinDiff) {
+		if diff*currDiff < float64(s.config.Stratum.VarDiff.MinDiff) {
+			log.Printf("[VARDIFF] minDiff (%v) / currDiff (%v)", s.config.Stratum.VarDiff.MinDiff, currDiff)
+			diff = float64(s.config.Stratum.VarDiff.MinDiff) / currDiff
+		}
+	} else if avg < tMin {
+		diffMax := float64(s.config.Stratum.VarDiff.MaxDiff)
+
+		if diff*currDiff > diffMax {
+			log.Printf("[VARDIFF] diffMax (%v) / currDiff (%v)", diffMax, currDiff)
+			diff = diffMax / currDiff
+		}
+	} else {
+		return int64(currDiff)
+	}
+
+	log.Printf("[VARDIFF] currDif (%v) * diff (%v)", currDiff, diff)
+	newDiff = currDiff * diff
+
+	if newDiff <= 0 {
+		newDiff = currDiff
+	}
+
+	// Reset timestampArr
+	cs.VarDiff.TimestampArr = make(map[int64]int64)
+
+	return int64(newDiff)
+}
+
+func (cs *Session) getJob(t *BlockTemplate, s *StratumServer) (*JobReplyData, int64) {
 	lastBlockHeight := cs.lastBlockHeight
 	if lastBlockHeight == t.Height {
-		return &JobReplyData{}
+		return &JobReplyData{}, cs.difficulty
 	}
 
 	// Define difficulty and set targetHex = util.GetTargetHex(cs.difficulty) else targetHex == cs.endpoint.targetHex
 	var targetHex string
+	newDiff := cs.difficulty
+
 	if cs.difficulty != 0 && cs.isFixedDiff { // If fixed difficulty is defined
 		if cs.difficulty >= cs.endpoint.config.MinDiff {
 			targetHex = util.GetTargetHex(cs.difficulty)
 		} else {
 			targetHex = util.GetTargetHex(cs.endpoint.config.MinDiff)
 		}
-	} else { // See if variable diff is defined, otherwise default back to defined difficulty with the initial config for the port
-		if false { //cs.varDiff.config.Enabled == true { // If vardiff is enabled, get varDiff targetHex TODO: work in progress, varDiff is not currently doing anything
-			variance := cs.varDiff.config.VariancePercent / 100 * cs.varDiff.config.TargetTime
-			tMin := cs.varDiff.config.TargetTime - variance
-			tMax := cs.varDiff.config.TargetTime + variance
-			bufferSize := cs.varDiff.config.RetargetTime / cs.varDiff.config.TargetTime * 4
+	} else { // If vardiff is enabled, otherwise use the default value of the session
+		if s.config.Stratum.VarDiff.Enabled == true {
+			newDiff = cs.calcVarDiff(float64(cs.difficulty), s)
 
-			// Set last time varDiff config was handled
-			sinceLast := time.Since(cs.varDiff.sinceLast)
-
-			_, _, _, _ = tMin, tMax, bufferSize, sinceLast
-
-			// TODO: Remove, this is the temp fallback while figuring varDiff
-			targetHex = cs.endpoint.targetHex
+			targetHex = util.GetTargetHex(newDiff)
 		} else { // If not fixed diff and vardiff is not enabled, use default config difficulty and targetHex
 			targetHex = cs.endpoint.targetHex
 		}
@@ -107,7 +166,7 @@ func (cs *Session) getJob(t *BlockTemplate) *JobReplyData {
 	job.submissions = make(map[string]struct{})
 	cs.pushJob(job)
 	reply := &JobReplyData{JobId: job.id, Blob: blob, Target: targetHex}
-	return reply
+	return reply, newDiff
 }
 
 func (cs *Session) pushJob(job *Job) {
@@ -215,10 +274,12 @@ func (m *Miner) getHashrate(estimationWindow, hashrateExpiration time.Duration) 
 
 func (m *Miner) processShare(s *StratumServer, cs *Session, job *Job, t *BlockTemplate, nonce string, params *SubmitParams) (bool, string) {
 
-	temp := Graviton_backend.GetMinerStatsByID(m.Id)
-	if temp != nil {
-		log.Printf("[Miner] Miner: %v", temp)
-	}
+	/*
+		temp := Graviton_backend.GetMinerStatsByID(m.Id)
+		if temp != nil {
+			log.Printf("[Miner] Miner: %v", temp)
+		}
+	*/
 
 	// Var definitions
 	checkPowHashBig := false
@@ -317,10 +378,10 @@ func (m *Miner) processShare(s *StratumServer, cs *Session, job *Job, t *BlockTe
 		} else {
 			now := util.MakeTimestamp()
 			// Restarts roundShares counter and returns last round num to roundShares var
-			// TODO: get round shares from db potentially instead (incase stratum has been restarted within a given round)
-			roundShares := atomic.SwapInt64(&s.roundShares, 0)
+			// Get round shares from db instead (incase stratum has been restarted within a given round)
+			//roundShares := atomic.SwapInt64(&s.roundShares, 0)
 			// Returns the ratio of total roundshares to the difficulty of the template found
-			ratio := float64(roundShares) / float64(int64(t.Difficulty))
+			//ratio := float64(roundShares) / float64(int64(t.Difficulty))
 			//s.blocksMu.Lock()
 			//s.blockStats[now] = blockEntry{height: int64(t.Height), hash: blockSubmitReply.BLID, variance: ratio}
 			//s.blocksMu.Unlock()
@@ -328,9 +389,11 @@ func (m *Miner) processShare(s *StratumServer, cs *Session, job *Job, t *BlockTe
 			atomic.AddInt64(&r.Accepts, 1)
 			atomic.StoreInt64(&r.LastSubmissionAt, now)
 			if m.IsSolo {
-				log.Printf("SOLO Block found at height %d, diff: %v, blid: %s, by miner: %v@%v, ratio: %.4f", t.Height, t.Difficulty, blockSubmitReply.BLID, m.Id, cs.ip, ratio)
+				//log.Printf("SOLO Block found at height %d, diff: %v, blid: %s, by miner: %v@%v, ratio: %.4f", t.Height, t.Difficulty, blockSubmitReply.BLID, m.Id, cs.ip, ratio)
+				log.Printf("SOLO Block found at height %d, diff: %v, blid: %s, by miner: %v@%v", t.Height, t.Difficulty, blockSubmitReply.BLID, m.Id, cs.ip)
 			} else {
-				log.Printf("POOL Block found at height %d, diff: %v, blid: %s, by miner: %v@%v, ratio: %.4f", t.Height, t.Difficulty, blockSubmitReply.BLID, m.Id, cs.ip, ratio)
+				//log.Printf("POOL Block found at height %d, diff: %v, blid: %s, by miner: %v@%v, ratio: %.4f", t.Height, t.Difficulty, blockSubmitReply.BLID, m.Id, cs.ip, ratio)
+				log.Printf("POOL Block found at height %d, diff: %v, blid: %s, by miner: %v@%v", t.Height, t.Difficulty, blockSubmitReply.BLID, m.Id, cs.ip)
 			}
 
 			// Immediately refresh current BT and send new jobs
@@ -411,5 +474,13 @@ func (m *Miner) processShare(s *StratumServer, cs *Session, job *Job, t *BlockTe
 
 	log.Printf("%s share at difficulty %v/%v from %v@%v", shareType, cs.difficulty, hashDiff, params.Id, cs.ip)
 	log.Printf("roundShares: %v, roundHeight: %v, totalshares: %v, hashrate: %v", m.RoundShares, m.RoundHeight, m.Shares, m.Hashrate)
+
+	ts := time.Now().Unix()
+	cs.VarDiff.TimestampArr[ts] += ts
+	//_ = cs.calcVarDiff(float64(cs.difficulty), s)
+	//targetHex := util.GetTargetHex(cs.difficulty)
+	//cs.endpoint.targetHex = targetHex
+	//cs.difficulty = cs.calcVarDiff(float64(cs.difficulty), s)
+
 	return true, ""
 }

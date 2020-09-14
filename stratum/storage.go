@@ -177,8 +177,8 @@ func (g *GravitonStore) WriteBlocksFoundByHeightArr(height int64) error {
 	var newFoundByHeight []byte
 
 	if err != nil {
-		log.Printf("[Graviton] Error on get: %v. err: %v", key, err)
-		// Returns key not found if != nil, or other err, but assuming keynotfound/leafnotfound [TODO: Err catch later or ignore error]
+		//log.Printf("[Graviton] Error on get: %v. err: %v", key, err)
+		// Returns key not found if != nil, or other err, but assuming keynotfound/leafnotfound
 		var heightArr []int64
 		heightArr = append(heightArr, height)
 		foundByHeight = &BlocksFoundByHeight{Heights: heightArr}
@@ -387,8 +387,8 @@ func (g *GravitonStore) WriteImmaturePayments(info *PaymentPending) error {
 	var newPaymentsPending []byte
 
 	if err != nil {
-		log.Printf("[Graviton] Error on get: %v. err: %v", key, err)
-		// Returns key not found if != nil, or other err, but assuming keynotfound/leafnotfound [TODO: Err catch later]
+		//log.Printf("[Graviton] Error on get: %v. err: %v", key, err)
+		// Returns key not found if != nil, or other err, but assuming keynotfound/leafnotfound
 		var paymentsPendingArr []*PaymentPending
 		paymentsPendingArr = append(paymentsPendingArr, info)
 		paymentsPending = &PendingPayments{PendingPayout: paymentsPendingArr}
@@ -428,8 +428,8 @@ func (g *GravitonStore) WritePendingPayments(info *PaymentPending) error {
 	var newPaymentsPending []byte
 
 	if err != nil {
-		log.Printf("[Graviton] Error on get: %v. err: %v", key, err)
-		// Returns key not found if != nil, or other err, but assuming keynotfound/leafnotfound [TODO: Err catch later]
+		//log.Printf("[Graviton] Error on get: %v. err: %v", key, err)
+		// Returns key not found if != nil, or other err, but assuming keynotfound/leafnotfound
 		var paymentsPendingArr []*PaymentPending
 		paymentsPendingArr = append(paymentsPendingArr, info)
 		paymentsPending = &PendingPayments{PendingPayout: paymentsPendingArr}
@@ -506,8 +506,8 @@ func (g *GravitonStore) WriteProcessedPayments(info *MinerPayments) error {
 	var newPaymentsProcessed []byte
 
 	if err != nil {
-		log.Printf("[Graviton] Error on get: %v. err: %v", key, err)
-		// Returns key not found if != nil, or other err, but assuming keynotfound/leafnotfound [TODO: Err catch later]
+		//log.Printf("[Graviton] Error on get: %v. err: %v", key, err)
+		// Returns key not found if != nil, or other err, but assuming keynotfound/leafnotfound
 		var paymentsProcessedArr []*MinerPayments
 		paymentsProcessedArr = append(paymentsProcessedArr, info)
 		paymentsProcessed = &ProcessedPayments{MinerPayments: paymentsProcessedArr}
@@ -639,8 +639,8 @@ func (g *GravitonStore) WriteMinerIDRegistration(miner *Miner) error {
 	var newMinerIDs []byte
 
 	if err != nil {
-		log.Printf("[Graviton] Error on get: miners:registered. err: %v", err)
-		// Returns key not found if != nil, or other err, but assuming keynotfound/leafnotfound [TODO: Err catch later]
+		//log.Printf("[Graviton] Error on get: miners:registered. err: %v", err)
+		// Returns key not found if != nil, or other err, but assuming keynotfound/leafnotfound
 		var minerIDArr []*Miner
 		minerIDArr = append(minerIDArr, miner)
 		minerIDs = &GravitonMiners{Miners: minerIDArr}
@@ -722,7 +722,6 @@ func (g *GravitonStore) CompareMinerStats(storedMinerMap *MinersMap, storedMiner
 		}
 	}
 
-	// TODO: Do we need to update the stored shares array, even if a miner disconnects and has shares wiped out? Does it matter?
 	// Set the updatedMiner within storedMinerMap
 	// Validate updatedMiner exists, then store, otherwise return the store
 	if updatedMiner != nil {
@@ -827,7 +826,6 @@ func (g *GravitonStore) GetMinerStatsByID(minerID string) *Miner {
 
 func (g *GravitonStore) GetRoundShares(roundHeight int64, nonce string) (map[string]int64, int64, error) {
 
-	// TODO: Need proper way to utilize roundHeight/nonce for getting correct round. Currently it is just using the roundshares which will not always be correct
 	// Get all of the registered miners
 	minerIDRegistrations := g.GetMinerIDRegistrations()
 	result := make(map[string]int64)

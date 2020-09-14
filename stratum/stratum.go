@@ -59,10 +59,12 @@ type Endpoint struct {
 }
 
 type VarDiff struct {
-	config     *pool.VarDiff
-	difficulty int64
-	average    float64
-	sinceLast  time.Time
+	Difficulty int64
+	Average    float64
+	//sinceLast     time.Time
+	TimestampArr          map[int64]int64
+	LastRetargetTimestamp int64
+	LastTimeStamp         int64
 }
 
 type Session struct {
@@ -74,7 +76,7 @@ type Session struct {
 	endpoint    *Endpoint
 	validJobs   []*Job
 	difficulty  int64
-	varDiff     *VarDiff
+	VarDiff     *VarDiff
 	isFixedDiff bool
 }
 
@@ -86,10 +88,10 @@ func NewStratum(cfg *pool.Config) *StratumServer {
 	stratum := &StratumServer{config: cfg} //blockStats: make(map[int64]blockEntry)}
 
 	// Create new redis client/connection
-	if cfg.Redis.Enabled {
+	/*if cfg.Redis.Enabled {
 		backend := NewRedisClient(&cfg.Redis, cfg.Coin)
 		stratum.backend = backend
-	}
+	}*/
 
 	// Startup/create new gravitondb (if it doesn't exist), write the configuration file (config.json) into storage for use / api surfacing later
 	stratum.gravitonDB = Graviton_backend
@@ -166,13 +168,13 @@ func NewStratum(cfg *pool.Config) *StratumServer {
 
 	checkIntv, _ := time.ParseDuration(cfg.UpstreamCheckInterval)
 	checkTimer := time.NewTimer(checkIntv)
-	log.Printf("[Stratum] Set upstream check interval every %v", refreshIntv)
+	log.Printf("[Stratum] Set upstream check interval every %v", checkTimer)
 
 	infoIntv, _ := time.ParseDuration(cfg.UpstreamCheckInterval)
 	infoTimer := time.NewTimer(infoIntv)
 	// TODO: Separate out individual config intervals for miner stats + lastblock stats
-	log.Printf("[Stratum] Set miner stats store interval every %v", refreshIntv)
-	log.Printf("[Stratum] Set lastblock stats store interval every %v", refreshIntv)
+	log.Printf("[Stratum] Set miner stats store interval every %v", infoTimer)
+	log.Printf("[Stratum] Set lastblock stats store interval every %v", infoTimer)
 
 	// Init block template
 	go stratum.refreshBlockTemplate(false)
@@ -192,6 +194,16 @@ func NewStratum(cfg *pool.Config) *StratumServer {
 			select {
 			case <-checkTimer.C:
 				stratum.checkUpstreams()
+				checkTimer.Reset(checkIntv)
+			}
+		}
+	}()
+
+	go func() {
+		for {
+			select {
+			case <-checkTimer.C:
+				stratum.updateFixedDiffJobs()
 				checkTimer.Reset(checkIntv)
 			}
 		}
@@ -314,7 +326,10 @@ func (e *Endpoint) Listen(s *StratumServer) {
 		}
 		conn.SetKeepAlive(true)
 		ip, _, _ := net.SplitHostPort(conn.RemoteAddr().String())
-		cs := &Session{conn: conn, ip: ip, enc: json.NewEncoder(conn), endpoint: e}
+
+		VarDiff := &VarDiff{}
+
+		cs := &Session{conn: conn, ip: ip, enc: json.NewEncoder(conn), endpoint: e, VarDiff: VarDiff}
 		//log.Printf("[e.Listen] Listen: %v", cs)
 		n++
 

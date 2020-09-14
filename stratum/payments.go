@@ -108,13 +108,11 @@ func (u *PayoutsProcessor) process(s *StratumServer) {
 	mustPay := 0
 	minersPaid := 0
 	totalAmount := big.NewInt(0)
-	// TODO: Will replace with getminers of sorts that will look for miners
 	/*payees, err := u.backend.GetPayees()
 	if err != nil {
 		log.Println("[Payments] Error while retrieving payees from backend:", err)
 		return
 	}*/
-	//TODO: Need to maybe use getpendingpayments instead
 
 	//for _, login := range payees {
 	// Graviton DB Pending Balance

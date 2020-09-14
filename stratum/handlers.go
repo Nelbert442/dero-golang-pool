@@ -108,7 +108,8 @@ func (s *StratumServer) handleLoginRPC(cs *Session, params *LoginParams) (*JobRe
 	}
 
 	//log.Printf("[handleGetJobRPC] getJob: %v", cs.getJob(t))
-	return &JobReply{Id: id, Job: cs.getJob(t), Status: "OK"}, nil
+	job, _ := cs.getJob(t, s)
+	return &JobReply{Id: id, Job: job, Status: "OK"}, nil
 }
 
 func (s *StratumServer) handleGetJobRPC(cs *Session, params *GetJobParams) (*JobReplyData, *ErrorReply) {
@@ -122,7 +123,8 @@ func (s *StratumServer) handleGetJobRPC(cs *Session, params *GetJobParams) (*Job
 	}
 	miner.heartbeat()
 	//log.Printf("[handleGetJobRPC] getJob: %v", cs.getJob(t))
-	return cs.getJob(t), nil
+	reply, _ := cs.getJob(t, s)
+	return reply, nil
 }
 
 func (s *StratumServer) handleSubmitRPC(cs *Session, params *SubmitParams) (*StatusReply, *ErrorReply) {
@@ -182,7 +184,7 @@ func (s *StratumServer) broadcastNewJobs() {
 		n++
 		bcast <- n
 		go func(cs *Session) {
-			reply := cs.getJob(t)
+			reply, _ := cs.getJob(t, s)
 			err := cs.pushMessage("job", &reply)
 			//fmt.Printf("[Job Broadcast] %+v\n", reply)
 			<-bcast
@@ -191,6 +193,46 @@ func (s *StratumServer) broadcastNewJobs() {
 				s.removeSession(cs)
 			} else {
 				s.setDeadline(cs.conn)
+			}
+		}(m)
+	}
+}
+
+func (s *StratumServer) updateFixedDiffJobs() {
+	t := s.currentBlockTemplate()
+	if t == nil || s.isSick() {
+		return
+	}
+	s.sessionsMu.RLock()
+	defer s.sessionsMu.RUnlock()
+	bcast := make(chan int, 1024*16)
+	n := 0
+
+	for m := range s.sessions {
+		n++
+		bcast <- n
+		go func(cs *Session) {
+			log.Printf("[Handlers] Checking job for %v", cs.ip)
+			// If fixed diff, ignore cycling update miner jobs
+			if !cs.isFixedDiff {
+				log.Printf("[Handlers] %v is NOT fixed diff", cs.ip)
+				preJob := cs.difficulty
+				reply, newDiff := cs.getJob(t, s)
+				log.Printf("[Handlers] preJob: %v, post-GetJob: %v . %v", preJob, newDiff, cs.ip)
+				// If job diffs aren't the same, advertise new job
+				if preJob != newDiff {
+					log.Printf("[Handlers] Retargetting difficulty from %v to %v for %v", preJob, newDiff, cs.ip)
+					cs.difficulty = newDiff
+					err := cs.pushMessage("job", &reply)
+					//fmt.Printf("[Job Broadcast] %+v\n", reply)
+					<-bcast
+					if err != nil {
+						log.Printf("[Handlers] Job transmit error to %s: %v", cs.ip, err)
+						s.removeSession(cs)
+					} else {
+						s.setDeadline(cs.conn)
+					}
+				}
 			}
 		}(m)
 	}

@@ -35,14 +35,14 @@ type Upstream struct {
 }
 
 type Stratum struct {
-	PaymentID   PaymentID `json:"paymentId"`
-	FixedDiff   FixedDiff `json:"fixedDiff"`
-	WorkerID    WorkerID  `json:"workerID"`
-	Timeout     string    `json:"timeout"`
-	MaxFails    int64     `json:"maxFails"`
-	HealthCheck bool      `json:"healthCheck"`
-	Ports       []Port    `json:"listen"`
-	VarDiff     VarDiff   `json:"varDiff"`
+	PaymentID   PaymentID     `json:"paymentId"`
+	FixedDiff   FixedDiff     `json:"fixedDiff"`
+	WorkerID    WorkerID      `json:"workerID"`
+	Timeout     string        `json:"timeout"`
+	MaxFails    int64         `json:"maxFails"`
+	HealthCheck bool          `json:"healthCheck"`
+	Ports       []Port        `json:"listen"`
+	VarDiff     VarDiffConfig `json:"varDiff"`
 }
 
 type PaymentID struct {
@@ -65,14 +65,14 @@ type Port struct {
 	MaxConn    int    `json:"maxConn"`
 }
 
-type VarDiff struct {
-	Enabled         bool  `json:"enabled"`
-	MinDiff         int64 `json:"minDiff"`
-	MaxDiff         int64 `json:"maxDiff"`
-	TargetTime      int64 `json:"targetTime"`
-	RetargetTime    int64 `json:"retargetTime"`
-	VariancePercent int64 `json:"variancePercent"`
-	MaxJUmp         int64 `json:"maxJump"`
+type VarDiffConfig struct {
+	Enabled         bool    `json:"enabled"`
+	MinDiff         int64   `json:"minDiff"`
+	MaxDiff         int64   `json:"maxDiff"`
+	TargetTime      int64   `json:"targetTime"`
+	RetargetTime    int64   `json:"retargetTime"`
+	VariancePercent float64 `json:"variancePercent"`
+	MaxJump         int64   `json:"maxJump"`
 }
 
 type APIConfig struct {
