@@ -63,9 +63,9 @@ func (u *PayoutsProcessor) Start(s *StratumServer) {
 	payments := Graviton_backend.GetPendingPayments()
 	//payments := u.backend.GetPendingPayments()
 	if len(payments) > 0 {
-		log.Printf("[Payments] Previous payout failed, you have to resolve it. List of failed payments:\n %v",
+		log.Printf("[Payments] Previous payout failed, trying to resolve it. List of failed payments:\n %v",
 			formatPendingPayments(payments))
-		return
+		//return
 	}
 
 	/*
@@ -291,7 +291,15 @@ func (u *PayoutsProcessor) process(s *StratumServer) {
 
 			// Remove pending payout from graviton db
 			log.Printf("[Payments] Before Payment Pruning: %v", payPending)
-			for _, i := range paymentsToRemove[login] {
+			for j, i := range paymentsToRemove[login] {
+				// This keeps the array val in check while processing payments.
+				// Example:
+				// login 1: i = 0
+				// login 2: i = 1
+				// login 1 gets pruned, payPending length is now 1, need to reduce login 2 i = 0 instead of 1, else out of range index, so 1 - 1 and so on..
+				if i <= j {
+					i = j - i
+				}
 				payPending = removePendingPayments(payPending, i)
 			}
 
@@ -374,7 +382,15 @@ func (u *PayoutsProcessor) process(s *StratumServer) {
 
 						// Remove pending payout from graviton db
 						log.Printf("[Payments] Before Payment Pruning: %v", payPending)
-						for _, i := range paymentsToRemove[login] {
+						for j, i := range paymentsToRemove[login] {
+							// This keeps the array val in check while processing payments.
+							// Example:
+							// login 1: i = 0
+							// login 2: i = 1
+							// login 1 gets pruned, payPending length is now 1, need to reduce login 2 i = 0 instead of 1, else out of range index, so 1 - 1 and so on..
+							if i <= j {
+								i = j - i
+							}
 							payPending = removePendingPayments(payPending, i)
 						}
 
@@ -428,7 +444,15 @@ func (u *PayoutsProcessor) process(s *StratumServer) {
 
 					// Remove pending payout from graviton db
 					log.Printf("[Payments] Before Payment Pruning: %v", payPending)
-					for _, i := range paymentsToRemove[login] {
+					for j, i := range paymentsToRemove[login] {
+						// This keeps the array val in check while processing payments.
+						// Example:
+						// login 1: i = 0
+						// login 2: i = 1
+						// login 1 gets pruned, payPending length is now 1, need to reduce login 2 i = 0 instead of 1, else out of range index, so 1 - 1 and so on..
+						if i <= j {
+							i = j - i
+						}
 						payPending = removePendingPayments(payPending, i)
 					}
 
@@ -489,6 +513,9 @@ func (u *PayoutsProcessor) process(s *StratumServer) {
 }
 
 func removePendingPayments(s []*PaymentPending, i int) []*PaymentPending {
+	if len(s) == 1 {
+		return nil
+	}
 	s[i] = s[len(s)-1]
 	return s[:len(s)-1]
 }

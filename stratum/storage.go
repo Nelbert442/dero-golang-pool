@@ -706,29 +706,28 @@ func (g *GravitonStore) CompareMinerStats(storedMinerMap *MinersMap, storedMiner
 			}
 		}
 
-		if !oldHashes {
-			// In the event that the stored shares is greater than mem shares, stored shares = mem shares + stored shares
-			if storedMiner.RoundShares > updatedMiner.RoundShares { //|| storedMiner.RoundHeight <= updatedMiner.RoundHeight {
+		if !oldHashes && updatedMiner != nil {
+			// In the event that the stored shares is greater than mem shares, stored shares = mem shares + stored shares (difference of)
+			if storedMiner.RoundShares >= updatedMiner.RoundShares { //|| storedMiner.RoundHeight <= updatedMiner.RoundHeight {
 				diff := storedMiner.RoundShares - updatedMiner.RoundShares
 				if diff < 0 {
 					diff = 0
 				}
 				updatedMiner.RoundShares += diff
-			} else {
-				// In the event that the stored shares is less than mem shares, mem shares - stored shares = stored shares
-				/*diff := updatedMiner.RoundShares - storedMiner.RoundShares
-				if diff < 0 {
-					diff = 0
-				}
-				updatedMiner.RoundShares = updatedMiner.RoundShares + diff
-				*/
 			}
+		} else if oldHashes && updatedMiner == nil {
+			// If no current miner, but new round is defined, set roundShares to 0 since their stored shares are not counted anymore
+			updatedMiner := storedMiner
+			updatedMiner.RoundShares = 0
 		}
 	}
 
 	// TODO: Do we need to update the stored shares array, even if a miner disconnects and has shares wiped out? Does it matter?
 	// Set the updatedMiner within storedMinerMap
-	storedMinerMap.Set(updatedMiner.Id, updatedMiner)
+	// Validate updatedMiner exists, then store, otherwise return the store
+	if updatedMiner != nil {
+		storedMinerMap.Set(updatedMiner.Id, updatedMiner)
+	}
 
 	return storedMinerMap
 }
@@ -754,9 +753,9 @@ func (g *GravitonStore) WriteMinerStats(miners MinersMap) error {
 				}
 
 				// Make sure that both stored & curr miners exist prior to doing compareminerstats.
-				if currMiner != nil {
-					storedMinerMap = g.CompareMinerStats(storedMinerMap, storedMiner, currMiner)
-				}
+				//if currMiner != nil {
+				storedMinerMap = g.CompareMinerStats(storedMinerMap, storedMiner, currMiner)
+				//}
 			}
 
 			confBytes, err = json.Marshal(storedMinerMap)
@@ -842,4 +841,19 @@ func (g *GravitonStore) GetRoundShares(roundHeight int64, nonce string) (map[str
 	}
 
 	return result, totalRoundShares, nil
+}
+
+func (g *GravitonStore) NextRound(roundHeight int64, miners MinersMap) error {
+	registeredMiners := g.GetMinerIDRegistrations()
+
+	for _, value := range registeredMiners {
+		currMiner, _ := miners.Get(value.Id)
+		if currMiner != nil {
+			// Run storeShare function, will update roundshares and lastroundshares w/ height
+			currMiner.storeShare(0, roundHeight)
+			log.Printf("Setting %v roundShares to %v and lastroundshares[%v] to %v", currMiner.Id, currMiner.RoundShares, roundHeight, currMiner.LastRoundShares[roundHeight])
+		}
+	}
+
+	return nil
 }

@@ -59,7 +59,8 @@ func (job *Job) submit(nonce string) bool {
 
 func NewMiner(id string, address string, paymentid string, fixedDiff uint64, isSolo bool, ip string) *Miner {
 	shares := make(map[int64]int64)
-	return &Miner{Id: id, Address: address, PaymentID: paymentid, FixedDiff: fixedDiff, IsSolo: isSolo, Ip: ip, Shares: shares}
+	lastRoundShares := make(map[int64]int64)
+	return &Miner{Id: id, Address: address, PaymentID: paymentid, FixedDiff: fixedDiff, IsSolo: isSolo, Ip: ip, Shares: shares, LastRoundShares: lastRoundShares}
 }
 
 func (cs *Session) getJob(t *BlockTemplate) *JobReplyData {
@@ -160,8 +161,11 @@ func (m *Miner) storeShare(diff, templateHeight int64) {
 					// Miner round height is less than a pre-found block [usually happens for disconnected miners && new rounds]. Reset counters
 					m.Lock()
 					m.RoundHeight = templateHeight
-					m.Shares[now] += diff
-					m.LastRoundShares[v] = m.RoundShares
+					// No need to add blank diff shares to m.Shares. Usually only 0 if running NextRound from storage.go
+					if diff != 0 {
+						m.Shares[now] += diff
+					}
+					m.LastRoundShares[v] += m.RoundShares
 					m.RoundShares = diff
 					m.Unlock()
 					resetVars = true
@@ -172,7 +176,10 @@ func (m *Miner) storeShare(diff, templateHeight int64) {
 		if !resetVars {
 			m.Lock()
 			m.RoundHeight = templateHeight
-			m.Shares[now] += diff
+			// No need to add blank diff shares to m.Shares. Usually only 0 if running NextRound from storage.go
+			if diff != 0 {
+				m.Shares[now] += diff
+			}
 			m.RoundShares += diff
 			m.Unlock()
 		}
@@ -342,7 +349,7 @@ func (m *Miner) processShare(s *StratumServer, cs *Session, job *Job, t *BlockTe
 			info.Timestamp = ts
 			info.Difficulty = int64(t.Difficulty)
 			// TotalShares val will be gotten from DB
-			info.TotalShares = 0 //roundShares // TODO: Update to stored roundShares val
+			info.TotalShares = 0
 			info.Solo = m.IsSolo
 			info.Address = m.Address
 			info.BlockState = "candidate"
@@ -350,6 +357,9 @@ func (m *Miner) processShare(s *StratumServer, cs *Session, job *Job, t *BlockTe
 			if infoErr != nil {
 				log.Printf("Graviton DB err: %v", infoErr)
 			}
+
+			log.Printf("Updating miner stats for the next round...")
+			_ = s.gravitonDB.NextRound(int64(t.Height), s.miners)
 
 			// Redis store of successful block
 			/*
