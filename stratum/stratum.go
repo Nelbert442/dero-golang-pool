@@ -168,13 +168,13 @@ func NewStratum(cfg *pool.Config) *StratumServer {
 
 	checkIntv, _ := time.ParseDuration(cfg.UpstreamCheckInterval)
 	checkTimer := time.NewTimer(checkIntv)
-	log.Printf("[Stratum] Set upstream check interval every %v", checkTimer)
+	log.Printf("[Stratum] Set upstream check interval every %v", checkIntv)
 
 	infoIntv, _ := time.ParseDuration(cfg.UpstreamCheckInterval)
 	infoTimer := time.NewTimer(infoIntv)
 	// TODO: Separate out individual config intervals for miner stats + lastblock stats
-	log.Printf("[Stratum] Set miner stats store interval every %v", infoTimer)
-	log.Printf("[Stratum] Set lastblock stats store interval every %v", infoTimer)
+	log.Printf("[Stratum] Set miner stats store interval every %v", infoIntv)
+	log.Printf("[Stratum] Set lastblock stats store interval every %v", infoIntv)
 
 	// Init block template
 	go stratum.refreshBlockTemplate(false)

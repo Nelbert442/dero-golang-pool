@@ -68,56 +68,70 @@ func (cs *Session) calcVarDiff(currDiff float64, s *StratumServer) int64 {
 	timestamp := time.Now().Unix()
 
 	variance := s.config.Stratum.VarDiff.VariancePercent / 100 * float64(s.config.Stratum.VarDiff.TargetTime)
-	tMin := float64(s.config.Stratum.VarDiff.TargetTime) * (1 + variance)
-	tMax := float64(s.config.Stratum.VarDiff.TargetTime) * (1 - variance)
+	log.Printf("[VARDIFF] Variance: %v", variance)
+	tMin := float64(s.config.Stratum.VarDiff.TargetTime) + variance //* (1 - s.config.Stratum.VarDiff.VariancePercent)
+	log.Printf("[VARDIFF] tMin: %v", tMin)
+	tMax := float64(s.config.Stratum.VarDiff.TargetTime) - variance //* (1 + s.config.Stratum.VarDiff.VariancePercent)
+	log.Printf("[VARDIFF] tMax: %v", tMax)
 
 	// Set last time varDiff config was handled, usually done initially and builds the map for timestamparr
 	if cs.VarDiff.LastRetargetTimestamp == 0 {
 		cs.VarDiff.LastRetargetTimestamp = timestamp - s.config.Stratum.VarDiff.RetargetTime/2
 		cs.VarDiff.LastTimeStamp = timestamp
+		log.Printf("[VARDIFF] Reset timestamparr")
 		cs.VarDiff.TimestampArr = make(map[int64]int64)
 
 		return int64(currDiff)
 	}
 
-	cs.VarDiff.LastTimeStamp = timestamp
+	//cs.VarDiff.LastTimeStamp = timestamp
 
 	if (timestamp - cs.VarDiff.LastRetargetTimestamp) < s.config.Stratum.VarDiff.RetargetTime {
 		return int64(currDiff)
 	}
 
+	log.Printf("[VARDIFF] timestampArr: %v", cs.VarDiff.TimestampArr)
+
+	if len(cs.VarDiff.TimestampArr) <= 0 {
+		sinceLast := timestamp - cs.VarDiff.LastTimeStamp
+		cs.VarDiff.TimestampArr[sinceLast] += sinceLast
+	}
 	cs.VarDiff.LastRetargetTimestamp = timestamp
-	cs.VarDiff.TimestampArr[timestamp] += timestamp
 
 	var avg float64
 	var sum int64
 	for _, v := range cs.VarDiff.TimestampArr {
+		log.Printf("[VARDIFF] sum = sum (%v) + v (%v)", sum, v)
 		sum = sum + v
 	}
 
+	log.Printf("[VARDIFF] sum (%v) / len(TimestampArr) (%v)", float64(sum), float64(len(cs.VarDiff.TimestampArr)))
 	avg = float64(sum) / float64(len(cs.VarDiff.TimestampArr))
 
-	log.Printf("[VARDIFF] targettime (%v) / avg (%v)", s.config.Stratum.VarDiff.TargetTime, avg)
-	diff := float64(time.Duration(s.config.Stratum.VarDiff.TargetTime)*time.Second) / (avg * currDiff)
+	log.Printf("[VARDIFF] targettime (%v) / avg (%v)", float64(s.config.Stratum.VarDiff.TargetTime), avg)
+	diffCalc := float64(s.config.Stratum.VarDiff.TargetTime) / avg
 
+	log.Printf("[VARDIFF] avg (%v) > tMax (%v) && currDiff (%v) > minDiff (%v)", avg, tMax, currDiff, float64(s.config.Stratum.VarDiff.MinDiff))
 	if avg > tMax && currDiff > float64(s.config.Stratum.VarDiff.MinDiff) {
-		if diff*currDiff < float64(s.config.Stratum.VarDiff.MinDiff) {
+		log.Printf("[VARDIFF] diffCalc (%v) * currDiff (%v) < minDiff (%v)", diffCalc, currDiff, float64(s.config.Stratum.VarDiff.MinDiff))
+		if diffCalc*currDiff < float64(s.config.Stratum.VarDiff.MinDiff) {
 			log.Printf("[VARDIFF] minDiff (%v) / currDiff (%v)", s.config.Stratum.VarDiff.MinDiff, currDiff)
-			diff = float64(s.config.Stratum.VarDiff.MinDiff) / currDiff
+			diffCalc = float64(s.config.Stratum.VarDiff.MinDiff) / currDiff
 		}
 	} else if avg < tMin {
 		diffMax := float64(s.config.Stratum.VarDiff.MaxDiff)
 
-		if diff*currDiff > diffMax {
+		log.Printf("[VARDIFF] diffCalc (%v) * currDiff (%v) > diffMax (%v)", diffCalc, currDiff, diffMax)
+		if diffCalc*currDiff > diffMax {
 			log.Printf("[VARDIFF] diffMax (%v) / currDiff (%v)", diffMax, currDiff)
-			diff = diffMax / currDiff
+			diffCalc = diffMax / currDiff
 		}
 	} else {
 		return int64(currDiff)
 	}
 
-	log.Printf("[VARDIFF] currDif (%v) * diff (%v)", currDiff, diff)
-	newDiff = currDiff * diff
+	log.Printf("[VARDIFF] currDif (%v) * diff (%v)", currDiff, diffCalc)
+	newDiff = currDiff * diffCalc
 
 	if newDiff <= 0 {
 		newDiff = currDiff
@@ -129,27 +143,31 @@ func (cs *Session) calcVarDiff(currDiff float64, s *StratumServer) int64 {
 	return int64(newDiff)
 }
 
-func (cs *Session) getJob(t *BlockTemplate, s *StratumServer) (*JobReplyData, int64) {
+func (cs *Session) getJob(t *BlockTemplate, s *StratumServer, diff int64) *JobReplyData {
+	if diff == 0 {
+		diff = cs.difficulty
+	}
+
 	lastBlockHeight := cs.lastBlockHeight
 	if lastBlockHeight == t.Height {
-		return &JobReplyData{}, cs.difficulty
+		return &JobReplyData{}
 	}
 
 	// Define difficulty and set targetHex = util.GetTargetHex(cs.difficulty) else targetHex == cs.endpoint.targetHex
 	var targetHex string
-	newDiff := cs.difficulty
+	//newDiff := cs.difficulty
 
-	if cs.difficulty != 0 && cs.isFixedDiff { // If fixed difficulty is defined
-		if cs.difficulty >= cs.endpoint.config.MinDiff {
-			targetHex = util.GetTargetHex(cs.difficulty)
+	if diff != 0 && cs.isFixedDiff { // If fixed difficulty is defined
+		if diff >= cs.endpoint.config.MinDiff {
+			targetHex = util.GetTargetHex(diff)
 		} else {
 			targetHex = util.GetTargetHex(cs.endpoint.config.MinDiff)
 		}
 	} else { // If vardiff is enabled, otherwise use the default value of the session
 		if s.config.Stratum.VarDiff.Enabled == true {
-			newDiff = cs.calcVarDiff(float64(cs.difficulty), s)
+			//newDiff = cs.calcVarDiff(float64(cs.difficulty), s)
 
-			targetHex = util.GetTargetHex(newDiff)
+			targetHex = util.GetTargetHex(diff)
 		} else { // If not fixed diff and vardiff is not enabled, use default config difficulty and targetHex
 			targetHex = cs.endpoint.targetHex
 		}
@@ -166,7 +184,7 @@ func (cs *Session) getJob(t *BlockTemplate, s *StratumServer) (*JobReplyData, in
 	job.submissions = make(map[string]struct{})
 	cs.pushJob(job)
 	reply := &JobReplyData{JobId: job.id, Blob: blob, Target: targetHex}
-	return reply, newDiff
+	return reply
 }
 
 func (cs *Session) pushJob(job *Job) {
@@ -476,11 +494,16 @@ func (m *Miner) processShare(s *StratumServer, cs *Session, job *Job, t *BlockTe
 	log.Printf("roundShares: %v, roundHeight: %v, totalshares: %v, hashrate: %v", m.RoundShares, m.RoundHeight, m.Shares, m.Hashrate)
 
 	ts := time.Now().Unix()
-	cs.VarDiff.TimestampArr[ts] += ts
-	//_ = cs.calcVarDiff(float64(cs.difficulty), s)
-	//targetHex := util.GetTargetHex(cs.difficulty)
-	//cs.endpoint.targetHex = targetHex
-	//cs.difficulty = cs.calcVarDiff(float64(cs.difficulty), s)
+	// Omit the first round to setup the vars if they aren't setup, otherwise commit to timestamparr
+	if cs.VarDiff.LastRetargetTimestamp == 0 {
+		cs.VarDiff.LastRetargetTimestamp = ts - s.config.Stratum.VarDiff.RetargetTime/2
+		cs.VarDiff.LastTimeStamp = ts
+		cs.VarDiff.TimestampArr = make(map[int64]int64)
+	} else {
+		sinceLast := ts - cs.VarDiff.LastTimeStamp
+		cs.VarDiff.TimestampArr[sinceLast] += sinceLast
+		cs.VarDiff.LastTimeStamp = ts
+	}
 
 	return true, ""
 }

@@ -108,7 +108,7 @@ func (s *StratumServer) handleLoginRPC(cs *Session, params *LoginParams) (*JobRe
 	}
 
 	//log.Printf("[handleGetJobRPC] getJob: %v", cs.getJob(t))
-	job, _ := cs.getJob(t, s)
+	job := cs.getJob(t, s, 0)
 	return &JobReply{Id: id, Job: job, Status: "OK"}, nil
 }
 
@@ -123,7 +123,7 @@ func (s *StratumServer) handleGetJobRPC(cs *Session, params *GetJobParams) (*Job
 	}
 	miner.heartbeat()
 	//log.Printf("[handleGetJobRPC] getJob: %v", cs.getJob(t))
-	reply, _ := cs.getJob(t, s)
+	reply := cs.getJob(t, s, 0)
 	return reply, nil
 }
 
@@ -184,7 +184,7 @@ func (s *StratumServer) broadcastNewJobs() {
 		n++
 		bcast <- n
 		go func(cs *Session) {
-			reply, _ := cs.getJob(t, s)
+			reply := cs.getJob(t, s, 0)
 			err := cs.pushMessage("job", &reply)
 			//fmt.Printf("[Job Broadcast] %+v\n", reply)
 			<-bcast
@@ -217,10 +217,12 @@ func (s *StratumServer) updateFixedDiffJobs() {
 			if !cs.isFixedDiff {
 				log.Printf("[Handlers] %v is NOT fixed diff", cs.ip)
 				preJob := cs.difficulty
-				reply, newDiff := cs.getJob(t, s)
+				newDiff := cs.calcVarDiff(float64(preJob), s)
+				//reply, newDiff := cs.getJob(t, s)
 				log.Printf("[Handlers] preJob: %v, post-GetJob: %v . %v", preJob, newDiff, cs.ip)
 				// If job diffs aren't the same, advertise new job
 				if preJob != newDiff {
+					reply := cs.getJob(t, s, newDiff)
 					log.Printf("[Handlers] Retargetting difficulty from %v to %v for %v", preJob, newDiff, cs.ip)
 					cs.difficulty = newDiff
 					err := cs.pushMessage("job", &reply)
