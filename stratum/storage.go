@@ -221,7 +221,7 @@ func (g *GravitonStore) GetBlocksFound(blocktype string) *BlocksFound {
 	ss, _ := store.LoadSnapshot(0)  // load most recent snapshot
 	tree, _ := ss.GetTree(g.DBTree) // use or create tree named by poolhost in config
 
-	log.Printf("[Graviton] Retrieving stored minedblocks...")
+	//log.Printf("[Graviton] Retrieving stored minedblocks...")
 
 	var foundByHeight *BlocksFoundByHeight
 	var blocksFound *BlocksFound
@@ -246,7 +246,7 @@ func (g *GravitonStore) GetBlocksFound(blocktype string) *BlocksFound {
 				var reply *BlockDataGrav
 				_ = json.Unmarshal(v, &reply)
 				blocksFound.MinedBlocks = append(blocksFound.MinedBlocks, reply)
-				log.Printf("[Graviton] key=%s, value=%v\n", key, reply)
+				//log.Printf("[Graviton] key=%s, value=%v\n", key, reply)
 			}
 		}
 
@@ -259,7 +259,7 @@ func (g *GravitonStore) GetBlocksFound(blocktype string) *BlocksFound {
 				var reply *BlockDataGrav
 				_ = json.Unmarshal(v, &reply)
 				blocksFound.MinedBlocks = append(blocksFound.MinedBlocks, reply)
-				log.Printf("[Graviton] key=%s, value=%v\n", key, reply)
+				//log.Printf("[Graviton] key=%s, value=%v\n", key, reply)
 			}
 		}
 
@@ -272,7 +272,7 @@ func (g *GravitonStore) GetBlocksFound(blocktype string) *BlocksFound {
 				var reply *BlockDataGrav
 				_ = json.Unmarshal(v, &reply)
 				blocksFound.MinedBlocks = append(blocksFound.MinedBlocks, reply)
-				log.Printf("[Graviton] key=%s, value=%v\n", key, reply)
+				//log.Printf("[Graviton] key=%s, value=%v\n", key, reply)
 			}
 		}
 
@@ -285,7 +285,7 @@ func (g *GravitonStore) GetBlocksFound(blocktype string) *BlocksFound {
 				var reply *BlockDataGrav
 				_ = json.Unmarshal(v, &reply)
 				blocksFound.MinedBlocks = append(blocksFound.MinedBlocks, reply)
-				log.Printf("[Graviton] key=%s, value=%v\n", key, reply)
+				//log.Printf("[Graviton] key=%s, value=%v\n", key, reply)
 			}
 		}
 	}
@@ -297,14 +297,14 @@ func (g *GravitonStore) WriteImmatureBlock(block *BlockDataGrav) error {
 	// Add to immature store
 	immatureBlock := block
 	immatureBlock.BlockState = "immature"
-	log.Printf("[Graviton] Adding block to immature store: %v", immatureBlock)
+	//log.Printf("[Graviton] Adding block to immature store: %v", immatureBlock)
 	err := g.WriteBlocks(immatureBlock, "immature")
 	if err != nil {
 		log.Printf("[Graviton] Error when adding immature block store at height %v: %v", immatureBlock.Height, err)
 	}
 
 	// Remove candidate store after no err from adding to orphan store
-	log.Printf("[Graviton] Removing block from candidate store: %v", block)
+	//log.Printf("[Graviton] Removing block from candidate store: %v", block)
 	err = g.RemoveBlock("candidate", block.Height)
 	if err != nil {
 		log.Printf("[Graviton] Error when removing candidate block store at height %v: %v", block.Height, err)
@@ -317,14 +317,14 @@ func (g *GravitonStore) WriteMaturedBlocks(block *BlockDataGrav) error {
 	// Add to matured store
 	maturedBlock := block
 	maturedBlock.BlockState = "matured"
-	log.Printf("[Graviton] Adding block to matured store: %v", maturedBlock)
+	//log.Printf("[Graviton] Adding block to matured store: %v", maturedBlock)
 	err := g.WriteBlocks(maturedBlock, "matured")
 	if err != nil {
 		log.Printf("[Graviton] Error when adding matured block store at height %v: %v", maturedBlock.Height, err)
 	}
 
 	// Remove immature store after no err from adding to orphan store
-	log.Printf("[Graviton] Removing block from immature store: %v", block)
+	//log.Printf("[Graviton] Removing block from immature store: %v", block)
 	err = g.RemoveBlock("immature", block.Height)
 	if err != nil {
 		log.Printf("[Graviton] Error when removing immature block store at height %v: %v", block.Height, err)
@@ -338,7 +338,7 @@ func (g *GravitonStore) WriteOrphanedBlocks(orphanedBlocks []*BlockDataGrav) err
 	for _, value := range orphanedBlocks {
 
 		// Add to orphan store
-		log.Printf("[Graviton] Adding block to orphaned store: %v", value)
+		//log.Printf("[Graviton] Adding block to orphaned store: %v", value)
 		err := g.WriteBlocks(value, "orphaned")
 		if err != nil {
 			log.Printf("[Graviton] Error when adding orphaned block store at height %v: %v", value.Height, err)
@@ -346,7 +346,7 @@ func (g *GravitonStore) WriteOrphanedBlocks(orphanedBlocks []*BlockDataGrav) err
 		}
 
 		// Remove candidate store after no err from adding to orphan store
-		log.Printf("[Graviton] Removing block from candidate store: %v", value)
+		//log.Printf("[Graviton] Removing block from candidate store: %v", value)
 		err = g.RemoveBlock("candidate", value.Height)
 		if err != nil {
 			log.Printf("[Graviton] Error when removing candidate block store at height %v: %v", value.Height, err)
@@ -365,7 +365,7 @@ func (g *GravitonStore) RemoveBlock(blockType string, blockheight int64) error {
 
 	key := "block:" + blockType + ":" + strconv.FormatInt(blockheight, 10)
 
-	log.Printf("[Graviton] Removing k/v pair: %v", key)
+	//log.Printf("[Graviton] Removing k/v pair: %v", key)
 	err := tree.Delete([]byte(key))
 	if err != nil {
 		return err
@@ -410,7 +410,7 @@ func (g *GravitonStore) WriteImmaturePayments(info *PaymentPending) error {
 	if v != nil {
 		var reply *PendingPayments
 		_ = json.Unmarshal(v, &reply)
-		log.Printf("[Graviton] key=%v, value=%v\n", key, reply.PendingPayout)
+		//log.Printf("[Graviton] key=%v, value=%v\n", key, reply.PendingPayout)
 	}
 
 	return nil
@@ -451,7 +451,7 @@ func (g *GravitonStore) WritePendingPayments(info *PaymentPending) error {
 	if v != nil {
 		var reply *PendingPayments
 		_ = json.Unmarshal(v, &reply)
-		log.Printf("[Graviton] key=%v, value=%v\n", key, reply.PendingPayout)
+		//log.Printf("[Graviton] key=%v, value=%v\n", key, reply.PendingPayout)
 	}
 
 	return nil
@@ -464,7 +464,7 @@ func (g *GravitonStore) GetPendingPayments() []*PaymentPending {
 	key := "payments:pending"
 	var reply *PendingPayments
 
-	log.Printf("[Graviton] Retrieving stored %v...", key)
+	//log.Printf("[Graviton] Retrieving stored %v...", key)
 
 	v, _ := tree.Get([]byte(key))
 	if v != nil {
@@ -477,7 +477,7 @@ func (g *GravitonStore) GetPendingPayments() []*PaymentPending {
 
 // This function is to overwrite pending payments in the event of 'deleting' a pending payment after payment has been processed
 func (g *GravitonStore) OverwritePendingPayments(info *PendingPayments) error {
-	log.Printf("[Graviton] Pruning payments to match: %v", info)
+	//log.Printf("[Graviton] Pruning payments to match: %v", info)
 	confBytes, err := json.Marshal(info)
 	if err != nil {
 		return fmt.Errorf("[Graviton] could not marshal pendingpayments info: %v", err)
@@ -529,7 +529,7 @@ func (g *GravitonStore) WriteProcessedPayments(info *MinerPayments) error {
 	if v != nil {
 		var reply *ProcessedPayments
 		_ = json.Unmarshal(v, &reply)
-		log.Printf("[Graviton] key=%v, value=%v\n", key, reply.MinerPayments)
+		//log.Printf("[Graviton] key=%v, value=%v\n", key, reply.MinerPayments)
 	}
 
 	return nil
@@ -542,7 +542,7 @@ func (g *GravitonStore) GetProcessedPayments() *ProcessedPayments {
 	key := "payments:processed"
 	var reply *ProcessedPayments
 
-	log.Printf("[Graviton] Retrieving stored %v...", key)
+	//log.Printf("[Graviton] Retrieving stored %v...", key)
 
 	v, _ := tree.Get([]byte(key))
 	if v != nil {
@@ -581,7 +581,7 @@ func (g *GravitonStore) GetLastBlock() *LastBlock {
 	key := "lastblock"
 	var reply *LastBlock
 
-	log.Printf("[Graviton] Retrieving stored lastBlock...")
+	//log.Printf("[Graviton] Retrieving stored lastBlock...")
 
 	v, _ := tree.Get([]byte(key))
 	if v != nil {
@@ -616,7 +616,7 @@ func (g *GravitonStore) GetConfig(coin string) *pool.Config {
 	key := "config:" + coin
 	var reply *pool.Config
 
-	log.Printf("[Graviton] Retrieving stored config...")
+	//log.Printf("[Graviton] Retrieving stored config...")
 
 	v, _ := tree.Get([]byte(key))
 	if v != nil {
@@ -649,7 +649,7 @@ func (g *GravitonStore) WriteMinerIDRegistration(miner *Miner) error {
 		_ = json.Unmarshal(currMinerIDs, &minerIDs)
 
 		for _, value := range minerIDs.Miners {
-			log.Printf("Comparing for registration: %v && %v", value, miner.Id)
+			//log.Printf("Comparing for registration: %v && %v", value, miner.Id)
 			if value.Id == miner.Id {
 				log.Printf("Miner already registered: %v", miner.Id)
 				return nil
@@ -677,7 +677,7 @@ func (g *GravitonStore) GetMinerIDRegistrations() []*Miner {
 	key := "miners:registered"
 	var reply *GravitonMiners
 
-	log.Printf("[Graviton] Retrieving stored %v...", key)
+	//log.Printf("[Graviton] Retrieving stored %v...", key)
 
 	v, _ := tree.Get([]byte(key))
 	if v != nil {
@@ -744,12 +744,14 @@ func (g *GravitonStore) WriteMinerStats(miners MinersMap) error {
 				storedMiner, _ := storedMinerMap.Get(value.Id)
 				currMiner, _ := miners.Get(value.Id)
 
-				if storedMiner != nil {
-					log.Printf("Checking for stored roundshare: %v", storedMiner.RoundShares)
-				}
-				if currMiner != nil {
-					log.Printf("Checking for curr miner roundshare: %v", currMiner.RoundShares)
-				}
+				/*
+					if storedMiner != nil {
+						log.Printf("Checking for stored roundshare: %v", storedMiner.RoundShares)
+					}
+					if currMiner != nil {
+						log.Printf("Checking for curr miner roundshare: %v", currMiner.RoundShares)
+					}
+				*/
 
 				// Make sure that both stored & curr miners exist prior to doing compareminerstats.
 				//if currMiner != nil {
@@ -792,7 +794,7 @@ func (g *GravitonStore) GetAllMinerStats() *MinersMap {
 
 	var reply *MinersMap
 
-	log.Printf("[Graviton] Retrieving stored miners map...")
+	//log.Printf("[Graviton] Retrieving stored miners map...")
 
 	v, _ := tree.Get([]byte(key))
 	if v != nil {
@@ -811,7 +813,7 @@ func (g *GravitonStore) GetMinerStatsByID(minerID string) *Miner {
 
 	var reply MinersMap
 
-	log.Printf("[Graviton] Retrieving stored miners stats... %v", minerID)
+	//log.Printf("[Graviton] Retrieving stored miners stats... %v", minerID)
 
 	v, _ := tree.Get([]byte(key))
 	if v != nil {
@@ -849,7 +851,7 @@ func (g *GravitonStore) NextRound(roundHeight int64, miners MinersMap) error {
 		if currMiner != nil {
 			// Run storeShare function, will update roundshares and lastroundshares w/ height
 			currMiner.storeShare(0, roundHeight)
-			log.Printf("Setting %v roundShares to %v and lastroundshares[%v] to %v", currMiner.Id, currMiner.RoundShares, roundHeight, currMiner.LastRoundShares[roundHeight])
+			log.Printf("[Graviton] Setting %v roundShares to %v and lastroundshares[%v] to %v", currMiner.Id, currMiner.RoundShares, roundHeight, currMiner.LastRoundShares[roundHeight])
 		}
 	}
 

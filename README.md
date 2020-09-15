@@ -3,6 +3,7 @@ Golang Mining Pool for DERO
 
 #### Features
 * Developed in Golang
+* Utilizing Graviton for backend, built and supported by deroproject core team
 * In-built http server for web UI
 * Mining hardware monitoring, track if workers are sick
 * Keep track of accepts, rejects and block stats
@@ -26,8 +27,6 @@ Golang Mining Pool for DERO
     * [Derosuite](https://github.com/deroproject/derosuite/releases/latest)
 * [Golang](https://golang.org/dl/)
     * All code built and tested with Go v1.13.6
-* [Redis](https://redis.io/)
-    * [**Redis warning**](http://redis.io/topics/security): It's a good idea to learn about and understand software that you are using - a good place to start with redis is [data persistence](http://redis.io/topics/persistence).
 
 **Do not run the pool as root** : create a new user without ssh access to avoid security issues :
 ```bash
