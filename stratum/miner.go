@@ -137,6 +137,15 @@ func (cs *Session) calcVarDiff(currDiff float64, s *StratumServer) int64 {
 		newDiff = currDiff
 	}
 
+	log.Printf("[VARDIFF] maxJump (%v) / 100 * currDiff (%v)", s.config.Stratum.VarDiff.MaxJump, currDiff)
+	maxJump := s.config.Stratum.VarDiff.MaxJump / 100 * currDiff
+	log.Printf("[VARDIFF] maxJump (%v)", maxJump)
+
+	// Prevent diff scale ups to be more than maxJump %. Scaling down is fine for large jumps for now, maybe modify later to also be that way
+	if newDiff > currDiff && !(newDiff-maxJump <= currDiff) {
+		newDiff = currDiff + maxJump
+	}
+
 	// Reset timestampArr
 	cs.VarDiff.TimestampArr = make(map[int64]int64)
 
@@ -460,9 +469,16 @@ func (m *Miner) processShare(s *StratumServer, cs *Session, job *Job, t *BlockTe
 
 	// Using minermap to store share data rather than direct to DB, future scale might have issues with the large concurrent writes to DB directly
 	// Minermap allows for concurrent writes easily and quickly, then every x seconds defined in stratum that map gets written/stored to disk DB [5 seconds prob]
-	atomic.AddInt64(&s.roundShares, cs.difficulty)
+	if checkPowHashBig && block {
+		// Store share for height - 1 if a block was found, this will allow for the hashes submitted for last round to still be counted
+		m.storeShare(cs.difficulty, int64(t.Height-1))
+	} else {
+		// Store share for current height and current round shares on normal basis
+		m.storeShare(cs.difficulty, int64(t.Height))
+		atomic.AddInt64(&s.roundShares, cs.difficulty)
+	}
+
 	atomic.AddInt64(&m.ValidShares, 1)
-	m.storeShare(cs.difficulty, int64(t.Height))
 	atomic.StoreInt64(&m.Hashrate, m.getHashrate(s.estimationWindow, s.hashrateExpiration))
 
 	// Redis store of successful share

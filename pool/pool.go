@@ -72,7 +72,7 @@ type VarDiffConfig struct {
 	TargetTime      int64   `json:"targetTime"`
 	RetargetTime    int64   `json:"retargetTime"`
 	VariancePercent float64 `json:"variancePercent"`
-	MaxJump         int64   `json:"maxJump"`
+	MaxJump         float64 `json:"maxJump"`
 }
 
 type APIConfig struct {
