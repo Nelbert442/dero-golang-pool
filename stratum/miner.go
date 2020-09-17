@@ -244,8 +244,8 @@ func (m *Miner) storeShare(diff, templateHeight int64) {
 		var resetVars bool
 
 		if blockHeightArr != nil {
-			for _, v := range blockHeightArr.Heights {
-				if m.RoundHeight <= v {
+			for height, _ := range blockHeightArr.Heights {
+				if m.RoundHeight <= height {
 					// Miner round height is less than a pre-found block [usually happens for disconnected miners && new rounds]. Reset counters
 					m.Lock()
 					m.RoundHeight = templateHeight
@@ -253,7 +253,7 @@ func (m *Miner) storeShare(diff, templateHeight int64) {
 					if diff != 0 {
 						m.Shares[now] += diff
 					}
-					m.LastRoundShares[v] += m.RoundShares
+					m.LastRoundShares[height] += m.RoundShares
 					m.RoundShares = diff
 					m.Unlock()
 					resetVars = true

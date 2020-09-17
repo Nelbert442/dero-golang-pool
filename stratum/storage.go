@@ -79,7 +79,8 @@ type BlockDataGrav struct {
 }
 
 type BlocksFoundByHeight struct {
-	Heights []int64
+	//Heights []int64
+	Heights map[int64]bool
 }
 
 type BlocksFound struct {
@@ -147,9 +148,9 @@ func (g *GravitonStore) WriteBlocks(info *BlockDataGrav, blockType string) error
 		return fmt.Errorf("[Graviton] could not marshal minedblocks info: %v", err)
 	}
 
-	// Store blocks found heights - only on candidate / found blocks by miners && not solo mined blocks [since they're not used for round hash calculations and rewarded directly]
-	if blockType == "candidate" && !info.Solo {
-		err = g.WriteBlocksFoundByHeightArr(info.Height)
+	// Store blocks found heights - only on candidate / found blocks by miners
+	if blockType == "candidate" {
+		err = g.WriteBlocksFoundByHeightArr(info.Height, info.Solo)
 		if err != nil {
 			log.Printf("[Graviton] Error writing blocksfoundbyheightarr: %v", err)
 		}
@@ -166,7 +167,7 @@ func (g *GravitonStore) WriteBlocks(info *BlockDataGrav, blockType string) error
 }
 
 // Array of int64 [heights] of blocks found by pool, this does not include solo blocks found. Used as reference points for round hash calculations
-func (g *GravitonStore) WriteBlocksFoundByHeightArr(height int64) error {
+func (g *GravitonStore) WriteBlocksFoundByHeightArr(height int64, isSolo bool) error {
 	store := g.DB
 	ss, _ := store.LoadSnapshot(0)  // load most recent snapshot
 	tree, _ := ss.GetTree(g.DBTree) // use or create tree named by poolhost in config
@@ -179,14 +180,17 @@ func (g *GravitonStore) WriteBlocksFoundByHeightArr(height int64) error {
 	if err != nil {
 		//log.Printf("[Graviton] Error on get: %v. err: %v", key, err)
 		// Returns key not found if != nil, or other err, but assuming keynotfound/leafnotfound
-		var heightArr []int64
-		heightArr = append(heightArr, height)
+		//var heightArr []int64
+		//heightArr = append(heightArr, height)
+		heightArr := make(map[int64]bool)
+		heightArr[height] = isSolo
 		foundByHeight = &BlocksFoundByHeight{Heights: heightArr}
 	} else {
 		// Retrieve value and convert to BlocksFoundByHeight, so that you can manipulate and update db
 		_ = json.Unmarshal(currFoundByHeight, &foundByHeight)
 
-		foundByHeight.Heights = append(foundByHeight.Heights, height)
+		//foundByHeight.Heights = append(foundByHeight.Heights, height)
+		foundByHeight.Heights[height] = isSolo
 	}
 	newFoundByHeight, err = json.Marshal(foundByHeight)
 	if err != nil {
@@ -233,8 +237,8 @@ func (g *GravitonStore) GetBlocksFound(blocktype string) *BlocksFound {
 		return nil
 	}
 	_ = json.Unmarshal(blocksFoundByHeight, &foundByHeight)
-	for _, value := range foundByHeight.Heights {
-		currHeight := int64(value)
+	for height := range foundByHeight.Heights {
+		currHeight := int64(height)
 
 		// Cycle through orphaned, candidates, immature, matured
 		// Orphaned
@@ -712,8 +716,8 @@ func (g *GravitonStore) CompareMinerStats(storedMinerMap *MinersMap, storedMiner
 
 	if storedMiner != nil {
 		if blockHeightArr != nil {
-			for _, v := range blockHeightArr.Heights {
-				if storedMiner.RoundHeight <= v {
+			for height, solo := range blockHeightArr.Heights {
+				if storedMiner.RoundHeight <= height && !solo {
 					// Miner round height is less than a pre-found block [usually happens for disconnected miners]. Reset counters
 					oldHashes = true
 				}

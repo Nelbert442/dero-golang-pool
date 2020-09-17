@@ -641,6 +641,11 @@ func (u *BlockUnlocker) calculateRewardsGrav(s *StratumServer, block *BlockDataG
 	//log.Printf("shares: %v, totalShares: %v, minersProfit: %v", shares, block.TotalShares, minersProfit)
 	rewards := calculateRewardsForSharesGrav(s, shares, totalroundshares, minersProfit)
 
+	if len(rewards) == 0 {
+		rewards[block.Address] += int64(block.Reward)
+		log.Printf("[Unlocker] No shares stored for this round, rewarding block amount (%v) to miner (%v) who found block.", block.Reward, block.Address)
+	}
+
 	if block.ExtraReward != nil {
 		extraReward := new(big.Rat).SetInt(block.ExtraReward)
 		poolProfit.Add(poolProfit, extraReward)
