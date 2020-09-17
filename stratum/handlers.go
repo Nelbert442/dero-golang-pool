@@ -212,14 +212,14 @@ func (s *StratumServer) updateFixedDiffJobs() {
 		n++
 		bcast <- n
 		go func(cs *Session) {
-			log.Printf("[Handlers] Checking job for %v", cs.ip)
+			//log.Printf("[Handlers] Checking job for %v", cs.ip)
 			// If fixed diff, ignore cycling update miner jobs
 			if !cs.isFixedDiff {
-				log.Printf("[Handlers] %v is NOT fixed diff", cs.ip)
+				//log.Printf("[Handlers] %v is NOT fixed diff", cs.ip)
 				preJob := cs.difficulty
 				newDiff := cs.calcVarDiff(float64(preJob), s)
 				//reply, newDiff := cs.getJob(t, s)
-				log.Printf("[Handlers] preJob: %v, post-GetJob: %v . %v", preJob, newDiff, cs.ip)
+				//log.Printf("[Handlers] preJob: %v, post-GetJob: %v . %v", preJob, newDiff, cs.ip)
 				// If job diffs aren't the same, advertise new job
 				if preJob != newDiff {
 					reply := cs.getJob(t, s, newDiff)

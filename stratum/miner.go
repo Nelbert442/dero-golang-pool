@@ -290,7 +290,7 @@ func (m *Miner) getHashrate(estimationWindow, hashrateExpiration time.Duration) 
 	hashExpiration := int64(hashrateExpiration / time.Second)
 	for k, v := range m.Shares {
 		if k < now-hashExpiration {
-			log.Printf("Deleting shares older than %v. Timestamp: %v, Value: %v", hashExpiration, k, v)
+			log.Printf("[Miner] Deleting shares older than %v. Timestamp: %v, Value: %v", hashExpiration, k, v)
 			delete(m.Shares, k)
 		} else if k >= now-window {
 			totalShares += v

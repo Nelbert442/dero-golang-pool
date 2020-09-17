@@ -207,7 +207,7 @@ func (g *GravitonStore) GetBlocksFoundByHeightArr() *BlocksFoundByHeight {
 	var foundByHeight *BlocksFoundByHeight
 
 	if err != nil {
-		log.Printf("No block details within block:blocksFoundByHeight")
+		//log.Printf("No block details within block:blocksFoundByHeight")
 		return nil
 	}
 

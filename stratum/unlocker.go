@@ -611,10 +611,10 @@ func calculateRewardsForShares(s *StratumServer, shares map[string]int64, total 
 
 func (u *BlockUnlocker) calculateRewardsGrav(s *StratumServer, block *BlockDataGrav) (*big.Rat, *big.Rat, *big.Rat, map[string]int64, error) {
 	// Write miner stats - force a write to ensure latest stats are in db
-	log.Printf("[Stratum] Storing miner stats")
+	log.Printf("[Unlocker] Storing miner stats")
 	err := Graviton_backend.WriteMinerStats(s.miners)
 	if err != nil {
-		log.Printf("[Stratum] Err storing miner stats: %v", err)
+		log.Printf("[Unlocker] Err storing miner stats: %v", err)
 	}
 	revenue := new(big.Rat).SetUint64(block.Reward)
 	minersProfit, poolProfit := chargeFee(revenue, u.config.PoolFee)

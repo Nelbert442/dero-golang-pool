@@ -64,14 +64,14 @@ func ValidateAddress(addy string, poolAddy string) bool {
 	poolAddyNetwork = string(poolAddyRune[0:2])
 
 	if string(addyRune[0:2]) != poolAddyNetwork {
-		log.Printf("Invalid address, pool address and supplied address don't match testnet(dETo)/mainnet(dERo). Pool Address is in %s", poolAddyNetwork)
+		log.Printf("[Util] Invalid address, pool address and supplied address don't match testnet(dETo)/mainnet(dERo). Pool Address is in %s", poolAddyNetwork)
 		return false
 	}
 
 	// Call NewAddress to confirm address validation from "github.com/deroproject/derosuite/address"
 	_, err := address.NewAddress(strings.TrimSpace(addy))
 	if err != nil {
-		log.Printf("Address validation failed for '%s': %s", addy, err)
+		log.Printf("[Util] Address validation failed for '%s': %s", addy, err)
 		return false
 	}
 
