@@ -443,8 +443,11 @@ func (m *Miner) processShare(s *StratumServer, cs *Session, job *Job, t *BlockTe
 				log.Printf("[BLOCK] Graviton DB err: %v", infoErr)
 			}
 
-			log.Printf("[Miner] Updating miner stats for the next round...")
-			_ = s.gravitonDB.NextRound(int64(t.Height), s.miners)
+			// Only update next round miner stats if a pool block is found, so can determine this by the miner who found the block's solo status
+			if !m.IsSolo {
+				log.Printf("[Miner] Updating miner stats for the next round...")
+				_ = s.gravitonDB.NextRound(int64(t.Height), s.miners)
+			}
 
 			// Redis store of successful block
 			/*
