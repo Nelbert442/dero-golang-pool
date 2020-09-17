@@ -125,8 +125,8 @@ func NewStratum(cfg *pool.Config) *StratumServer {
 	}
 	*/
 
-	minerStats := stratum.gravitonDB.GetMinerIDRegistrations()
-	log.Printf("Miner: %v", minerStats)
+	//minerStats := stratum.gravitonDB.GetMinerIDRegistrations()
+	//log.Printf("Miner: %v", minerStats)
 
 	// Set stratum.upstreams length based on cfg.Upstream only if they are set enabled: true. We use arr to simulate this and filter out cfg.Upstream objects
 	var arr []pool.Upstream

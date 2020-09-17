@@ -6,6 +6,7 @@ import (
 	"log"
 	"net/http"
 	"sort"
+	"strconv"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -64,9 +65,11 @@ func (apiServer *ApiServer) Start() {
 	sort.Ints(apiServer.config.LuckWindow)
 
 	if apiServer.config.PurgeOnly {
-		apiServer.purgeStale()
+		log.Printf("[API] Would be purging stale...")
+		//apiServer.purgeStale()
 	} else {
-		apiServer.purgeStale()
+		log.Printf("[API] Would be purging stale...")
+		//apiServer.purgeStale()
 		apiServer.collectStats()
 	}
 
@@ -79,7 +82,8 @@ func (apiServer *ApiServer) Start() {
 				}
 				statsTimer.Reset(apiServer.statsIntv)
 			case <-purgeTimer.C:
-				apiServer.purgeStale()
+				log.Printf("[API] Would be purging stale...")
+				//apiServer.purgeStale()
 				purgeTimer.Reset(purgeIntv)
 			}
 		}
@@ -113,6 +117,7 @@ func notFound(writer http.ResponseWriter, _ *http.Request) {
 	writer.WriteHeader(http.StatusNotFound)
 }
 
+/*
 func (apiServer *ApiServer) purgeStale() {
 	start := time.Now()
 	total, err := apiServer.backend.FlushStaleStats(apiServer.hashrateWindow, apiServer.hashrateLargeWindow)
@@ -122,23 +127,40 @@ func (apiServer *ApiServer) purgeStale() {
 		log.Printf("[API] Purged stale stats from backend, %v shares affected, elapsed time %v", total, time.Since(start))
 	}
 }
+*/
 
 func (apiServer *ApiServer) collectStats() {
 	//start := time.Now()
-	stats, err := apiServer.backend.CollectStats(apiServer.hashrateWindow, apiServer.config.Blocks, apiServer.config.Payments)
-	if err != nil {
-		log.Printf("[API] Failed to fetch stats from backend: %v", err)
-		return
-	}
-	if len(apiServer.config.LuckWindow) > 0 {
-		stats["luck"], err = apiServer.backend.CollectLuckStats(apiServer.config.LuckWindow)
+	/*
+		stats, err := apiServer.backend.CollectStats(apiServer.hashrateWindow, apiServer.config.Blocks, apiServer.config.Payments)
 		if err != nil {
-			log.Printf("[API] Failed to fetch luck stats from backend: %v", err)
+			log.Printf("[API] Failed to fetch stats from backend: %v", err)
 			return
 		}
+		if len(apiServer.config.LuckWindow) > 0 {
+			stats["luck"], err = apiServer.backend.CollectLuckStats(apiServer.config.LuckWindow)
+			if err != nil {
+				log.Printf("[API] Failed to fetch luck stats from backend: %v", err)
+				return
+			}
+		}
+
+		apiServer.stats.Store(stats)
+		//log.Printf("Stats collection finished %s", time.Since(start))
+	*/
+}
+
+// Try to convert all numeric strings to int64
+func (apiServer *ApiServer) convertStringMap(m map[string]string) map[string]interface{} {
+	result := make(map[string]interface{})
+	var err error
+	for k, v := range m {
+		result[k], err = strconv.ParseInt(v, 10, 64)
+		if err != nil {
+			result[k] = v
+		}
 	}
-	apiServer.stats.Store(stats)
-	//log.Printf("Stats collection finished %s", time.Since(start))
+	return result
 }
 
 func (apiServer *ApiServer) AllStatsIndex(writer http.ResponseWriter, _ *http.Request) {

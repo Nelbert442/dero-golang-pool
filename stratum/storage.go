@@ -437,7 +437,21 @@ func (g *GravitonStore) WritePendingPayments(info *PaymentPending) error {
 		// Retrieve value and convert to BlocksFoundByHeight, so that you can manipulate and update db
 		_ = json.Unmarshal(currPaymentsPending, &paymentsPending)
 
-		paymentsPending.PendingPayout = append(paymentsPending.PendingPayout, info)
+		// Check through existing pending payments and append amount if login already has a pending amount
+		var updateExisting bool
+		for p, currPayment := range paymentsPending.PendingPayout {
+			if info.Address == currPayment.Address {
+				log.Printf("[Graviton] Updating value for %v from %v to %v", info.Address, paymentsPending.PendingPayout[p].Amount, (paymentsPending.PendingPayout[p].Amount + info.Amount))
+				paymentsPending.PendingPayout[p].Amount += info.Amount
+				updateExisting = true
+			}
+		}
+
+		// If an existing payment was not upated since the addresses didn't match, append the new payment
+		if !updateExisting {
+			log.Printf("[Graviton] Appending new payment: %v", info)
+			paymentsPending.PendingPayout = append(paymentsPending.PendingPayout, info)
+		}
 	}
 	newPaymentsPending, err = json.Marshal(paymentsPending)
 	if err != nil {
@@ -628,7 +642,7 @@ func (g *GravitonStore) GetConfig(coin string) *pool.Config {
 }
 
 func (g *GravitonStore) WriteMinerIDRegistration(miner *Miner) error {
-	log.Printf("Registering miner: %v", miner)
+	log.Printf("[Graviton] Registering miner: %v", miner.Id)
 	store := g.DB
 	ss, _ := store.LoadSnapshot(0)  // load most recent snapshot
 	tree, _ := ss.GetTree(g.DBTree) // use or create tree named by poolhost in config
@@ -651,7 +665,7 @@ func (g *GravitonStore) WriteMinerIDRegistration(miner *Miner) error {
 		for _, value := range minerIDs.Miners {
 			//log.Printf("Comparing for registration: %v && %v", value, miner.Id)
 			if value.Id == miner.Id {
-				log.Printf("Miner already registered: %v", miner.Id)
+				log.Printf("[Graviton] Miner already registered: %v", miner.Id)
 				return nil
 			}
 		}

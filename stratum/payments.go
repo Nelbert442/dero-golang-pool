@@ -133,7 +133,6 @@ func (u *PayoutsProcessor) process(s *StratumServer) {
 		if !u.reachedThreshold(amount) {
 			continue
 		}
-		mustPay++
 
 		paymentsToRemove[login] = append(paymentsToRemove[login], i)
 
@@ -171,6 +170,7 @@ func (u *PayoutsProcessor) process(s *StratumServer) {
 			Amount:  amount,
 			Address: address,
 		}
+		mustPay++
 
 		// If paymentID, put in an array that'll be walked through one at a time versus combining addresses/amounts.
 		if paymentID != "" {
