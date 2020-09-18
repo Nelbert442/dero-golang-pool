@@ -6,7 +6,6 @@ import (
 	"log"
 	"net/http"
 	"sort"
-	"strconv"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -19,7 +18,7 @@ import (
 
 type ApiServer struct {
 	config              pool.APIConfig
-	backend             *RedisClient
+	backend             *GravitonStore
 	hashrateWindow      time.Duration
 	hashrateLargeWindow time.Duration
 	stats               atomic.Value
@@ -27,6 +26,24 @@ type ApiServer struct {
 	minersMu            sync.RWMutex
 	statsIntv           time.Duration
 	stratum             *StratumServer
+}
+
+type ApiPayments struct {
+	Payees uint64
+	Mixin  uint64
+	Amount uint64
+}
+
+type ApiBlocks struct {
+	Address     string
+	Height      int64
+	Orphan      bool
+	Nonce       string
+	Timestamp   int64
+	Difficulty  int64
+	TotalShares int64
+	Reward      uint64
+	Solo        bool
 }
 
 type Entry struct {
@@ -39,7 +56,7 @@ func NewApiServer(cfg *pool.APIConfig, s *StratumServer) *ApiServer {
 	hashrateLargeWindow, _ := time.ParseDuration(cfg.HashrateLargeWindow)
 	return &ApiServer{
 		config:              *cfg,
-		backend:             s.backend,
+		backend:             s.gravitonDB,
 		hashrateWindow:      hashrateWindow,
 		hashrateLargeWindow: hashrateLargeWindow,
 		miners:              make(map[string]*Entry),
@@ -97,12 +114,7 @@ func (apiServer *ApiServer) Start() {
 func (apiServer *ApiServer) listen() {
 	router := mux.NewRouter()
 	router.HandleFunc("/api/stats", apiServer.StatsIndex)
-	router.HandleFunc("/api/miners", apiServer.MinersIndex)
-	router.HandleFunc("/api/blocks", apiServer.BlocksIndex)
-	router.HandleFunc("/api/payments", apiServer.PaymentsIndex)
-	router.HandleFunc("/api/allstats", apiServer.AllStatsIndex)
-	router.HandleFunc("/api/health", apiServer.GetHealthIndex)
-	router.HandleFunc("/api/accounts/{login:dE[0-9a-zA-Z]{96}}", apiServer.AccountIndex)
+	//router.HandleFunc("/api/accounts/{login:dE[0-9a-zA-Z]{96}}", apiServer.AccountIndex)
 	router.NotFoundHandler = http.HandlerFunc(notFound)
 	err := http.ListenAndServe(apiServer.config.Listen, router)
 	if err != nil {
@@ -131,6 +143,8 @@ func (apiServer *ApiServer) purgeStale() {
 
 func (apiServer *ApiServer) collectStats() {
 	//start := time.Now()
+	stats := make(map[string]interface{})
+
 	/*
 		stats, err := apiServer.backend.CollectStats(apiServer.hashrateWindow, apiServer.config.Blocks, apiServer.config.Payments)
 		if err != nil {
@@ -144,13 +158,101 @@ func (apiServer *ApiServer) collectStats() {
 				return
 			}
 		}
-
-		apiServer.stats.Store(stats)
-		//log.Printf("Stats collection finished %s", time.Since(start))
 	*/
+
+	// Build last block stats
+	stats["lastblock"] = apiServer.backend.GetLastBlock()
+
+	// Build Payments stats
+	processedPayments := apiServer.backend.GetProcessedPayments()
+	apiPayments := apiServer.convertPaymentsResults(processedPayments)
+	stats["payments"] = apiPayments
+
+	// Build found block stats
+	candidateBlocks := apiServer.backend.GetBlocksFound("candidate")
+	apiCandidates := apiServer.convertBlocksResults(candidateBlocks.MinedBlocks)
+	stats["candidates"] = apiCandidates
+	stats["candidatesTotal"] = len(candidateBlocks.MinedBlocks)
+	immatureBlocks := apiServer.backend.GetBlocksFound("immature")
+	apiImmature := apiServer.convertBlocksResults(immatureBlocks.MinedBlocks)
+	stats["immature"] = apiImmature
+	stats["immatureTotal"] = len(immatureBlocks.MinedBlocks)
+	maturedBlocks := apiServer.backend.GetBlocksFound("matured")
+	apiMatured := apiServer.convertBlocksResults(maturedBlocks.MinedBlocks)
+	stats["matured"] = apiMatured
+	stats["maturedTotal"] = len(maturedBlocks.MinedBlocks)
+	stats["blocksTotal"] = len(candidateBlocks.MinedBlocks) + len(immatureBlocks.MinedBlocks) + len(maturedBlocks.MinedBlocks)
+
+	// Build miner stats
+	minerStats := apiServer.backend.GetAllMinerStats()
+	apiMiners := apiServer.convertMinerResults(minerStats)
+	stats["miners"] = apiMiners
+	apiServer.stats.Store(stats)
+	//log.Printf("Stats collection finished %s", time.Since(start))
+}
+
+func (apiServer *ApiServer) convertPaymentsResults(processedPayments *ProcessedPayments) map[string]*ApiPayments {
+	apiPayments := make(map[string]*ApiPayments)
+	for _, value := range processedPayments.MinerPayments {
+		reply := &ApiPayments{}
+		// Check to ensure apiPayments has items
+		if len(apiPayments) > 0 {
+			// Check to ensure value.TxHash exists within apiPayments
+			v, found := apiPayments[value.TxHash]
+			if found {
+				// Append details such as amount, payees, etc.
+				reply.Amount = v.Amount + value.Amount
+				reply.Payees = v.Payees + 1
+				reply.Mixin = value.Mixin
+			} else {
+				reply = &ApiPayments{Mixin: value.Mixin, Amount: value.Amount, Payees: 1}
+			}
+		} else {
+			reply = &ApiPayments{Mixin: value.Mixin, Amount: value.Amount, Payees: 1}
+		}
+		apiPayments[value.TxHash] = reply
+	}
+	return apiPayments
+}
+
+func (apiServer *ApiServer) convertBlocksResults(minedBlocks []*BlockDataGrav) map[string]*ApiBlocks {
+	apiBlocks := make(map[string]*ApiBlocks)
+	for _, value := range minedBlocks {
+		reply := &ApiBlocks{}
+		// Check to ensure apiBlocks has items
+		reply = &ApiBlocks{Address: value.Address, Height: value.Height, Orphan: value.Orphan, Nonce: value.Nonce, Timestamp: value.Timestamp, Difficulty: value.Difficulty, TotalShares: value.TotalShares, Reward: value.Reward, Solo: value.Solo}
+		apiBlocks[value.Hash] = reply
+	}
+	return apiBlocks
+}
+
+func (apiServer *ApiServer) convertMinerResults(miners *MinersMap) map[string]*Miner {
+	registeredMiners := apiServer.backend.GetMinerIDRegistrations()
+	apiMiners := make(map[string]*Miner)
+
+	for _, value := range registeredMiners {
+		currMiner, _ := miners.Get(value.Id)
+		if currMiner != nil {
+			var tempDuration time.Duration
+			now := util.MakeTimestamp() / 1000
+			var windowHashes bool
+			// If hashrateExpiration is set to -1, then keep data forever so no need to filter out old data
+			if apiServer.stratum.hashrateExpiration == tempDuration {
+				windowHashes = true
+			} else {
+				maxLastBeat := now - int64(apiServer.stratum.hashrateExpiration/time.Second)
+				windowHashes = (currMiner.LastBeat / 1000) >= maxLastBeat
+			}
+			if currMiner != nil && windowHashes {
+				apiMiners[currMiner.Id] = currMiner
+			}
+		}
+	}
+	return apiMiners
 }
 
 // Try to convert all numeric strings to int64
+/*
 func (apiServer *ApiServer) convertStringMap(m map[string]string) map[string]interface{} {
 	result := make(map[string]interface{})
 	var err error
@@ -162,7 +264,9 @@ func (apiServer *ApiServer) convertStringMap(m map[string]string) map[string]int
 	}
 	return result
 }
+*/
 
+/*
 func (apiServer *ApiServer) AllStatsIndex(writer http.ResponseWriter, _ *http.Request) {
 	writer.Header().Set("Content-Type", "application/json; charset=UTF-8")
 	writer.Header().Set("Access-Control-Allow-Origin", "*")
@@ -205,6 +309,7 @@ func (apiServer *ApiServer) AllStatsIndex(writer http.ResponseWriter, _ *http.Re
 		log.Println("[API] Error serializing API response: ", err)
 	}
 }
+*/
 
 func (apiServer *ApiServer) GetConfigIndex() map[string]interface{} {
 	stats := make(map[string]interface{})
@@ -236,26 +341,6 @@ func (apiServer *ApiServer) GetConfigIndex() map[string]interface{} {
 	return stats
 }
 
-func (apiServer *ApiServer) GetHealthIndex(writer http.ResponseWriter, _ *http.Request) {
-	reply := make(map[string]interface{})
-
-	r := apiServer.stratum.rpc()
-	info, err := r.GetInfo()
-	if err != nil {
-		reply["health"] = ""
-		log.Printf("[API] Unable to get current blockchain height from node: %v", err)
-	} else {
-		reply["health"] = "OK"
-	}
-
-	reply["network"] = map[string]interface{}{"difficulty": info.Difficulty, "topoheight": info.Topoheight, "height": info.Height, "stableheight": info.Stableheight, "averageblocktime50": info.Averageblocktime50, "testnet": info.Testnet, "target": info.Target, "topblockhash": info.TopBlockHash, "txpoolsize": info.TxPoolSize, "totalsupply": info.TotalSupply, "version": info.Version}
-
-	err = json.NewEncoder(writer).Encode(reply)
-	if err != nil {
-		log.Println("[API] Error serializing API response: ", err)
-	}
-}
-
 func (apiServer *ApiServer) StatsIndex(writer http.ResponseWriter, _ *http.Request) {
 	writer.Header().Set("Content-Type", "application/json; charset=UTF-8")
 	writer.Header().Set("Access-Control-Allow-Origin", "*")
@@ -263,141 +348,38 @@ func (apiServer *ApiServer) StatsIndex(writer http.ResponseWriter, _ *http.Reque
 	writer.WriteHeader(http.StatusOK)
 
 	reply := make(map[string]interface{})
-	nodes, err := apiServer.backend.GetNodeStates()
-	if err != nil {
-		log.Printf("[API] Failed to get nodes stats from backend: %v", err)
-	}
-	reply["nodes"] = nodes
+	/*
+		nodes, err := apiServer.backend.GetNodeStates()
+		if err != nil {
+			log.Printf("[API] Failed to get nodes stats from backend: %v", err)
+		}
+		reply["nodes"] = nodes
+	*/
 
 	stats := apiServer.getStats()
 	if stats != nil {
 		reply["now"] = util.MakeTimestamp() / 1000
-		reply["stats"] = stats["stats"]
-		reply["hashrate"] = stats["hashrate"]
-		reply["hashrateSolo"] = stats["hashrateSolo"]
-		reply["minersTotal"] = stats["minersTotal"]
-		reply["maturedTotal"] = stats["maturedTotal"]
-		reply["immatureTotal"] = stats["immatureTotal"]
-		reply["candidatesTotal"] = stats["candidatesTotal"]
-	}
-
-	err = json.NewEncoder(writer).Encode(reply)
-	if err != nil {
-		log.Println("[API] Error serializing API response: ", err)
-	}
-}
-
-func (apiServer *ApiServer) MinersIndex(writer http.ResponseWriter, _ *http.Request) {
-	writer.Header().Set("Content-Type", "application/json; charset=UTF-8")
-	writer.Header().Set("Access-Control-Allow-Origin", "*")
-	writer.Header().Set("Cache-Control", "no-cache")
-	writer.WriteHeader(http.StatusOK)
-
-	reply := make(map[string]interface{})
-	stats := apiServer.getStats()
-	if stats != nil {
-		reply["now"] = util.MakeTimestamp() / 1000
-		reply["miners"] = stats["miners"]
-		reply["hashrate"] = stats["hashrate"]
-		reply["minersTotal"] = stats["minersTotal"]
-	}
-
-	err := json.NewEncoder(writer).Encode(reply)
-	if err != nil {
-		log.Println("[API] Error serializing API response: ", err)
-	}
-}
-
-func (apiServer *ApiServer) BlocksIndex(writer http.ResponseWriter, _ *http.Request) {
-	writer.Header().Set("Content-Type", "application/json; charset=UTF-8")
-	writer.Header().Set("Access-Control-Allow-Origin", "*")
-	writer.Header().Set("Cache-Control", "no-cache")
-	writer.WriteHeader(http.StatusOK)
-
-	reply := make(map[string]interface{})
-	stats := apiServer.getStats()
-	if stats != nil {
-		reply["matured"] = stats["matured"]
-		reply["maturedTotal"] = stats["maturedTotal"]
-		reply["immature"] = stats["immature"]
-		reply["immatureTotal"] = stats["immatureTotal"]
-		reply["candidates"] = stats["candidates"]
-		reply["candidatesTotal"] = stats["candidatesTotal"]
-		reply["luck"] = stats["luck"]
-	}
-
-	err := json.NewEncoder(writer).Encode(reply)
-	if err != nil {
-		log.Println("[API] Error serializing API response: ", err)
-	}
-}
-
-func (s *ApiServer) PaymentsIndex(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "application/json; charset=UTF-8")
-	w.Header().Set("Access-Control-Allow-Origin", "*")
-	w.Header().Set("Cache-Control", "no-cache")
-	w.WriteHeader(http.StatusOK)
-
-	reply := make(map[string]interface{})
-	stats := s.getStats()
-	if stats != nil {
+		reply["lastblock"] = stats["lastblock"]
+		reply["config"] = apiServer.GetConfigIndex()
 		reply["payments"] = stats["payments"]
-		reply["paymentsTotal"] = stats["paymentsTotal"]
+		reply["candidates"] = stats["candidates"]
+		reply["immature"] = stats["immature"]
+		reply["matured"] = stats["matured"]
+		reply["candidatesTotal"] = stats["candidatesTotal"]
+		reply["immatureTotal"] = stats["immatureTotal"]
+		reply["maturedTotal"] = stats["maturedTotal"]
+		reply["blocksTotal"] = stats["blocksTotal"]
+		reply["miners"] = stats["miners"]
+		//reply["stats"] = stats["stats"]
+		//reply["hashrate"] = stats["hashrate"]
+		//reply["hashrateSolo"] = stats["hashrateSolo"]
+		//reply["minersTotal"] = stats["minersTotal"]
+		//reply["maturedTotal"] = stats["maturedTotal"]
+		//reply["immatureTotal"] = stats["immatureTotal"]
+		//reply["candidatesTotal"] = stats["candidatesTotal"]
 	}
 
-	err := json.NewEncoder(w).Encode(reply)
-	if err != nil {
-		log.Println("[API] Error serializing API response: ", err)
-	}
-}
-
-func (apiServer *ApiServer) AccountIndex(writer http.ResponseWriter, r *http.Request) {
-	writer.Header().Set("Content-Type", "application/json; charset=UTF-8")
-	writer.Header().Set("Access-Control-Allow-Origin", "*")
-	writer.Header().Set("Cache-Control", "no-cache")
-
-	login := mux.Vars(r)["login"]
-	apiServer.minersMu.Lock()
-	defer apiServer.minersMu.Unlock()
-
-	reply, ok := apiServer.miners[login]
-	now := util.MakeTimestamp() / 1000
-	cacheIntv := int64(apiServer.statsIntv / time.Millisecond)
-	// Refresh stats if stale
-	if !ok || reply.updatedAt < now-cacheIntv {
-		exist, err := apiServer.backend.IsMinerExists(login)
-		if !exist {
-			writer.WriteHeader(http.StatusNotFound)
-			return
-		}
-		if err != nil {
-			writer.WriteHeader(http.StatusInternalServerError)
-			log.Printf("[API] Failed to fetch stats from backend: %v", err)
-			return
-		}
-
-		stats, err := apiServer.backend.GetMinerStats(login, apiServer.config.Payments)
-		if err != nil {
-			writer.WriteHeader(http.StatusInternalServerError)
-			log.Printf("[API] Failed to fetch stats from backend: %v", err)
-			return
-		}
-		workers, err := apiServer.backend.CollectWorkersStats(apiServer.hashrateWindow, apiServer.hashrateLargeWindow, login)
-		if err != nil {
-			writer.WriteHeader(http.StatusInternalServerError)
-			log.Printf("[API] Failed to fetch stats from backend: %v", err)
-			return
-		}
-		for key, value := range workers {
-			stats[key] = value
-		}
-		stats["pageSize"] = apiServer.config.Payments
-		reply = &Entry{stats: stats, updatedAt: now}
-		apiServer.miners[login] = reply
-	}
-
-	writer.WriteHeader(http.StatusOK)
-	err := json.NewEncoder(writer).Encode(reply.stats)
+	err := json.NewEncoder(writer).Encode(reply)
 	if err != nil {
 		log.Println("[API] Error serializing API response: ", err)
 	}

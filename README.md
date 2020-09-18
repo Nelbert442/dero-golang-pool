@@ -92,7 +92,7 @@ Explanation for each field:
         Example of 10 second updates for 10 minute blocktimes on BTC. ~10/600 * 27 = 0.45 */
 	"blockRefreshInterval": "450ms",
 
-	"hashrateExpiration": "3h",		// TTL for workers stats, usually should be equal to large hashrate window from API section
+	"hashrateExpiration": "3h",		// TTL for workers stats, usually should be equal to large hashrate window from API section. NOTE: Use "0s" for infinite expiration time
 
 	"upstreamCheckInterval": "5s",  // How often to poll upstream (daemon) for successful connections
 
@@ -278,5 +278,5 @@ website.go is the runner, which just starts the listenandserve on the port defin
 Credits
 ---------
 
-* [sammy007](https://github.com/sammy007) - Developer on [monero-stratum](https://github.com/sammy007/monero-stratum) project from which current project is forked.
+* [sammy007](https://github.com/sammy007) - Developer on [monero-stratum](https://github.com/sammy007/monero-stratum) .
 * [JKKGBE](https://github.com/JKKGBE) - Developer on [open-zcash-pool](https://github.com/JKKGBE/open-zcash-pool) which is forked from [sammy007](https://github.com/sammy007) project [open-ethereum-pool](https://github.com/sammy007/open-ethereum-pool)
