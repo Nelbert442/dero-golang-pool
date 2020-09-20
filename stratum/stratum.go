@@ -254,7 +254,7 @@ func NewStratum(cfg *pool.Config) *StratumServer {
 
 				// Write miner stats
 				//log.Printf("[Stratum] Storing miner stats")
-				err := Graviton_backend.WriteMinerStats(stratum.miners)
+				err := Graviton_backend.WriteMinerStats(stratum.miners, stratum.hashrateExpiration)
 				if err != nil {
 					log.Printf("[Stratum] Err storing miner stats: %v", err)
 				}

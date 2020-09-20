@@ -38,12 +38,14 @@ type Miner struct {
 	RoundShares     int64
 	RoundHeight     int64
 	Hashrate        int64
+	Offline         bool
 	sync.RWMutex
 	Id        string
 	Address   string
 	PaymentID string
 	FixedDiff uint64
 	IsSolo    bool
+	WorkID    string
 	Ip        string
 }
 
@@ -57,10 +59,11 @@ func (job *Job) submit(nonce string) bool {
 	return false
 }
 
-func NewMiner(id string, address string, paymentid string, fixedDiff uint64, isSolo bool, ip string) *Miner {
+func NewMiner(id string, address string, paymentid string, fixedDiff uint64, workID string, isSolo bool, ip string) *Miner {
 	shares := make(map[int64]int64)
 	lastRoundShares := make(map[int64]int64)
-	return &Miner{Id: id, Address: address, PaymentID: paymentid, FixedDiff: fixedDiff, IsSolo: isSolo, Ip: ip, Shares: shares, LastRoundShares: lastRoundShares}
+	now := util.MakeTimestamp() / 1000
+	return &Miner{Id: id, Address: address, PaymentID: paymentid, FixedDiff: fixedDiff, IsSolo: isSolo, WorkID: workID, Ip: ip, Shares: shares, LastRoundShares: lastRoundShares, StartedAt: now}
 }
 
 func (cs *Session) calcVarDiff(currDiff float64, s *StratumServer) int64 {
@@ -220,7 +223,7 @@ func (cs *Session) findJob(id string) *Job {
 }
 
 func (m *Miner) heartbeat() {
-	now := util.MakeTimestamp()
+	now := util.MakeTimestamp() / 1000
 	atomic.StoreInt64(&m.LastBeat, now)
 }
 
@@ -281,7 +284,7 @@ func (m *Miner) getHashrate(estimationWindow, hashrateExpiration time.Duration) 
 	window := int64(estimationWindow / time.Second)
 	boundary := now - m.StartedAt
 
-	if boundary > window {
+	if boundary >= window {
 		boundary = window
 	}
 
@@ -290,7 +293,6 @@ func (m *Miner) getHashrate(estimationWindow, hashrateExpiration time.Duration) 
 	hashExpiration := int64(hashrateExpiration / time.Second)
 	for k, v := range m.Shares {
 		if k < now-hashExpiration {
-			log.Printf("[Miner] Deleting shares older than %v. Timestamp: %v, Value: %v", hashExpiration, k, v)
 			delete(m.Shares, k)
 		} else if k >= now-window {
 			totalShares += v
@@ -298,7 +300,7 @@ func (m *Miner) getHashrate(estimationWindow, hashrateExpiration time.Duration) 
 		//log.Printf("[hashrate] totalShares: %v, minerShares: %v, window: %v", totalShares, m.Shares, window)
 	}
 	m.Unlock()
-	return int64(float64(totalShares) / float64(window))
+	return int64(float64(totalShares) / float64(boundary))
 }
 
 func (m *Miner) processShare(s *StratumServer, cs *Session, job *Job, t *BlockTemplate, nonce string, params *SubmitParams) (bool, string) {

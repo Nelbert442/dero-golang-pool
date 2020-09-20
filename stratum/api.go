@@ -34,6 +34,22 @@ type ApiPayments struct {
 	Amount uint64
 }
 
+type ApiMiner struct {
+	LastBeat      int64
+	StartedAt     int64
+	ValidShares   int64
+	InvalidShares int64
+	StaleShares   int64
+	Accepts       int64
+	Rejects       int64
+	RoundShares   int64
+	Hashrate      int64
+	Offline       bool
+	sync.RWMutex
+	Id     string
+	IsSolo bool
+}
+
 type ApiBlocks struct {
 	Address     string
 	Height      int64
@@ -185,8 +201,12 @@ func (apiServer *ApiServer) collectStats() {
 
 	// Build miner stats
 	minerStats := apiServer.backend.GetAllMinerStats()
-	apiMiners := apiServer.convertMinerResults(minerStats)
+	apiMiners, poolHashrate, totalPoolMiners, soloHashrate, totalSoloMiners := apiServer.convertMinerResults(minerStats)
 	stats["miners"] = apiMiners
+	stats["poolHashrate"] = poolHashrate
+	stats["totalPoolMiners"] = totalPoolMiners
+	stats["soloHashrate"] = soloHashrate
+	stats["totalSoloMiners"] = totalSoloMiners
 	apiServer.stats.Store(stats)
 	//log.Printf("Stats collection finished %s", time.Since(start))
 }
@@ -226,11 +246,16 @@ func (apiServer *ApiServer) convertBlocksResults(minedBlocks []*BlockDataGrav) m
 	return apiBlocks
 }
 
-func (apiServer *ApiServer) convertMinerResults(miners *MinersMap) map[string]*Miner {
+func (apiServer *ApiServer) convertMinerResults(miners *MinersMap) (map[string]*ApiMiner, int64, int64, int64, int64) {
 	registeredMiners := apiServer.backend.GetMinerIDRegistrations()
-	apiMiners := make(map[string]*Miner)
+	apiMiners := make(map[string]*ApiMiner)
+	var poolHashrate int64
+	var soloHashrate int64
+	var totalPoolMiners int64
+	var totalSoloMiners int64
 
 	for _, value := range registeredMiners {
+		reply := &ApiMiner{}
 		currMiner, _ := miners.Get(value.Id)
 		if currMiner != nil {
 			var tempDuration time.Duration
@@ -241,14 +266,61 @@ func (apiServer *ApiServer) convertMinerResults(miners *MinersMap) map[string]*M
 				windowHashes = true
 			} else {
 				maxLastBeat := now - int64(apiServer.stratum.hashrateExpiration/time.Second)
-				windowHashes = (currMiner.LastBeat / 1000) >= maxLastBeat
+				windowHashes = currMiner.LastBeat >= maxLastBeat
 			}
 			if currMiner != nil && windowHashes {
-				apiMiners[currMiner.Id] = currMiner
+				var Offline bool
+				var Hashrate int64
+				var ID string
+
+				// Set miner to offline
+				if currMiner.LastBeat < (now - int64(apiServer.stratum.estimationWindow/time.Second)/2) {
+					Offline = true
+				}
+
+				// Get miner hashrate (updates api side for accurate representation, even if miner has been offline)
+				if !Offline {
+					Hashrate = currMiner.getHashrate(apiServer.stratum.estimationWindow, apiServer.stratum.hashrateExpiration)
+				}
+
+				// Utilizing extracted workid value, could be leveraging workid instead of full id value for stats [later worker stats on a per-address layer potentially]
+				if currMiner.WorkID != "" {
+					ID = currMiner.WorkID
+				} else {
+					ID = currMiner.Id
+				}
+
+				// Generate struct for miner stats
+				reply = &ApiMiner{
+					LastBeat:      currMiner.LastBeat,
+					StartedAt:     currMiner.StartedAt,
+					ValidShares:   currMiner.ValidShares,
+					InvalidShares: currMiner.InvalidShares,
+					StaleShares:   currMiner.StaleShares,
+					Accepts:       currMiner.Accepts,
+					Rejects:       currMiner.Rejects,
+					RoundShares:   currMiner.RoundShares,
+					Hashrate:      Hashrate,
+					Offline:       Offline,
+					Id:            ID,
+					IsSolo:        currMiner.IsSolo,
+				}
+
+				apiMiners[ID] = reply
+
+				// Compound pool stats: solo hashrate/miners and pool hashrate/miners
+				if currMiner.IsSolo && !Offline {
+					soloHashrate += Hashrate
+					totalSoloMiners++
+				} else if !Offline {
+					poolHashrate += Hashrate
+					totalPoolMiners++
+				}
 			}
 		}
 	}
-	return apiMiners
+
+	return apiMiners, poolHashrate, totalPoolMiners, soloHashrate, totalSoloMiners
 }
 
 // Try to convert all numeric strings to int64
@@ -370,6 +442,10 @@ func (apiServer *ApiServer) StatsIndex(writer http.ResponseWriter, _ *http.Reque
 		reply["maturedTotal"] = stats["maturedTotal"]
 		reply["blocksTotal"] = stats["blocksTotal"]
 		reply["miners"] = stats["miners"]
+		reply["poolHashrate"] = stats["poolHashrate"]
+		reply["totalPoolMiners"] = stats["totalPoolMiners"]
+		reply["soloHashrate"] = stats["soloHashrate"]
+		reply["totalSoloMiners"] = stats["totalSoloMiners"]
 		//reply["stats"] = stats["stats"]
 		//reply["hashrate"] = stats["hashrate"]
 		//reply["hashrateSolo"] = stats["hashrateSolo"]

@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"git.dero.io/Nelbert442/dero-golang-pool/pool"
+	"git.dero.io/Nelbert442/dero-golang-pool/util"
 	"github.com/deroproject/graviton"
 )
 
@@ -706,7 +707,7 @@ func (g *GravitonStore) GetMinerIDRegistrations() []*Miner {
 	return nil
 }
 
-func (g *GravitonStore) CompareMinerStats(storedMinerMap *MinersMap, storedMiner, miner *Miner) *MinersMap {
+func (g *GravitonStore) CompareMinerStats(storedMinerMap *MinersMap, storedMiner, miner *Miner, hashrateExpiration time.Duration) *MinersMap {
 	// Get existing, compare the roundShares of each...
 	// Check online etc.
 	// Compare storedMiner to miner input, update the stored miner with a few 'appends'
@@ -737,6 +738,16 @@ func (g *GravitonStore) CompareMinerStats(storedMinerMap *MinersMap, storedMiner
 			// If no current miner, but new round is defined, set roundShares to 0 since their stored shares are not counted anymore
 			updatedMiner := storedMiner
 			updatedMiner.RoundShares = 0
+
+			// Remove old shares from backend - older than hashrate expiration of pool config
+			now := util.MakeTimestamp() / 1000
+			hashExpiration := int64(hashrateExpiration / time.Second)
+			for k, v := range updatedMiner.Shares {
+				if k < now-hashExpiration {
+					log.Printf("[Graviton] Deleting shares older than %v. Timestamp: %v, Value: %v", hashExpiration, k, v)
+					delete(updatedMiner.Shares, k)
+				}
+			}
 		}
 	}
 
@@ -749,7 +760,7 @@ func (g *GravitonStore) CompareMinerStats(storedMinerMap *MinersMap, storedMiner
 	return storedMinerMap
 }
 
-func (g *GravitonStore) WriteMinerStats(miners MinersMap) error {
+func (g *GravitonStore) WriteMinerStats(miners MinersMap, hashrateExpiration time.Duration) error {
 	var confBytes []byte
 	var err error
 	storedMinerMap := g.GetAllMinerStats()
@@ -773,7 +784,7 @@ func (g *GravitonStore) WriteMinerStats(miners MinersMap) error {
 
 				// Make sure that both stored & curr miners exist prior to doing compareminerstats.
 				//if currMiner != nil {
-				storedMinerMap = g.CompareMinerStats(storedMinerMap, storedMiner, currMiner)
+				storedMinerMap = g.CompareMinerStats(storedMinerMap, storedMiner, currMiner, hashrateExpiration)
 				//}
 			}
 
@@ -854,7 +865,7 @@ func (g *GravitonStore) GetRoundShares(roundHeight int64, nonce string) (map[str
 	// Loop through registered miners looking for
 	for _, value := range minerIDRegistrations {
 		miner := g.GetMinerStatsByID(value.Id)
-		result[miner.Address] = miner.LastRoundShares[roundHeight]
+		result[miner.Address] += miner.LastRoundShares[roundHeight]
 		totalRoundShares += miner.LastRoundShares[roundHeight]
 	}
 

@@ -87,7 +87,7 @@ func (s *StratumServer) handleLoginRPC(cs *Session, params *LoginParams) (*JobRe
 	miner, ok := s.miners.Get(id)
 	if !ok {
 		log.Printf("[Handlers] Registering new miner: %s@%s, Address: %s, PaymentID: %s, fixedDiff: %v, isSolo: %v", id, cs.ip, address, paymentid, fixDiff, isSolo)
-		miner = NewMiner(id, address, paymentid, fixDiff, isSolo, cs.ip)
+		miner = NewMiner(id, address, paymentid, fixDiff, workID, isSolo, cs.ip)
 		s.registerMiner(miner)
 		Graviton_backend.WriteMinerIDRegistration(miner)
 	}
