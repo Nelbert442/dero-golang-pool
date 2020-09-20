@@ -81,50 +81,28 @@ func NewApiServer(cfg *pool.APIConfig, s *StratumServer) *ApiServer {
 }
 
 func (apiServer *ApiServer) Start() {
-	if apiServer.config.PurgeOnly {
-		log.Printf("[API] Starting API in purge-only mode")
-	} else {
-		log.Printf("[API] Starting API on %v", apiServer.config.Listen)
-	}
+
+	log.Printf("[API] Starting API on %v", apiServer.config.Listen)
 
 	apiServer.statsIntv, _ = time.ParseDuration(apiServer.config.StatsCollectInterval)
 	statsTimer := time.NewTimer(apiServer.statsIntv)
 	log.Printf("[API] Set stats collect interval to %v", apiServer.statsIntv)
 
-	purgeIntv, _ := time.ParseDuration(apiServer.config.PurgeInterval)
-	purgeTimer := time.NewTimer(purgeIntv)
-	log.Printf("[API] Set purge interval to %v", purgeIntv)
-
 	sort.Ints(apiServer.config.LuckWindow)
 
-	if apiServer.config.PurgeOnly {
-		log.Printf("[API] Would be purging stale...")
-		//apiServer.purgeStale()
-	} else {
-		log.Printf("[API] Would be purging stale...")
-		//apiServer.purgeStale()
-		apiServer.collectStats()
-	}
+	apiServer.collectStats()
 
 	go func() {
 		for {
 			select {
 			case <-statsTimer.C:
-				if !apiServer.config.PurgeOnly {
-					apiServer.collectStats()
-				}
+				apiServer.collectStats()
 				statsTimer.Reset(apiServer.statsIntv)
-			case <-purgeTimer.C:
-				log.Printf("[API] Would be purging stale...")
-				//apiServer.purgeStale()
-				purgeTimer.Reset(purgeIntv)
 			}
 		}
 	}()
 
-	if !apiServer.config.PurgeOnly {
-		apiServer.listen()
-	}
+	apiServer.listen()
 }
 
 func (apiServer *ApiServer) listen() {
@@ -145,36 +123,9 @@ func notFound(writer http.ResponseWriter, _ *http.Request) {
 	writer.WriteHeader(http.StatusNotFound)
 }
 
-/*
-func (apiServer *ApiServer) purgeStale() {
-	start := time.Now()
-	total, err := apiServer.backend.FlushStaleStats(apiServer.hashrateWindow, apiServer.hashrateLargeWindow)
-	if err != nil {
-		log.Println("[API] Failed to purge stale data from backend:", err)
-	} else {
-		log.Printf("[API] Purged stale stats from backend, %v shares affected, elapsed time %v", total, time.Since(start))
-	}
-}
-*/
-
 func (apiServer *ApiServer) collectStats() {
 	//start := time.Now()
 	stats := make(map[string]interface{})
-
-	/*
-		stats, err := apiServer.backend.CollectStats(apiServer.hashrateWindow, apiServer.config.Blocks, apiServer.config.Payments)
-		if err != nil {
-			log.Printf("[API] Failed to fetch stats from backend: %v", err)
-			return
-		}
-		if len(apiServer.config.LuckWindow) > 0 {
-			stats["luck"], err = apiServer.backend.CollectLuckStats(apiServer.config.LuckWindow)
-			if err != nil {
-				log.Printf("[API] Failed to fetch luck stats from backend: %v", err)
-				return
-			}
-		}
-	*/
 
 	// Build last block stats
 	stats["lastblock"] = apiServer.backend.GetLastBlock()
@@ -323,66 +274,6 @@ func (apiServer *ApiServer) convertMinerResults(miners *MinersMap) (map[string]*
 	return apiMiners, poolHashrate, totalPoolMiners, soloHashrate, totalSoloMiners
 }
 
-// Try to convert all numeric strings to int64
-/*
-func (apiServer *ApiServer) convertStringMap(m map[string]string) map[string]interface{} {
-	result := make(map[string]interface{})
-	var err error
-	for k, v := range m {
-		result[k], err = strconv.ParseInt(v, 10, 64)
-		if err != nil {
-			result[k] = v
-		}
-	}
-	return result
-}
-*/
-
-/*
-func (apiServer *ApiServer) AllStatsIndex(writer http.ResponseWriter, _ *http.Request) {
-	writer.Header().Set("Content-Type", "application/json; charset=UTF-8")
-	writer.Header().Set("Access-Control-Allow-Origin", "*")
-	writer.Header().Set("Cache-Control", "no-cache")
-	writer.WriteHeader(http.StatusOK)
-
-	reply := make(map[string]interface{})
-	nodes, err := apiServer.backend.GetNodeStates()
-	if err != nil {
-		log.Printf("[API] Failed to get nodes stats from backend: %v", err)
-	}
-	reply["nodes"] = nodes
-
-	network, err := apiServer.backend.GetLastNetworkStates()
-	if err != nil {
-		log.Printf("[API] Failed to get network stats from backend: %v", err)
-	}
-	reply["network"] = network
-
-	lastblock, err := apiServer.backend.GetLastBlockStates()
-	if err != nil {
-		log.Printf("[API] Failed to get lastblock stats from backend: %v", err)
-	}
-	reply["lastblock"] = lastblock
-
-	stats := apiServer.getStats()
-	if stats != nil {
-
-		reply["blocks"] = map[string]interface{}{"totalBlocks": stats["totalBlocks"], "totalBlocksSolo": stats["totalBlocksSolo"], "maturedTotal": stats["maturedTotal"], "maturedTotalSolo": stats["maturedTotalSolo"], "immatureTotal": stats["immatureTotal"], "immatureTotalSolo": stats["immatureTotalSolo"], "candidatesTotal": stats["candidatesTotal"], "luck": stats["luck"], "matured": stats["matured"], "maturedSolo": stats["maturedSolo"], "immature": stats["immature"], "immatureSolo": stats["immatureSolo"], "candidates": stats["candidates"]}
-		reply["payments"] = map[string]interface{}{"totalMinersPaid": stats["totalMinersPaid"], "paymentsTotal": stats["paymentsTotal"], "payments": stats["payments"]}
-		reply["miners"] = map[string]interface{}{"hashrate": stats["hashrate"], "hashrateSolo": stats["hashrateSolo"], "minersTotal": stats["minersTotal"], "minersTotalSolo": stats["minersTotalSolo"], "miners": stats["miners"], "minersSolo": stats["minersSolo"]}
-		reply["now"] = util.MakeTimestamp() / 1000
-		reply["stats"] = map[string]interface{}{"poolstats": stats["stats"], "hashrate": stats["hashrate"], "hashrateSolo": stats["hashrateSolo"], "minersTotal": stats["minersTotal"]}
-		reply["config"] = apiServer.GetConfigIndex()
-		reply["charts"] = map[string]interface{}{}
-	}
-
-	err = json.NewEncoder(writer).Encode(reply)
-	if err != nil {
-		log.Println("[API] Error serializing API response: ", err)
-	}
-}
-*/
-
 func (apiServer *ApiServer) GetConfigIndex() map[string]interface{} {
 	stats := make(map[string]interface{})
 
@@ -420,13 +311,6 @@ func (apiServer *ApiServer) StatsIndex(writer http.ResponseWriter, _ *http.Reque
 	writer.WriteHeader(http.StatusOK)
 
 	reply := make(map[string]interface{})
-	/*
-		nodes, err := apiServer.backend.GetNodeStates()
-		if err != nil {
-			log.Printf("[API] Failed to get nodes stats from backend: %v", err)
-		}
-		reply["nodes"] = nodes
-	*/
 
 	stats := apiServer.getStats()
 	if stats != nil {
@@ -446,13 +330,6 @@ func (apiServer *ApiServer) StatsIndex(writer http.ResponseWriter, _ *http.Reque
 		reply["totalPoolMiners"] = stats["totalPoolMiners"]
 		reply["soloHashrate"] = stats["soloHashrate"]
 		reply["totalSoloMiners"] = stats["totalSoloMiners"]
-		//reply["stats"] = stats["stats"]
-		//reply["hashrate"] = stats["hashrate"]
-		//reply["hashrateSolo"] = stats["hashrateSolo"]
-		//reply["minersTotal"] = stats["minersTotal"]
-		//reply["maturedTotal"] = stats["maturedTotal"]
-		//reply["immatureTotal"] = stats["immatureTotal"]
-		//reply["candidatesTotal"] = stats["candidatesTotal"]
 	}
 
 	err := json.NewEncoder(writer).Encode(reply)

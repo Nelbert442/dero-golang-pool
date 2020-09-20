@@ -50,9 +50,6 @@ func GetHashDifficulty(hashBytes []byte) (*big.Int, bool) {
 func ValidateAddress(addy string, poolAddy string) bool {
 	var poolAddyNetwork string
 
-	//if len(addy) != len(poolAddy) {
-	//	return false
-	//}
 	prefix, _ := utf8.DecodeRuneInString(addy)
 	poolPrefix, _ := utf8.DecodeRuneInString(poolAddy)
 	if prefix != poolPrefix {
@@ -87,35 +84,14 @@ func reverse(src []byte) []byte {
 }
 
 func AstroBWTHash(shareBuff []byte, diff big.Int) (bool, bool) {
-	//checkPowHashBig := false
 	var powhash crypto.Hash
 	var data astrobwt.Data
 	var max_pow_size int = 819200 //astrobwt.MAX_LENGTH
 
-	//hashBytes, _ = hex.DecodeString(result)
-
 	hash, success := astrobwt.POW_optimized_v2(shareBuff, max_pow_size, &data)
 	if !success || hash[len(hash)-1] != 0 {
-		//fmt.Printf("[IncorrectPoW-171] %+v\n", shareBuff)
-		//fmt.Printf("[IncorrectPoW-172] %+v\n", hash)
-		/*minerOutput := "Incorrect PoW - if you see often, check input on miner software"
-		log.Printf("Bad hash from miner (l174) %v@%v", m.id, cs.ip)
-
-		if shareType == "Trusted" {
-			log.Printf("[No Trust] Miner is no longer submitting trusted shares: %v@%v", m.id, cs.ip)
-			shareType = "Valid"
-		}*/
-
 		return false, false
-
-		//atomic.AddInt64(&m.invalidShares, 1)
-		//atomic.StoreInt64(&m.trustedShares, 0)
-		//return false, minerOutput
 	}
-
-	//atomic.AddInt64(&m.trustedShares, 1)
-
-	//fmt.Printf("[%s Share] %+v\n", shareType, hashBytes)
 
 	copy(powhash[:], hash[:])
 

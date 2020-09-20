@@ -212,7 +212,6 @@ func (r *RPCClient) GetBalance(url string) (*GetBalanceReply, error) {
 }
 
 func (r *RPCClient) SendTransaction(url string, transferParams Transfer_Params) (*TransferSplit_Result, error) {
-	//log.Printf("Attempting payment. params: %v", transferParams)
 
 	rpcResp, err := r.doPost(url, "transfer_split", transferParams)
 	if err != nil {

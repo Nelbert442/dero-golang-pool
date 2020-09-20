@@ -90,8 +90,6 @@
 
 	"api": {
 		"enabled": true,
-		"purgeOnly": false,
-		"purgeInterval": "10m",
 		"listen": "0.0.0.0:8082",
 		"statsCollectInterval": "5s",
 		"hashrateWindow": "10m",

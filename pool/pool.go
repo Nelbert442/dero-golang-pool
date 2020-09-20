@@ -20,7 +20,6 @@ type Config struct {
 	Upstream              []Upstream     `json:"upstream"`
 	Stratum               Stratum        `json:"stratum"`
 	API                   APIConfig      `json:"api"`
-	Redis                 Redis          `json:"redis"`
 	UnlockerConfig        UnlockerConfig `json:"unlocker"`
 	PaymentsConfig        PaymentsConfig `json:"payments"`
 	Website               Website        `json:"website"`
@@ -77,8 +76,6 @@ type VarDiffConfig struct {
 
 type APIConfig struct {
 	Enabled              bool   `json:"enabled"`
-	PurgeOnly            bool   `json:"purgeOnly"`
-	PurgeInterval        string `json:"purgeInterval"`
 	Listen               string `json:"listen"`
 	StatsCollectInterval string `json:"statsCollectInterval"`
 	HashrateWindow       string `json:"hashrateWindow"`
@@ -86,14 +83,6 @@ type APIConfig struct {
 	LuckWindow           []int  `json:"luckWindow"`
 	Blocks               int64  `json:"blocks"`
 	Payments             int64  `json:"payments"`
-}
-
-type Redis struct {
-	Enabled  bool   `json:"enabled"`
-	Host     string `json:"host"`
-	Port     int    `json:"port"`
-	Password string `json:"password"`
-	DB       int64  `json:"DB"`
 }
 
 type UnlockerConfig struct {

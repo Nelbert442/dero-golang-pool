@@ -48,7 +48,7 @@ func (s *StratumServer) handleLoginRPC(cs *Session, params *LoginParams) (*JobRe
 		id = address + "+" + paymentid
 	}
 
-	// If solo is used, then add solo: to front of id for redis logging
+	// If solo is used, then add solo: to front of id for logging
 	if isSolo {
 		if id != "" {
 			// If id is not "" (default value upon var), then it must have a paymentid
@@ -122,7 +122,7 @@ func (s *StratumServer) handleGetJobRPC(cs *Session, params *GetJobParams) (*Job
 		return nil, &ErrorReply{Code: -1, Message: "Job not ready"}
 	}
 	miner.heartbeat()
-	//log.Printf("[handleGetJobRPC] getJob: %v", cs.getJob(t))
+
 	reply := cs.getJob(t, s, 0)
 	return reply, nil
 }
@@ -186,7 +186,7 @@ func (s *StratumServer) broadcastNewJobs() {
 		go func(cs *Session) {
 			reply := cs.getJob(t, s, 0)
 			err := cs.pushMessage("job", &reply)
-			//fmt.Printf("[Job Broadcast] %+v\n", reply)
+
 			<-bcast
 			if err != nil {
 				log.Printf("[Handlers] Job transmit error to %s: %v", cs.ip, err)
@@ -212,21 +212,16 @@ func (s *StratumServer) updateFixedDiffJobs() {
 		n++
 		bcast <- n
 		go func(cs *Session) {
-			//log.Printf("[Handlers] Checking job for %v", cs.ip)
 			// If fixed diff, ignore cycling update miner jobs
 			if !cs.isFixedDiff {
-				//log.Printf("[Handlers] %v is NOT fixed diff", cs.ip)
 				preJob := cs.difficulty
 				newDiff := cs.calcVarDiff(float64(preJob), s)
-				//reply, newDiff := cs.getJob(t, s)
-				//log.Printf("[Handlers] preJob: %v, post-GetJob: %v . %v", preJob, newDiff, cs.ip)
 				// If job diffs aren't the same, advertise new job
 				if preJob != newDiff {
 					reply := cs.getJob(t, s, newDiff)
 					log.Printf("[Handlers] Retargetting difficulty from %v to %v for %v", preJob, newDiff, cs.ip)
 					cs.difficulty = newDiff
 					err := cs.pushMessage("job", &reply)
-					//fmt.Printf("[Job Broadcast] %+v\n", reply)
 					<-bcast
 					if err != nil {
 						log.Printf("[Handlers] Job transmit error to %s: %v", cs.ip, err)

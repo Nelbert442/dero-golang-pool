@@ -170,8 +170,6 @@ Explanation for each field:
 
 	"api": {
 		"enabled": true,				// Set api enabled to true, self-hosted api, or false, not hosted
-		"purgeOnly": false,				// Set api to purgeOnly mode which will just call purge functions and not collect stats
-		"purgeInterval": "10m",			// Set purge interval (for both purgeOnly and normal stats collections) of stale stats
 		"listen": "0.0.0.0:8082",		// Set bind address and port for api [Note: poolAddr/api/* (stats, blocks, etc. defined in api.go)]
 		"statsCollectInterval": "5s",	// Set interval for stats collection to run
 		"hashrateWindow": "10m",		// Fast hashrate estimation window for each miner from its' shares

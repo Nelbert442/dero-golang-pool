@@ -15,7 +15,6 @@ import (
 
 type PayoutsProcessor struct {
 	config   *pool.PaymentsConfig
-	backend  *RedisClient
 	rpc      *rpc.RPCClient
 	halt     bool
 	lastFail error
@@ -61,24 +60,11 @@ func (u *PayoutsProcessor) Start(s *StratumServer) {
 	log.Printf("[Payments] Set payouts interval to %v", intv)
 
 	payments := Graviton_backend.GetPendingPayments()
-	//payments := u.backend.GetPendingPayments()
+
 	if len(payments) > 0 {
 		log.Printf("[Payments] Previous payout failed, trying to resolve it. List of failed payments:\n %v",
 			formatPendingPayments(payments))
-		//return
 	}
-
-	/*
-		locked, err := u.backend.IsPayoutsLocked()
-		if err != nil {
-			log.Println("Unable to start payouts:", err)
-			return
-		}
-		if locked {
-			log.Println("Unable to start payouts because they are locked")
-			return
-		}
-	*/
 
 	// Immediately process payouts after start
 	u.process(s)
@@ -108,28 +94,14 @@ func (u *PayoutsProcessor) process(s *StratumServer) {
 	mustPay := 0
 	minersPaid := 0
 	totalAmount := big.NewInt(0)
-	/*payees, err := u.backend.GetPayees()
-	if err != nil {
-		log.Println("[Payments] Error while retrieving payees from backend:", err)
-		return
-	}*/
 
-	//for _, login := range payees {
 	// Graviton DB Pending Balance
-	//amount := uint64(0)
 	payPending = Graviton_backend.GetPendingPayments()
 	for i, val := range payPending {
-		/*if login == val.Address {
-			amount += val.Amount
-			paymentsToRemove[login] = append(paymentsToRemove[login], i)
-		}*/
 
 		login := val.Address
 		amount := val.Amount
 
-		//log.Printf("Payments set to remove: %v", paymentsToRemove)
-
-		//amount, _ := u.backend.GetBalance(login)
 		if !u.reachedThreshold(amount) {
 			continue
 		}
@@ -279,13 +251,6 @@ func (u *PayoutsProcessor) process(s *StratumServer) {
 			// Debit miner's balance and update stats
 			login := payee.Address + s.config.Stratum.PaymentID.AddressSeparator + currPayout.Payment_ID
 			amount := payee.Amount
-			/*
-				err = u.backend.UpdateBalance(login, int64(amount))
-				if err != nil {
-					log.Printf("Failed to update balance for %s, %v DERO: %v", login, int64(amount), err)
-					break
-				}
-			*/
 
 			// Remove pending payout from graviton db
 			log.Printf("[Payments] Before Payment Pruning: %v", payPending)
@@ -322,15 +287,6 @@ func (u *PayoutsProcessor) process(s *StratumServer) {
 				log.Printf("[Payments] Graviton DB err: %v", infoErr)
 				break
 			}
-
-			// Update stats for pool payments
-			/*
-				err = u.backend.WritePayment(login, txHash[0], txKey[0], txFee[0], u.config.Mixin, int64(amount))
-				if err != nil {
-					log.Printf("Failed to log payment data for %s, %v DERO, tx: %s, fee: %v, txKey: %v, Mixin: %v, error: %v", login, int64(amount), txHash[0], txFee[0], txKey[0], u.config.Mixin, err)
-					break
-				}
-			*/
 
 			minersPaid++
 			totalAmount.Add(totalAmount, big.NewInt(int64(amount)))
@@ -370,13 +326,6 @@ func (u *PayoutsProcessor) process(s *StratumServer) {
 						// Debit miner's balance and update stats
 						login := payoutList[lastPos+k].Address
 						amount := payoutList[lastPos+k].Amount
-						/*
-							err = u.backend.UpdateBalance(login, int64(amount))
-							if err != nil {
-								log.Printf("Failed to update balance for %s, %v DERO: %v", login, int64(amount), err)
-								break
-							}
-						*/
 
 						// Remove pending payout from graviton db
 						log.Printf("[Payments] Before Payment Pruning: %v", payPending)
@@ -414,15 +363,6 @@ func (u *PayoutsProcessor) process(s *StratumServer) {
 							break
 						}
 
-						// Update stats for pool payments
-						/*
-							err = u.backend.WritePayment(login, txHash[0], txKey[0], txFee[0], u.config.Mixin, int64(amount))
-							if err != nil {
-								log.Printf("Failed to log payment data for %s, %v DERO, tx: %s, fee: %v, txKey: %v, Mixin: %v, error: %v", login, int64(amount), txHash[0], txFee[0], txKey[0], u.config.Mixin, err)
-								break
-							}
-						*/
-
 						minersPaid++
 						totalAmount.Add(totalAmount, big.NewInt(int64(amount)))
 						log.Printf("[Payments] Paid %v DERO to %v, TxHash: %v, Fee: %v, Mixin: %v", int64(amount), login, txHash[0], txFee[0], u.config.Mixin)
@@ -432,13 +372,6 @@ func (u *PayoutsProcessor) process(s *StratumServer) {
 					// Debit miner's balance and update stats
 					login := value.Address
 					amount := value.Amount
-					/*
-						err = u.backend.UpdateBalance(login, int64(amount))
-						if err != nil {
-							log.Printf("Failed to update balance for %s, %v DERO: %v", login, int64(amount), err)
-							break
-						}
-					*/
 
 					// Remove pending payout from graviton db
 					log.Printf("[Payments] Before Payment Pruning: %v", payPending)
@@ -476,15 +409,6 @@ func (u *PayoutsProcessor) process(s *StratumServer) {
 						break
 					}
 
-					// Update stats for pool payments
-					/*
-						err = u.backend.WritePayment(login, txHash[0], txKey[0], txFee[0], u.config.Mixin, int64(amount))
-						if err != nil {
-							log.Printf("Failed to log payment data for %s, %v DERO, tx: %s, fee: %v, txKey: %v, Mixin: %v, error: %v", login, int64(amount), txHash[0], txFee[0], txKey[0], u.config.Mixin, err)
-							break
-						}
-					*/
-
 					minersPaid++
 					totalAmount.Add(totalAmount, big.NewInt(int64(amount)))
 					log.Printf("[Payments] Paid %v DERO to %v, TxHash: %v, Fee: %v, Mixin: %v", int64(amount), login, txHash[0], txFee[0], u.config.Mixin)
@@ -501,13 +425,6 @@ func (u *PayoutsProcessor) process(s *StratumServer) {
 	} else {
 		log.Println("[Payments] No payees that have reached payout threshold")
 	}
-
-	// Save redis state to disk
-	/*
-		if minersPaid > 0 && u.config.BgSave {
-			u.bgSave()
-		}
-	*/
 }
 
 func removePendingPayments(s []*PaymentPending, i int) []*PaymentPending {
@@ -517,36 +434,6 @@ func removePendingPayments(s []*PaymentPending, i int) []*PaymentPending {
 	s[i] = s[len(s)-1]
 	return s[:len(s)-1]
 }
-
-/*
-// handles the output after building tx, takes feedback, confirms or relays tx
-func build_relay_transaction(tx *transaction.Transaction, inputs []uint64, input_sum uint64, change uint64, err error, offline_tx bool, amount_list []uint64) bool {
-
-	if err != nil {
-		log.Printf("Error building transaction: %s", err)
-		return false
-	}
-
-	transfer.Inputs = append(transfer.Inputs, uint64(len(inputs)))
-	transfer.InputSum = input_sum
-	transfer.Change = change
-	transfer.Size = float32(len(tx.Serialize())) / 1024.0
-	transfer.Fees = tx.RctSignature.Get_TX_Fee()
-	transfer.TX = tx
-
-	amount := uint64(0)
-
-	for i := range amount_list {
-		amount += amount_list[i]
-	}
-
-	if input_sum != (amount + change + tx.RctSignature.Get_TX_Fee()) {
-		return false
-	}
-
-	return true
-}
-*/
 
 func formatPendingPayments(list []*PaymentPending) string {
 	var s string
@@ -559,46 +446,3 @@ func formatPendingPayments(list []*PaymentPending) string {
 func (self PayoutsProcessor) reachedThreshold(amount uint64) bool {
 	return self.config.Threshold < amount
 }
-
-/*
-func (self PayoutsProcessor) bgSave() {
-	result, err := self.backend.BgSave()
-	if err != nil {
-		log.Println("Failed to perform BGSAVE on backend:", err)
-		return
-	}
-	log.Println("Saving backend state to disk:", result)
-}
-*/
-
-/*
-// Unused atm
-func (self PayoutsProcessor) resolvePayouts() {
-	payments := self.backend.GetPendingPayments()
-
-	if len(payments) > 0 {
-		log.Printf("Will credit back following balances:\n%s", formatPendingPayments(payments))
-
-		for _, v := range payments {
-			err := self.backend.RollbackBalance(v.Address, v.Amount)
-			if err != nil {
-				log.Printf("Failed to credit %v DERO back to %s, error is: %v", v.Amount, v.Address, err)
-				return
-			}
-			log.Printf("Credited %v DERO back to %s", v.Amount, v.Address)
-		}
-		err := self.backend.UnlockPayouts()
-		if err != nil {
-			log.Println("Failed to unlock payouts:", err)
-			return
-		}
-	} else {
-		log.Println("No pending payments to resolve")
-	}
-
-	if self.config.BgSave {
-		self.bgSave()
-	}
-	log.Println("Payouts unlocked")
-}
-*/

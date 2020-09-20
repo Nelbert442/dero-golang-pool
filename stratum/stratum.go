@@ -19,35 +19,24 @@ import (
 )
 
 type StratumServer struct {
-	luckWindow      int64
-	largeLuckWindow int64
-	roundShares     int64
-	//blockStats         map[int64]blockEntry
-	config           *pool.Config
-	miners           MinersMap
-	blockTemplate    atomic.Value
-	upstream         int32
-	upstreams        []*rpc.RPCClient
-	timeout          time.Duration
-	estimationWindow time.Duration
-	//blocksMu           sync.RWMutex
+	luckWindow         int64
+	largeLuckWindow    int64
+	roundShares        int64
+	config             *pool.Config
+	miners             MinersMap
+	blockTemplate      atomic.Value
+	upstream           int32
+	upstreams          []*rpc.RPCClient
+	timeout            time.Duration
+	estimationWindow   time.Duration
 	sessionsMu         sync.RWMutex
 	sessions           map[*Session]struct{}
 	algo               string
 	trustedSharesCount int64
-	backend            *RedisClient
 	gravitonDB         *GravitonStore
 	hashrateExpiration time.Duration
 	failsCount         int64
 }
-
-/*
-type blockEntry struct {
-	height   int64
-	variance float64
-	hash     string
-}
-*/
 
 type Endpoint struct {
 	jobSequence uint64
@@ -59,9 +48,8 @@ type Endpoint struct {
 }
 
 type VarDiff struct {
-	Difficulty int64
-	Average    float64
-	//sinceLast     time.Time
+	Difficulty            int64
+	Average               float64
 	TimestampArr          map[int64]int64
 	LastRetargetTimestamp int64
 	LastTimeStamp         int64
@@ -85,13 +73,7 @@ const (
 )
 
 func NewStratum(cfg *pool.Config) *StratumServer {
-	stratum := &StratumServer{config: cfg} //blockStats: make(map[int64]blockEntry)}
-
-	// Create new redis client/connection
-	/*if cfg.Redis.Enabled {
-		backend := NewRedisClient(&cfg.Redis, cfg.Coin)
-		stratum.backend = backend
-	}*/
+	stratum := &StratumServer{config: cfg}
 
 	// Startup/create new gravitondb (if it doesn't exist), write the configuration file (config.json) into storage for use / api surfacing later
 	stratum.gravitonDB = Graviton_backend
@@ -123,10 +105,10 @@ func NewStratum(cfg *pool.Config) *StratumServer {
 	for _, value := range blocksFound.MinedBlocks {
 		log.Printf("Matured blocks: %v", value)
 	}
-	*/
 
-	//minerStats := stratum.gravitonDB.GetMinerIDRegistrations()
-	//log.Printf("Miner: %v", minerStats)
+	minerStats := stratum.gravitonDB.GetMinerIDRegistrations()
+	log.Printf("Miner: %v", minerStats)
+	*/
 
 	// Set stratum.upstreams length based on cfg.Upstream only if they are set enabled: true. We use arr to simulate this and filter out cfg.Upstream objects
 	var arr []pool.Upstream
@@ -219,26 +201,18 @@ func NewStratum(cfg *pool.Config) *StratumServer {
 					var diff big.Int
 					diff.SetUint64(currentWork.Difficulty)
 
-					//prevBlock, getHashERR := v.GetBlockByHash(currentWork.Prev_Hash)
 					prevBlock, getHashERR := v.GetLastBlockHeader()
 
 					if getHashERR != nil {
 						log.Printf("[Stratum] Error while retrieving block %s from node: %v", currentWork.Prev_Hash, getHashERR)
 					} else {
 						lastBlock := prevBlock.BlockHeader
-						//log.Printf("lastBlock: %v, height: %v", lastBlock, currentWork.Height)
-						//log.Printf("diff: %v, height: %v, timestamp: %v, reward: %v, hash: %v", lastBlock.Difficulty, lastBlock.Height, lastBlock.Timestamp, lastBlock.Reward, lastBlock.Hash)
-
-						//writeLBErr := stratum.backend.WriteLastBlockState(cfg.Coin, lastBlock.Difficulty, lastBlock.Height, int64(lastBlock.Timestamp), int64(lastBlock.Reward), lastBlock.Hash)
 
 						lastblockDB := &LastBlock{Difficulty: lastBlock.Difficulty, Height: lastBlock.Height, Timestamp: int64(lastBlock.Timestamp), Reward: int64(lastBlock.Reward), Hash: lastBlock.Hash}
 						lastblockErr := stratum.gravitonDB.WriteLastBlock(lastblockDB)
 						if lastblockErr != nil {
 							log.Printf("[Stratum] Graviton DB err: %v", lastblockErr)
 						}
-
-						//err2 := stratum.backend.WriteNodeState(cfg.Coin, int64(currentWork.Height), &diff)
-						//_, _ = writeLBErr, err2
 					}
 
 					_, err := v.UpdateInfo()
@@ -253,7 +227,6 @@ func NewStratum(cfg *pool.Config) *StratumServer {
 				poll(current)
 
 				// Write miner stats
-				//log.Printf("[Stratum] Storing miner stats")
 				err := Graviton_backend.WriteMinerStats(stratum.miners, stratum.hashrateExpiration)
 				if err != nil {
 					log.Printf("[Stratum] Err storing miner stats: %v", err)
@@ -283,7 +256,6 @@ func NewEndpoint(cfg *pool.Port) *Endpoint {
 	if err != nil {
 		log.Fatalf("[Stratum] Can't seed with random bytes: %v", err)
 	}
-	//log.Printf("[NewEndpoint] e.config.Difficulty: %v", e.config.Difficulty)
 	e.targetHex = util.GetTargetHex(e.config.Difficulty)
 	e.difficulty = big.NewInt(e.config.Difficulty)
 	return e
@@ -295,7 +267,6 @@ func (s *StratumServer) Listen() {
 	for _, port := range s.config.Stratum.Ports {
 		go func(cfg pool.Port) {
 			e := NewEndpoint(&cfg)
-			//log.Printf("[s.Listen] NewEndpoint: %v", cfg)
 			e.Listen(s)
 		}(port)
 	}
@@ -330,7 +301,6 @@ func (e *Endpoint) Listen(s *StratumServer) {
 		VarDiff := &VarDiff{}
 
 		cs := &Session{conn: conn, ip: ip, enc: json.NewEncoder(conn), endpoint: e, VarDiff: VarDiff}
-		//log.Printf("[e.Listen] Listen: %v", cs)
 		n++
 
 		accept <- n
@@ -369,7 +339,6 @@ func (s *StratumServer) handleClient(cs *Session, e *Endpoint) {
 				break
 			}
 			s.setDeadline(cs.conn)
-			//log.Printf("[s.handleClient] handleMessage: s: %v, e: %v, req: %v", s, e, req)
 			err = cs.handleMessage(s, e, &req)
 			if err != nil {
 				break
@@ -399,7 +368,6 @@ func (cs *Session) handleMessage(s *StratumServer, e *Endpoint, req *JSONRpcReq)
 		var params LoginParams
 
 		err := json.Unmarshal(*req.Params, &params)
-		//fmt.Printf("[login] %+v\n", params)
 		if err != nil {
 			log.Println("[Stratum] Unable to parse params")
 			return err
@@ -412,7 +380,6 @@ func (cs *Session) handleMessage(s *StratumServer, e *Endpoint, req *JSONRpcReq)
 	case "getjob":
 		var params GetJobParams
 		err := json.Unmarshal(*req.Params, &params)
-		//fmt.Printf("[getJob] %+v\n", params)
 		if err != nil {
 			log.Println("[Stratum] Unable to parse params")
 			return err
@@ -425,7 +392,6 @@ func (cs *Session) handleMessage(s *StratumServer, e *Endpoint, req *JSONRpcReq)
 	case "submit":
 		var params SubmitParams
 		err := json.Unmarshal(*req.Params, &params)
-		//fmt.Printf("[submit] %+v\n", params)
 		if err != nil {
 			log.Println("[Stratum] Unable to parse params")
 			return err
@@ -487,24 +453,9 @@ func (s *StratumServer) removeSession(cs *Session) {
 	delete(s.sessions, cs)
 }
 
-/*
-// Unused atm
-func (s *StratumServer) isActive(cs *Session) bool {
-	s.sessionsMu.RLock()
-	defer s.sessionsMu.RUnlock()
-	_, exist := s.sessions[cs]
-	return exist
-}*/
-
 func (s *StratumServer) registerMiner(miner *Miner) {
 	s.miners.Set(miner.Id, miner)
 }
-
-/*
-// Unused atm
-func (s *StratumServer) removeMiner(id string) {
-	s.miners.Remove(id)
-}*/
 
 func (s *StratumServer) currentBlockTemplate() *BlockTemplate {
 	if t := s.blockTemplate.Load(); t != nil {
