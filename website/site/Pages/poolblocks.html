@@ -132,7 +132,14 @@
 
         function formatStatus(orphaned){
             var toGo = lastStats.config.unlockDepth - (lastStats.lastblock.Height - block.height);
-            block.maturity = toGo < 1 ? '' : (toGo + ' to go');
+            //block.maturity = toGo < 1 ? '' : (toGo + ' to go');
+            if (toGo > 1) {
+                block.maturity = toGo + ' to go';
+            } else if (toGo == 1) {
+                block.maturity = "<i class='fa fa-spinner fa-spin'></i>";
+            } else if (toGo <= 0) {
+                block.maturity = "<i class='fa fa-unlock-alt'></i>";
+            }
 
             if(block.maturity != '')
             {
