@@ -331,7 +331,8 @@ func (u *BlockUnlocker) calculateRewardsGrav(s *StratumServer, block *BlockDataG
 		rewards[block.Address] += int64(block.Reward)
 		return revenue, minersProfit, poolProfit, rewards, nil
 	} else {
-		shares, totalroundshares, err = Graviton_backend.GetRoundShares(block.RoundHeight, block.Nonce)
+		shares, totalroundshares, err = Graviton_backend.GetRoundShares(block.RoundHeight)
+		log.Printf("[Unlocker-calculateRewardsGrav] [round shares] shares: %v, totalroundshares: %v", shares, totalroundshares)
 		if err != nil {
 			return nil, nil, nil, nil, err
 		}

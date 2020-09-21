@@ -90,12 +90,13 @@ type BlocksFound struct {
 }
 
 type MinerPayments struct {
-	Login  string
-	TxHash string
-	TxKey  string
-	TxFee  uint64
-	Mixin  uint64
-	Amount uint64
+	Login     string
+	TxHash    string
+	TxKey     string
+	TxFee     uint64
+	Mixin     uint64
+	Amount    uint64
+	Timestamp int64
 }
 
 type ProcessedPayments struct {
@@ -303,6 +304,14 @@ func (g *GravitonStore) WriteImmatureBlock(block *BlockDataGrav) error {
 	// Add to immature store
 	immatureBlock := block
 	immatureBlock.BlockState = "immature"
+
+	// If block is not solo, set totalShares.
+	// TODO: Configure share tracking for solo as well.
+	if !block.Solo {
+		_, totalShares, _ := g.GetRoundShares(block.Height)
+		immatureBlock.TotalShares = totalShares
+	}
+
 	//log.Printf("[Graviton] Adding block to immature store: %v", immatureBlock)
 	err := g.WriteBlocks(immatureBlock, "immature")
 	if err != nil {
@@ -323,6 +332,13 @@ func (g *GravitonStore) WriteMaturedBlocks(block *BlockDataGrav) error {
 	// Add to matured store
 	maturedBlock := block
 	maturedBlock.BlockState = "matured"
+
+	// If block is not solo, set totalShares.
+	// TODO: Configure share tracking for solo as well.
+	if !block.Solo {
+		_, totalShares, _ := g.GetRoundShares(block.Height)
+		maturedBlock.TotalShares = totalShares
+	}
 	//log.Printf("[Graviton] Adding block to matured store: %v", maturedBlock)
 	err := g.WriteBlocks(maturedBlock, "matured")
 	if err != nil {
@@ -545,13 +561,6 @@ func (g *GravitonStore) WriteProcessedPayments(info *MinerPayments) error {
 	tree.Put([]byte(key), newPaymentsProcessed)
 	graviton.Commit(tree)
 
-	v, err := tree.Get([]byte(key))
-	if v != nil {
-		var reply *ProcessedPayments
-		_ = json.Unmarshal(v, &reply)
-		//log.Printf("[Graviton] key=%v, value=%v\n", key, reply.MinerPayments)
-	}
-
 	return nil
 }
 
@@ -740,44 +749,58 @@ func (g *GravitonStore) GetMinerIDRegistrations() []*Miner {
 	return nil
 }
 
-func (g *GravitonStore) CompareMinerStats(storedMinerMap *MinersMap, storedMiner, miner *Miner, hashrateExpiration time.Duration) *MinersMap {
+func (g *GravitonStore) CompareMinerStats(storedMinerMap MinersMap, storedMiner, miner *Miner, hashrateExpiration time.Duration) MinersMap {
 	// Get existing, compare the roundShares of each...
 	// Check online etc.
 	// Compare storedMiner to miner input, update the stored miner with a few 'appends'
 	blockHeightArr := Graviton_backend.GetBlocksFoundByHeightArr()
 	updatedMiner := miner
 	var oldHashes bool
+	var oldHashesHeight int64
 
+	//log.Printf("[Graviton-CompareMinerStats] storedMiner: %v", storedMiner)
 	if storedMiner != nil {
+		//log.Printf("[Graviton-CompareMinerStats] blockHeightArr: %v", blockHeightArr)
 		if blockHeightArr != nil {
 			for height, solo := range blockHeightArr.Heights {
+				//log.Printf("[Graviton-CompareMinerStats] storedMiner.RoundHeight (%v) <= height (%v) && !solo (%v)", storedMiner.RoundHeight, height, solo)
 				if storedMiner.RoundHeight <= height && !solo {
 					// Miner round height is less than a pre-found block [usually happens for disconnected miners]. Reset counters
 					oldHashes = true
+					oldHashesHeight = height
 				}
 			}
 		}
 
+		//log.Printf("[Graviton-CompareMinerStats] !oldHashes (%v) && updatedMiner (%v) != nil", oldHashes, updatedMiner == nil)
 		if !oldHashes && updatedMiner != nil {
 			// In the event that the stored shares is greater than mem shares, stored shares = mem shares + stored shares (difference of)
+			//log.Printf("[Graviton-CompareMinerStats] storedMiner.RoundShares (%v) >= updatedMiner.RoundShares (%v)", storedMiner.RoundShares, updatedMiner.RoundShares)
 			if storedMiner.RoundShares >= updatedMiner.RoundShares { //|| storedMiner.RoundHeight <= updatedMiner.RoundHeight {
 				diff := storedMiner.RoundShares - updatedMiner.RoundShares
 				if diff < 0 {
 					diff = 0
 				}
+				//log.Printf("[Graviton-CompareMinerStats] Incrementing roundshares for %v from %v to %v", updatedMiner.Id, updatedMiner.RoundShares, updatedMiner.RoundShares+diff)
 				updatedMiner.RoundShares += diff
 			}
 		} else if oldHashes && updatedMiner == nil {
 			// If no current miner, but new round is defined, set roundShares to 0 since their stored shares are not counted anymore
 			updatedMiner := storedMiner
-			updatedMiner.RoundShares = 0
+			//log.Printf("[Graviton-CompareMinerStats] updatedMiner.RoundShares (%v) != 0", updatedMiner.RoundShares)
+			if updatedMiner.RoundShares != 0 {
+				//log.Printf("[Graviton-CompareMinerStats] Setting roundshares for %v to 0. roundShares: %v, roundshares[%v]: %v", updatedMiner.Id, updatedMiner.RoundShares, oldHashesHeight, updatedMiner.LastRoundShares[oldHashesHeight])
+				updatedMiner.storeShare(0, oldHashesHeight)
+				//log.Printf("[Graviton-CompareMinerStats] Setting roundshares for %v to 0. roundShares: %v, roundshares[%v]: %v", updatedMiner.Id, updatedMiner.RoundShares, oldHashesHeight, updatedMiner.LastRoundShares[oldHashesHeight])
+				updatedMiner.RoundShares = 0
+			}
 
 			// Remove old shares from backend - older than hashrate expiration of pool config
 			now := util.MakeTimestamp() / 1000
 			hashExpiration := int64(hashrateExpiration / time.Second)
-			for k, v := range updatedMiner.Shares {
+			for k, _ := range updatedMiner.Shares {
 				if k < now-hashExpiration {
-					log.Printf("[Graviton] Deleting shares older than %v. Timestamp: %v, Value: %v", hashExpiration, k, v)
+					//log.Printf("[Graviton-CompareMinerStats] Deleting shares older than %v. Timestamp: %v, Value: %v", hashExpiration, k, v)
 					delete(updatedMiner.Shares, k)
 				}
 			}
@@ -848,13 +871,13 @@ func (g *GravitonStore) WriteMinerStats(miners MinersMap, hashrateExpiration tim
 	return nil
 }
 
-func (g *GravitonStore) GetAllMinerStats() *MinersMap {
+func (g *GravitonStore) GetAllMinerStats() MinersMap {
 	store := g.DB
 	ss, _ := store.LoadSnapshot(0)  // load most recent snapshot
 	tree, _ := ss.GetTree(g.DBTree) // use or create tree named by poolhost in config
 	key := "miners:stats"
 
-	var reply *MinersMap
+	var reply MinersMap
 
 	//log.Printf("[Graviton] Retrieving stored miners map...")
 
@@ -888,7 +911,7 @@ func (g *GravitonStore) GetMinerStatsByID(minerID string) *Miner {
 	return nil
 }
 
-func (g *GravitonStore) GetRoundShares(roundHeight int64, nonce string) (map[string]int64, int64, error) {
+func (g *GravitonStore) GetRoundShares(roundHeight int64) (map[string]int64, int64, error) {
 
 	// Get all of the registered miners
 	minerIDRegistrations := g.GetMinerIDRegistrations()
@@ -898,24 +921,42 @@ func (g *GravitonStore) GetRoundShares(roundHeight int64, nonce string) (map[str
 	// Loop through registered miners looking for
 	for _, value := range minerIDRegistrations {
 		miner := g.GetMinerStatsByID(value.Id)
+		log.Printf("[Graviton-GetRoundShares] Adding to totalRoundShares (%v) for miner %v for height %v of value %v", totalRoundShares, miner.Id, roundHeight, miner.LastRoundShares[roundHeight])
+
+		// If the round height is the same as the miner's round height (meaning they submitted hashes during this height [stopgap for backend write delays]), then update the lastround shares
+		log.Printf("[Graviton-GetRoundShares] miner.RoundHeight (%v) == roundHeight (%v) && miner.LastRoundShares[%v] (%v) == 0 && miner.RoundShares (%v) != 0", miner.RoundHeight, roundHeight, roundHeight, miner.LastRoundShares[roundHeight], miner.RoundShares)
+		if miner.RoundHeight == roundHeight && miner.LastRoundShares[roundHeight] == 0 && miner.RoundShares != 0 {
+			log.Printf("[Graviton-GetRoundShares] Adding miner.RoundShares (%v) to miner.LastRoundShares[%v] (%v) for a total of %v", miner.RoundShares, roundHeight, miner.LastRoundShares[roundHeight], miner.LastRoundShares[roundHeight]+miner.RoundShares)
+			miner.LastRoundShares[roundHeight] += miner.RoundShares
+		}
 		result[miner.Address] += miner.LastRoundShares[roundHeight]
 		totalRoundShares += miner.LastRoundShares[roundHeight]
+		log.Printf("[Graviton-GetRoundShares] totalRoundShares: %v, miner.LastRoundShares[%v]: %v", totalRoundShares, roundHeight, miner.LastRoundShares[roundHeight])
 	}
 
 	return result, totalRoundShares, nil
 }
 
-func (g *GravitonStore) NextRound(roundHeight int64, miners MinersMap) error {
+func (g *GravitonStore) NextRound(roundHeight int64) MinersMap {
 	registeredMiners := g.GetMinerIDRegistrations()
+	miners := g.GetAllMinerStats()
 
 	for _, value := range registeredMiners {
 		currMiner, _ := miners.Get(value.Id)
 		if currMiner != nil {
 			// Run storeShare function, will update roundshares and lastroundshares w/ height
-			currMiner.storeShare(0, roundHeight)
-			log.Printf("[Graviton] Setting %v roundShares to %v and lastroundshares[%v] to %v", currMiner.Id, currMiner.RoundShares, roundHeight, currMiner.LastRoundShares[roundHeight])
+			//currMiner.storeShare(0, roundHeight)
+			log.Printf("[Graviton-NextRound] Setting %v roundShares (%v) to 0 and lastroundshares[%v] from %v to roundShares (%v)", currMiner.Id, currMiner.RoundShares, roundHeight, currMiner.LastRoundShares[roundHeight], currMiner.RoundShares)
+			currMiner.LastRoundShares[roundHeight] += currMiner.RoundShares
+			currMiner.RoundShares = 0
+		}
+		miners.Set(value.Id, currMiner)
+
+		t, _ := miners.Get(value.Id)
+		if t != nil {
+			log.Printf("[Graviton-NextRound] %v : roundShares (%v) and lastroundshares[%v] (%v)", t.Id, t.RoundShares, roundHeight, t.LastRoundShares[roundHeight])
 		}
 	}
 
-	return nil
+	return miners
 }

@@ -585,29 +585,6 @@ fieldset[disabled] .btn-primary.active {
 }
 
 /* Bootstrap Tables */
-.table>thead>tr>td.success,
-.table>tbody>tr>td.success,
-.table>tfoot>tr>td.success,
-.table>thead>tr>th.success,
-.table>tbody>tr>th.success,
-.table>tfoot>tr>th.success,
-.table>thead>tr.success>td,
-.table>tbody>tr.success>td,
-.table>tfoot>tr.success>td,
-.table>thead>tr.success>th,
-.table>tbody>tr.success>th,
-.table>tfoot>tr.success>th {
-	background-color: #000000;
-}
-
-.table-hover>tbody>tr>td.success:hover,
-.table-hover>tbody>tr>th.success:hover,
-.table-hover>tbody>tr.success:hover>td,
-.table-hover>tbody>tr:hover>.success,
-.table-hover>tbody>tr.success:hover>th {
-	background-color: #000000;
-}
-
 .table>thead>tr>th {
 	color: #014e71;
 	border-bottom-color: #014e71;
@@ -1145,106 +1122,6 @@ table th.sort:hover {
 	#workerPayments table .col4 {
 		width: 70px;
 	}
-}
-
-/* Pool Blocks */
-#blocksStats {
-	margin-top: 20px;
-}
-
-#blocksStats .infoBox {
-	margin-bottom: 15px;
-}
-
-#blocksStats .luckGood {
-	color: #5eff5e;
-}
-
-#blocksStats .luckBad {
-	color: red;
-}
-
-#blocksStats .luckMid {
-	color: #FFF500;
-}
-
-#blocksReport tr>td {
-	vertical-align: middle;
-	font-family: 'Inconsolata', monospace;
-	font-size: 0.95em;
-}
-
-#blocksReport table .col2,
-#blocksReport table .col3,
-#blocksReport table .col4,
-#blocksReport table .col6,
-#blocksReport table .col7 {
-	text-align: center;
-}
-
-@media (min-width: 768px) {
-	#blocksReport table {
-		table-layout: fixed;
-	}
-
-	#blocksReport table th {
-		white-space: nowrap;
-	}
-
-	#blocksReport table .col1 {
-		width: 190px;
-	}
-
-	#blocksReport table .col2 {
-		width: 80px;
-	}
-
-	#blocksReport table .col3 {
-		width: 90px;
-	}
-
-	#blocksReport table .col4 {
-		width: 120px;
-	}
-
-	#blocksReport table .col5 {
-		overflow: hidden;
-		text-overflow: ellipsis;
-	}
-
-	#blocksReport table .col6 {
-		width: 55px;
-	}
-
-	#blocksReport table .col7 {
-		width: 80px;
-	}
-}
-
-#blocksReport .pending td {
-	background-color: rgba(255, 255, 255, .3);
-}
-
-#blocksReport .unlocked td {
-	background-color: rgba(0, 255, 0, .1);
-}
-
-#blocksReport .orphaned td {
-	background-color: rgba(255, 0, 0, .1);
-}
-
-#blocksReport .luckGood,
-#blocksReport .unlocked .col7 {
-	color: #17a600;
-}
-
-#blocksReport .luckBad,
-#blocksReport .orphaned .col7 {
-	color: #a60000;
-}
-
-#blocksReport .luckMid {
-	color: #df9d00;
 }
 
 /* Payments */

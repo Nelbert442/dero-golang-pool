@@ -152,6 +152,10 @@ func NewStratum(cfg *pool.Config) *StratumServer {
 	checkTimer := time.NewTimer(checkIntv)
 	log.Printf("[Stratum] Set upstream check interval every %v", checkIntv)
 
+	minerStatsIntv, _ := time.ParseDuration("2s")
+	minerStatsTimer := time.NewTimer(minerStatsIntv)
+	log.Printf("[Stratum] Set upstream check interval every %v", checkIntv)
+
 	infoIntv, _ := time.ParseDuration(cfg.UpstreamCheckInterval)
 	infoTimer := time.NewTimer(infoIntv)
 	// TODO: Separate out individual config intervals for miner stats + lastblock stats
@@ -194,6 +198,20 @@ func NewStratum(cfg *pool.Config) *StratumServer {
 	go func() {
 		for {
 			select {
+			case <-minerStatsTimer.C:
+				// Write miner stats
+				err := Graviton_backend.WriteMinerStats(stratum.miners, stratum.hashrateExpiration)
+				if err != nil {
+					log.Printf("[Stratum] Err storing miner stats: %v", err)
+				}
+				minerStatsTimer.Reset(minerStatsIntv)
+			}
+		}
+	}()
+
+	go func() {
+		for {
+			select {
 			case <-infoTimer.C:
 				currentWork := stratum.currentWork()
 				poll := func(v *rpc.RPCClient) {
@@ -225,12 +243,6 @@ func NewStratum(cfg *pool.Config) *StratumServer {
 				}
 				current := stratum.rpc()
 				poll(current)
-
-				// Write miner stats
-				err := Graviton_backend.WriteMinerStats(stratum.miners, stratum.hashrateExpiration)
-				if err != nil {
-					log.Printf("[Stratum] Err storing miner stats: %v", err)
-				}
 
 				// Async rpc call to not block on rpc timeout, ignoring current
 				go func() {

@@ -1,0 +1,239 @@
+<!-- Block table -->
+<div class="blocksStatHolder">
+	<div>Total Blocks Mined: <span id="blocksTotal"></span></div>
+	<div>Maturity Depth Requirement: <span id="blocksMaturityCount"></span></div>
+</div>
+
+<hr>
+
+<div class="table-responsive">
+	<table class="table table-hover">
+		<thead>
+		<tr>
+			<th><i class="fa fa-clock-o"></i> Time Found</th>
+			<th><i class="fa fa-money"></i> Reward</th>
+			<th><i class="fa fa-bars"></i> Height</th>
+			<th><i class="fa fa-unlock-alt"></i> Difficulty</th>
+            <th><i class="fa fa-paw"></i> Block Hash</th>
+            <th><i class="fa fa-paw">Miner</th>
+			<th><i class="fa fa-star-half-o"></i> Effort</th>
+			<th><i class="fa fa-star-half-o"></i> Status</th>
+		</tr>
+		</thead>
+		<tbody id="blocks_rows">
+
+		</tbody>
+	</table>
+</div>
+
+<!--
+<p class="text-center">
+	<button type="button" class="btn btn-default" id="loadMoreBlocks">Load More Blocks</button>
+</p>
+-->
+
+<script>
+    currentPage = {
+        destroy: function(){
+            if (xhrGetBlocks) xhrGetBlocks.abort();
+        },
+        update: function(){
+            if (lastStats.blocksTotal != null) {
+                updateText('blocksTotal', lastStats.blocksTotal.toString());
+            } else { updateText('blocksTotal', "0"); }
+
+            if (lastStats.config.unlockDepth != null) {
+                updateText('blocksMaturityCount', lastStats.config.unlockDepth.toString());
+            } else { updateText('blocksMaturityCount', "0"); }
+        
+            if (lastStats.immature != null) {
+                renderBlocks(lastStats.immature);
+            }
+            if (lastStats.matured != null) {
+                renderBlocks(lastStats.matured);
+            }
+        }
+    };
+
+    var xhrGetBlocks;
+    $('#loadMoreBlocks').click(function(){
+        if (xhrGetBlocks) xhrGetBlocks.abort();
+        xhrGetBlocks = $.ajax({
+            url: api + '/stats',
+            data: {
+                height: $('#blocks_rows').children().last().data('height')
+            },
+            dataType: 'json',
+            cache: 'false',
+            success: function(data){
+                renderBlocks(data);
+            }
+        });
+    });
+
+    function parseBlock(serializedBlock){
+        var block = {
+            height: serializedBlock.Height,
+            hash: serializedBlock.Hash,
+            address: serializedBlock.Address,
+            time: serializedBlock.Timestamp,
+            difficulty: serializedBlock.Difficulty,
+            shares: serializedBlock.TotalShares,
+            orphaned: serializedBlock.Orphan,
+            reward: serializedBlock.Reward,
+            solo: serializedBlock.Solo
+        };
+
+        var toGo = lastStats.config.unlockDepth - (lastStats.lastblock.height - block.height);
+        block.maturity = toGo < 1 ? '' : (toGo + ' to go');
+
+        switch (block.orphaned){
+            case false:
+                block.status = 'unlocked';
+                break;
+            case true:
+                block.status = 'orphaned';
+                break;
+            default:
+                block.status = 'pending';
+                break;
+        }
+
+        return block;
+    }
+
+    function getBlockRowElement(block, jsonString){
+
+	    function formatLuck(difficulty, shares, solo) {
+			    var percent = Math.round(shares / difficulty * 100);
+                /*
+                if(!percent) {
+				      return '<span class="luckGood">?</span>';
+			    }
+                else */
+                if(percent <= 100) {
+                    switch (solo){
+                        case true:
+                            return '<span class="fa fa-user luckGood" title="Solo Mined"></span>';
+                        default:
+                            return '<span class="luckBad">' + percent + '%</span>';
+
+                    }
+				      return '<span class="luckGood">' + percent + '%</span>';
+			    }
+			    else {
+				      return '<span class="luckBad">' + percent + '%</span>';
+			    }
+	    }
+
+	    function formatBlockLink(hash, height){
+            return '<a target="explorer" href="' + getBlockchainUrl(hash) + '">' + hash + '</a>';
+        }
+
+        function formatStatus(orphaned){
+            var toGo = lastStats.config.unlockDepth - (lastStats.lastblock.Height - block.height);
+            block.maturity = toGo < 1 ? '' : (toGo + ' to go');
+
+            if(block.maturity != '')
+            {
+                return block.maturity
+            }
+
+            if(orphaned == false)
+            {
+                
+                return '<span class="luckGood"><i class="fa fa-unlock-alt"></i></span>';
+            }
+            else
+            {
+                return '<span class="luckBad"><i class="fa fa-times"></i></span>';
+            }
+        }
+
+        function formatBlockReward(reward, blockStatus){
+            var blockReward = (reward / lastStats.config.coinUnits).toFixed(4)
+
+            if(blockStatus.includes("to go"))
+            {
+                return "Waiting..."
+            }
+
+            if(blockReward == 'NaN')
+            {
+                return 0
+            }
+            else
+            {
+                return blockReward
+            }
+        }
+
+        var blockStatusClasses = {
+            'pending': '',
+            'unlocked': 'success',
+            'orphaned': 'orphaned'
+        };
+
+        var row = document.createElement('tr');
+        row.setAttribute('data-json', jsonString);
+        row.setAttribute('data-height', block.height);
+        row.setAttribute('id', 'blockRow' + block.height);
+        row.setAttribute('title', block.status);
+        row.className = blockStatusClasses[block.status];
+
+        var blockStatus = formatStatus(block.orphaned)
+
+        var columns =
+            '<td>' + formatDate(block.time) + '</td>' +
+            '<td>' + formatBlockReward(block.reward, blockStatus) + '</td>' +
+            '<td>' + block.height + '</td>' +
+            '<td>' + block.difficulty + '</td>' +
+            '<td>' + formatBlockLink(block.hash, block.height) + '</td>' +
+            '<td>' + block.address + '</td>' +
+            '<td>' + formatLuck(block.difficulty, block.shares, block.solo) + '</td>' +
+            '<td>' + blockStatus + '</td>';
+
+        row.innerHTML = columns;
+
+        return row;
+    }
+
+
+    function renderBlocks(blocksResults){
+
+        var $blocksRows = $('#blocks_rows');
+
+        for (var i = 0; i < blocksResults.length; i++){
+
+            var block = parseBlock(blocksResults[i]);
+
+            var blockJson = JSON.stringify(block);
+
+            var existingRow = document.getElementById('blockRow' + block.height);
+
+            if (existingRow && existingRow.getAttribute('data-json') !== blockJson){
+                $(existingRow).replaceWith(getBlockRowElement(block, blockJson));
+            }
+            else if (!existingRow){
+
+                var blockElement = getBlockRowElement(block, blockJson);
+
+                var inserted = false;
+                var rows = $blocksRows.children().get();
+
+                for (var f = 0; f < rows.length; f++) {
+                    var bHeight = parseInt(rows[f].getAttribute('data-height'));
+                    if (bHeight < block.height){
+                        inserted = true;
+                        $(rows[f]).before(blockElement);
+                        break;
+                    }
+                }
+                if (!inserted)
+                    $blocksRows.append(blockElement);
+            }
+
+        }
+    }
+
+</script>

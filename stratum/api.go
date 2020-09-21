@@ -29,9 +29,11 @@ type ApiServer struct {
 }
 
 type ApiPayments struct {
-	Payees uint64
-	Mixin  uint64
-	Amount uint64
+	Hash      string
+	Timestamp int64
+	Payees    uint64
+	Mixin     uint64
+	Amount    uint64
 }
 
 type ApiMiner struct {
@@ -46,15 +48,16 @@ type ApiMiner struct {
 	Hashrate      int64
 	Offline       bool
 	sync.RWMutex
-	Id     string
-	IsSolo bool
+	Id      string
+	Address string
+	IsSolo  bool
 }
 
 type ApiBlocks struct {
+	Hash        string
 	Address     string
 	Height      int64
 	Orphan      bool
-	Nonce       string
 	Timestamp   int64
 	Difficulty  int64
 	TotalShares int64
@@ -126,29 +129,46 @@ func notFound(writer http.ResponseWriter, _ *http.Request) {
 func (apiServer *ApiServer) collectStats() {
 	//start := time.Now()
 	stats := make(map[string]interface{})
+	var numCandidateBlocks, numImmatureBlocks, numMaturedBlocks int
 
 	// Build last block stats
 	stats["lastblock"] = apiServer.backend.GetLastBlock()
 
 	// Build Payments stats
 	processedPayments := apiServer.backend.GetProcessedPayments()
-	apiPayments := apiServer.convertPaymentsResults(processedPayments)
-	stats["payments"] = apiPayments
+	if processedPayments != nil {
+		apiPayments, totalPayments, totalMinersPaid := apiServer.convertPaymentsResults(processedPayments)
+		stats["payments"] = apiPayments
+		stats["totalPayments"] = totalPayments
+		stats["totalMinersPaid"] = totalMinersPaid
+	}
 
 	// Build found block stats
 	candidateBlocks := apiServer.backend.GetBlocksFound("candidate")
-	apiCandidates := apiServer.convertBlocksResults(candidateBlocks.MinedBlocks)
-	stats["candidates"] = apiCandidates
-	stats["candidatesTotal"] = len(candidateBlocks.MinedBlocks)
+	if candidateBlocks != nil {
+		apiCandidates := apiServer.convertBlocksResults(candidateBlocks.MinedBlocks)
+		stats["candidates"] = apiCandidates
+		numCandidateBlocks = len(candidateBlocks.MinedBlocks)
+	}
+
 	immatureBlocks := apiServer.backend.GetBlocksFound("immature")
-	apiImmature := apiServer.convertBlocksResults(immatureBlocks.MinedBlocks)
-	stats["immature"] = apiImmature
-	stats["immatureTotal"] = len(immatureBlocks.MinedBlocks)
+	if immatureBlocks != nil {
+		apiImmature := apiServer.convertBlocksResults(immatureBlocks.MinedBlocks)
+		stats["immature"] = apiImmature
+		numImmatureBlocks = len(immatureBlocks.MinedBlocks)
+	}
+
 	maturedBlocks := apiServer.backend.GetBlocksFound("matured")
-	apiMatured := apiServer.convertBlocksResults(maturedBlocks.MinedBlocks)
-	stats["matured"] = apiMatured
-	stats["maturedTotal"] = len(maturedBlocks.MinedBlocks)
-	stats["blocksTotal"] = len(candidateBlocks.MinedBlocks) + len(immatureBlocks.MinedBlocks) + len(maturedBlocks.MinedBlocks)
+	if maturedBlocks != nil {
+		apiMatured := apiServer.convertBlocksResults(maturedBlocks.MinedBlocks)
+		stats["matured"] = apiMatured
+		numMaturedBlocks = len(maturedBlocks.MinedBlocks)
+	}
+
+	stats["candidatesTotal"] = numCandidateBlocks
+	stats["immatureTotal"] = numImmatureBlocks
+	stats["maturedTotal"] = numMaturedBlocks
+	stats["blocksTotal"] = numCandidateBlocks + numImmatureBlocks + numMaturedBlocks
 
 	// Build miner stats
 	minerStats := apiServer.backend.GetAllMinerStats()
@@ -162,44 +182,77 @@ func (apiServer *ApiServer) collectStats() {
 	//log.Printf("Stats collection finished %s", time.Since(start))
 }
 
-func (apiServer *ApiServer) convertPaymentsResults(processedPayments *ProcessedPayments) map[string]*ApiPayments {
+func (apiServer *ApiServer) convertPaymentsResults(processedPayments *ProcessedPayments) ([]*ApiPayments, int64, int64) {
 	apiPayments := make(map[string]*ApiPayments)
+	var paymentsArr []*ApiPayments
+	var totalPayments int64
+	var totalMinersPaid int
+	var tempMinerArr []string
+
 	for _, value := range processedPayments.MinerPayments {
 		reply := &ApiPayments{}
+
+		// Check through for duplicate addresses to populate totalMinersPaid
+		var mExist bool
+		for _, m := range tempMinerArr {
+			if value.Login == m {
+				mExist = true
+			}
+		}
+		if !mExist {
+			tempMinerArr = append(tempMinerArr, value.Login)
+		}
+
 		// Check to ensure apiPayments has items
 		if len(apiPayments) > 0 {
 			// Check to ensure value.TxHash exists within apiPayments
 			v, found := apiPayments[value.TxHash]
 			if found {
 				// Append details such as amount, payees, etc.
+				reply = apiPayments[value.TxHash]
 				reply.Amount = v.Amount + value.Amount
 				reply.Payees = v.Payees + 1
 				reply.Mixin = value.Mixin
 			} else {
-				reply = &ApiPayments{Mixin: value.Mixin, Amount: value.Amount, Payees: 1}
+				reply = &ApiPayments{Hash: value.TxHash, Timestamp: value.Timestamp, Mixin: value.Mixin, Amount: value.Amount, Payees: 1}
+				totalPayments++
 			}
 		} else {
-			reply = &ApiPayments{Mixin: value.Mixin, Amount: value.Amount, Payees: 1}
+			reply = &ApiPayments{Hash: value.TxHash, Timestamp: value.Timestamp, Mixin: value.Mixin, Amount: value.Amount, Payees: 1}
+			totalPayments++
 		}
 		apiPayments[value.TxHash] = reply
 	}
-	return apiPayments
+	totalMinersPaid = len(tempMinerArr)
+
+	for p := range apiPayments {
+		paymentsArr = append(paymentsArr, apiPayments[p])
+	}
+
+	return paymentsArr, totalPayments, int64(totalMinersPaid)
 }
 
-func (apiServer *ApiServer) convertBlocksResults(minedBlocks []*BlockDataGrav) map[string]*ApiBlocks {
+func (apiServer *ApiServer) convertBlocksResults(minedBlocks []*BlockDataGrav) []*ApiBlocks {
 	apiBlocks := make(map[string]*ApiBlocks)
+	var blocksArr []*ApiBlocks
 	for _, value := range minedBlocks {
 		reply := &ApiBlocks{}
+		trimmedAddr := value.Address[0:7] + "..." + value.Address[len(value.Address)-5:len(value.Address)]
 		// Check to ensure apiBlocks has items
-		reply = &ApiBlocks{Address: value.Address, Height: value.Height, Orphan: value.Orphan, Nonce: value.Nonce, Timestamp: value.Timestamp, Difficulty: value.Difficulty, TotalShares: value.TotalShares, Reward: value.Reward, Solo: value.Solo}
+		reply = &ApiBlocks{Hash: value.Hash, Address: trimmedAddr, Height: value.Height, Orphan: value.Orphan, Timestamp: value.Timestamp, Difficulty: value.Difficulty, TotalShares: value.TotalShares, Reward: value.Reward, Solo: value.Solo}
 		apiBlocks[value.Hash] = reply
 	}
-	return apiBlocks
+	for b := range apiBlocks {
+		blocksArr = append(blocksArr, apiBlocks[b])
+	}
+
+	return blocksArr
 }
 
-func (apiServer *ApiServer) convertMinerResults(miners *MinersMap) (map[string]*ApiMiner, int64, int64, int64, int64) {
+func (apiServer *ApiServer) convertMinerResults(miners MinersMap) ([]*ApiMiner, int64, int64, int64, int64) {
 	registeredMiners := apiServer.backend.GetMinerIDRegistrations()
 	apiMiners := make(map[string]*ApiMiner)
+	var minersArr []*ApiMiner
 	var poolHashrate int64
 	var soloHashrate int64
 	var totalPoolMiners int64
@@ -207,71 +260,77 @@ func (apiServer *ApiServer) convertMinerResults(miners *MinersMap) (map[string]*
 
 	for _, value := range registeredMiners {
 		reply := &ApiMiner{}
-		currMiner, _ := miners.Get(value.Id)
-		if currMiner != nil {
-			var tempDuration time.Duration
-			now := util.MakeTimestamp() / 1000
-			var windowHashes bool
-			// If hashrateExpiration is set to -1, then keep data forever so no need to filter out old data
-			if apiServer.stratum.hashrateExpiration == tempDuration {
-				windowHashes = true
-			} else {
-				maxLastBeat := now - int64(apiServer.stratum.hashrateExpiration/time.Second)
-				windowHashes = currMiner.LastBeat >= maxLastBeat
-			}
-			if currMiner != nil && windowHashes {
-				var Offline bool
-				var Hashrate int64
-				var ID string
-
-				// Set miner to offline
-				if currMiner.LastBeat < (now - int64(apiServer.stratum.estimationWindow/time.Second)/2) {
-					Offline = true
-				}
-
-				// Get miner hashrate (updates api side for accurate representation, even if miner has been offline)
-				if !Offline {
-					Hashrate = currMiner.getHashrate(apiServer.stratum.estimationWindow, apiServer.stratum.hashrateExpiration)
-				}
-
-				// Utilizing extracted workid value, could be leveraging workid instead of full id value for stats [later worker stats on a per-address layer potentially]
-				if currMiner.WorkID != "" {
-					ID = currMiner.WorkID
+		if miners != nil {
+			currMiner, _ := miners.Get(value.Id)
+			if currMiner != nil {
+				var tempDuration time.Duration
+				now := util.MakeTimestamp() / 1000
+				var windowHashes bool
+				// If hashrateExpiration is set to -1, then keep data forever so no need to filter out old data
+				if apiServer.stratum.hashrateExpiration == tempDuration {
+					windowHashes = true
 				} else {
-					ID = currMiner.Id
+					maxLastBeat := now - int64(apiServer.stratum.hashrateExpiration/time.Second)
+					windowHashes = currMiner.LastBeat >= maxLastBeat
 				}
+				if currMiner != nil && windowHashes {
+					var Offline bool
+					var Hashrate int64
+					var ID string
 
-				// Generate struct for miner stats
-				reply = &ApiMiner{
-					LastBeat:      currMiner.LastBeat,
-					StartedAt:     currMiner.StartedAt,
-					ValidShares:   currMiner.ValidShares,
-					InvalidShares: currMiner.InvalidShares,
-					StaleShares:   currMiner.StaleShares,
-					Accepts:       currMiner.Accepts,
-					Rejects:       currMiner.Rejects,
-					RoundShares:   currMiner.RoundShares,
-					Hashrate:      Hashrate,
-					Offline:       Offline,
-					Id:            ID,
-					IsSolo:        currMiner.IsSolo,
-				}
+					// Set miner to offline
+					if currMiner.LastBeat < (now - int64(apiServer.stratum.estimationWindow/time.Second)/2) {
+						Offline = true
+					}
 
-				apiMiners[ID] = reply
+					// Get miner hashrate (updates api side for accurate representation, even if miner has been offline)
+					if !Offline {
+						Hashrate = currMiner.getHashrate(apiServer.stratum.estimationWindow, apiServer.stratum.hashrateExpiration)
+					}
 
-				// Compound pool stats: solo hashrate/miners and pool hashrate/miners
-				if currMiner.IsSolo && !Offline {
-					soloHashrate += Hashrate
-					totalSoloMiners++
-				} else if !Offline {
-					poolHashrate += Hashrate
-					totalPoolMiners++
+					// Utilizing extracted workid value, could be leveraging workid instead of full id value for stats [later worker stats on a per-address layer potentially]
+					if currMiner.WorkID != "" {
+						ID = currMiner.WorkID
+					} else {
+						ID = currMiner.Id
+					}
+
+					// Generate struct for miner stats
+					reply = &ApiMiner{
+						LastBeat:      currMiner.LastBeat,
+						StartedAt:     currMiner.StartedAt,
+						ValidShares:   currMiner.ValidShares,
+						InvalidShares: currMiner.InvalidShares,
+						StaleShares:   currMiner.StaleShares,
+						Accepts:       currMiner.Accepts,
+						Rejects:       currMiner.Rejects,
+						RoundShares:   currMiner.RoundShares,
+						Hashrate:      Hashrate,
+						Offline:       Offline,
+						Id:            ID,
+						Address:       currMiner.Address,
+						IsSolo:        currMiner.IsSolo,
+					}
+
+					apiMiners[ID] = reply
+
+					// Compound pool stats: solo hashrate/miners and pool hashrate/miners
+					if currMiner.IsSolo && !Offline {
+						soloHashrate += Hashrate
+						totalSoloMiners++
+					} else if !Offline {
+						poolHashrate += Hashrate
+						totalPoolMiners++
+					}
 				}
 			}
 		}
 	}
+	for m := range apiMiners {
+		minersArr = append(minersArr, apiMiners[m])
+	}
 
-	return apiMiners, poolHashrate, totalPoolMiners, soloHashrate, totalSoloMiners
+	return minersArr, poolHashrate, totalPoolMiners, soloHashrate, totalSoloMiners
 }
 
 func (apiServer *ApiServer) GetConfigIndex() map[string]interface{} {
@@ -318,6 +377,8 @@ func (apiServer *ApiServer) StatsIndex(writer http.ResponseWriter, _ *http.Reque
 		reply["lastblock"] = stats["lastblock"]
 		reply["config"] = apiServer.GetConfigIndex()
 		reply["payments"] = stats["payments"]
+		reply["totalPayments"] = stats["totalPayments"]
+		reply["totalMinersPaid"] = stats["totalMinersPaid"]
 		reply["candidates"] = stats["candidates"]
 		reply["immature"] = stats["immature"]
 		reply["matured"] = stats["matured"]

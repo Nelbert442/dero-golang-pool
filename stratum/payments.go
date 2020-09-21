@@ -9,6 +9,7 @@ import (
 
 	"git.dero.io/Nelbert442/dero-golang-pool/pool"
 	"git.dero.io/Nelbert442/dero-golang-pool/rpc"
+	"git.dero.io/Nelbert442/dero-golang-pool/util"
 	"github.com/deroproject/derosuite/globals"
 	"github.com/deroproject/derosuite/walletapi"
 )
@@ -282,6 +283,7 @@ func (u *PayoutsProcessor) process(s *StratumServer) {
 			info.TxFee = txFee[0]
 			info.Mixin = u.config.Mixin
 			info.Amount = amount
+			info.Timestamp = util.MakeTimestamp() / 1000
 			infoErr := s.gravitonDB.WriteProcessedPayments(info)
 			if infoErr != nil {
 				log.Printf("[Payments] Graviton DB err: %v", infoErr)
@@ -357,6 +359,7 @@ func (u *PayoutsProcessor) process(s *StratumServer) {
 						info.TxFee = txFee[0]
 						info.Mixin = u.config.Mixin
 						info.Amount = amount
+						info.Timestamp = util.MakeTimestamp() / 1000
 						infoErr := s.gravitonDB.WriteProcessedPayments(info)
 						if infoErr != nil {
 							log.Printf("[Payments] Graviton DB err: %v", infoErr)
@@ -403,6 +406,7 @@ func (u *PayoutsProcessor) process(s *StratumServer) {
 					info.TxFee = txFee[0]
 					info.Mixin = u.config.Mixin
 					info.Amount = amount
+					info.Timestamp = util.MakeTimestamp() / 1000
 					infoErr := s.gravitonDB.WriteProcessedPayments(info)
 					if infoErr != nil {
 						log.Printf("[Payments] Graviton DB err: %v", infoErr)

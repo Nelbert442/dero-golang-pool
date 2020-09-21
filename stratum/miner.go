@@ -125,11 +125,11 @@ func (cs *Session) calcVarDiff(currDiff float64, s *StratumServer) int64 {
 
 	maxJump := s.config.Stratum.VarDiff.MaxJump / 100 * currDiff
 
-	// Prevent diff scale ups to be more than maxJump %. Scaling down is fine for large jumps for now (2x maxJump)
+	// Prevent diff scale ups to be more than maxJump %. Scaling down is fine for large jumps for now (1.25x maxJump)
 	if newDiff > currDiff && !(newDiff-maxJump <= currDiff) {
 		newDiff = currDiff + maxJump
-	} else if currDiff > newDiff && !(newDiff+(maxJump*2) >= currDiff) {
-		newDiff = currDiff - (maxJump * 2)
+	} else if currDiff > newDiff && !(newDiff+(maxJump*1.25) >= currDiff) {
+		newDiff = currDiff - (maxJump * 1.25)
 	}
 
 	// Reset timestampArr
@@ -228,7 +228,7 @@ func (m *Miner) storeShare(diff, templateHeight int64) {
 					if diff != 0 {
 						m.Shares[now] += diff
 					}
-					m.LastRoundShares[height] += m.RoundShares
+					m.LastRoundShares[height] = m.RoundShares
 					m.RoundShares = diff
 					m.Unlock()
 					resetVars = true
@@ -266,7 +266,7 @@ func (m *Miner) getHashrate(estimationWindow, hashrateExpiration time.Duration) 
 	for k, v := range m.Shares {
 		if k < now-hashExpiration {
 			delete(m.Shares, k)
-		} else if k >= now-window {
+		} else if k >= now-boundary {
 			totalShares += v
 		}
 	}
@@ -322,7 +322,7 @@ func (m *Miner) processShare(s *StratumServer, cs *Session, job *Job, t *BlockTe
 			checkPowHashBig, success = util.AstroBWTHash(shareBuff, diff)
 
 			if !success {
-				minerOutput := "Incorrect PoW - if you see often [> 1/100 shares on avg], check input on miner software"
+				minerOutput := "Bad hash. If you see often [> 1/100 shares on avg], check input on miner software"
 				log.Printf("[Miner] Bad hash from miner %v@%v", m.Id, cs.ip)
 
 				if shareType == "Trusted" {
@@ -369,12 +369,14 @@ func (m *Miner) processShare(s *StratumServer, cs *Session, job *Job, t *BlockTe
 			atomic.AddInt64(&m.Rejects, 1)
 			atomic.AddInt64(&r.Rejects, 1)
 			log.Printf("[BLOCK] Block rejected at height %d: %v", t.Height, err)
+			return false, "Bad hash"
 		} else {
 			now := util.MakeTimestamp()
 
 			atomic.AddInt64(&m.Accepts, 1)
 			atomic.AddInt64(&r.Accepts, 1)
 			atomic.StoreInt64(&r.LastSubmissionAt, now)
+
 			if m.IsSolo {
 				log.Printf("[BLOCK] SOLO Block found at height %d, diff: %v, blid: %s, by miner: %v@%v", t.Height, t.Difficulty, blockSubmitReply.BLID, m.Id, cs.ip)
 			} else {
@@ -383,6 +385,8 @@ func (m *Miner) processShare(s *StratumServer, cs *Session, job *Job, t *BlockTe
 
 			// Immediately refresh current BT and send new jobs
 			s.refreshBlockTemplate(true)
+
+			//m.storeShare(cs.difficulty, int64(t.Height))
 
 			// Graviton store of successful block
 			// This could be 'cleaned' to one-liners etc., but just depends on how you feel. Upon build/testing was simpler to view in-line for spec values
@@ -406,10 +410,24 @@ func (m *Miner) processShare(s *StratumServer, cs *Session, job *Job, t *BlockTe
 				log.Printf("[BLOCK] Graviton DB err: %v", infoErr)
 			}
 
+			m.Lock()
+			m.RoundHeight = int64(t.Height)
+			// No need to add blank diff shares to m.Shares. Usually only 0 if running NextRound from storage.go
+			if cs.difficulty != 0 {
+				m.Shares[now] += cs.difficulty
+			}
+			m.LastRoundShares[int64(t.Height)] = m.RoundShares + cs.difficulty
+			log.Printf("[Miner-submitblock] %v - adding m.RoundShares (%v) and setting m.LastRoundShares[%v] to %v . m.RoundShares will then be set to: %v", m.Id, m.RoundShares, t.Height, m.LastRoundShares[int64(t.Height)], cs.difficulty)
+			m.RoundShares += cs.difficulty
+			m.Unlock()
+
 			// Only update next round miner stats if a pool block is found, so can determine this by the miner who found the block's solo status
 			if !m.IsSolo {
 				log.Printf("[Miner] Updating miner stats for the next round...")
-				_ = s.gravitonDB.NextRound(int64(t.Height), s.miners)
+				nextRoundMiners := s.gravitonDB.NextRound(int64(t.Height))
+
+				log.Printf("[Miner] Updating miner stats in DB for current round...")
+				_ = s.gravitonDB.WriteMinerStats(nextRoundMiners, s.hashrateExpiration)
 			}
 		}
 	} else if hashDiff.Cmp(&setDiff) < 0 {
@@ -421,14 +439,12 @@ func (m *Miner) processShare(s *StratumServer, cs *Session, job *Job, t *BlockTe
 
 	// Using minermap to store share data rather than direct to DB, future scale might have issues with the large concurrent writes to DB directly
 	// Minermap allows for concurrent writes easily and quickly, then every x seconds defined in stratum that map gets written/stored to disk DB [5 seconds prob]
-	if checkPowHashBig && block {
-		// Store share for height - 1 if a block was found, this will allow for the hashes submitted for last round to still be counted
-		m.storeShare(cs.difficulty, int64(t.Height-1))
-	} else {
-		// Store share for current height and current round shares on normal basis
+
+	// Store share for current height and current round shares on normal basis. If block && checkPowHashBig, miner round share has already been counted, no need to double count here
+	if !block && !checkPowHashBig {
 		m.storeShare(cs.difficulty, int64(t.Height))
-		atomic.AddInt64(&s.roundShares, cs.difficulty)
 	}
+	//atomic.AddInt64(&s.roundShares, cs.difficulty)
 
 	atomic.AddInt64(&m.ValidShares, 1)
 	atomic.StoreInt64(&m.Hashrate, m.getHashrate(s.estimationWindow, s.hashrateExpiration))
