@@ -1,8 +1,8 @@
 {
 	"poolHost": "127.0.0.1",
-	"blockchainExplorer": "http://127.0.0.1:8081/block/{id}",
-	"transactionExplorer": "http://127.0.0.1:8081/tx/{id}",
-	"address": "dEToUEe3q57XoqLgbuDE7DUmoB6byMtNBWtz85DmLAHAC8wSpetw4ggLVE4nB3KRMRhnFdxRT3fnh9geaAMmGrhP2UDY18gVNr",
+	"blockchainExplorer": "https://explorer.dero.io/block/{id}",
+	"transactionExplorer": "https://explorer.dero.io/tx/{id}",
+	"address": "<pool_DERO_Address>",
 	"bypassShareValidation": false,
 
 	"threads": 2,
@@ -13,7 +13,7 @@
 	"coinDifficultyTarget": 27,
 
 	"trustedSharesCount": 30,
-	"blockRefreshInterval": "450ms",
+	"blockRefreshInterval": "120ms",
 	"hashrateExpiration": "3h",
 
 	"upstreamCheckInterval": "5s",
@@ -23,7 +23,7 @@
 			"enabled": true,
 			"name": "Derod",
 			"host": "127.0.0.1",
-			"port": 30306,
+			"port": 20206,
 			"timeout": "10s"
 		},
 		{
@@ -78,8 +78,8 @@
 		],
 
 		"varDiff": {
-			"enabled": false,
-			"minDiff": 100,
+			"enabled": true,
+			"minDiff": 750,
 			"maxDiff": 1000000,
 			"targetTime": 20,
 			"retargetTime": 120,
@@ -94,34 +94,23 @@
 		"statsCollectInterval": "5s",
 		"hashrateWindow": "10m",
 		"hashrateLargeWindow": "3h",
-		"luckWindow": [64, 128, 256],
 		"payments": 30,
 		"blocks": 50
-	},
-
-	"redis": {
-		"enabled": true,
-		"host": "127.0.0.1",
-		"port": 6379,
-		"password": "",
-		"DB": 0
 	},
 
 	"unlocker": {
 		"enabled": true,
 		"poolFee": 0.1,
-		"poolFeeAddress": "",
-		"depth": 0,
-		"interval": "10s"
+		"depth": 60,
+		"interval": "5m"
 	},
 
 	"payments": {
 		"enabled": true,
-		"interval": "30s",
+		"interval": "5m",
 		"mixin": 8,
 		"maxAddresses": 2,
-		"minPayment": 1000000,
-		"bgsave": true,
+		"minPayment": 10000000000,
 		"walletHost": "127.0.0.1",
 		"walletPort": "30309"
 	},

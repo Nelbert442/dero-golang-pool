@@ -19,8 +19,6 @@ import (
 )
 
 type StratumServer struct {
-	luckWindow         int64
-	largeLuckWindow    int64
 	roundShares        int64
 	config             *pool.Config
 	miners             MinersMap

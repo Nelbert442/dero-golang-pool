@@ -5,7 +5,6 @@ type Config struct {
 	BlockchainExplorer    string         `json:"blockchainExplorer"`
 	TransactionExploer    string         `json:"transactionExplorer"`
 	Address               string         `json:"address"`
-	ConfigRefreshInterval string         `json:"ConfigRefreshInterval"`
 	BypassShareValidation bool           `json:"bypassShareValidation"`
 	Threads               int            `json:"threads"`
 	Algo                  string         `json:"algo"`
@@ -80,7 +79,6 @@ type APIConfig struct {
 	StatsCollectInterval string `json:"statsCollectInterval"`
 	HashrateWindow       string `json:"hashrateWindow"`
 	HashrateLargeWindow  string `json:"hashrateLargeWindow"`
-	LuckWindow           []int  `json:"luckWindow"`
 	Blocks               int64  `json:"blocks"`
 	Payments             int64  `json:"payments"`
 }
@@ -99,7 +97,6 @@ type PaymentsConfig struct {
 	Mixin        uint64 `json:"mixin"`
 	MaxAddresses uint64 `json:"maxAddresses"`
 	Threshold    uint64 `json:"minPayment"`
-	BgSave       bool   `json:"bgsave"`
 	WalletHost   string `json:"walletHost"`
 	WalletPort   string `json:"walletPort"`
 }

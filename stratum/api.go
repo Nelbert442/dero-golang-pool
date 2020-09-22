@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"log"
 	"net/http"
-	"sort"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -90,8 +89,6 @@ func (apiServer *ApiServer) Start() {
 	apiServer.statsIntv, _ = time.ParseDuration(apiServer.config.StatsCollectInterval)
 	statsTimer := time.NewTimer(apiServer.statsIntv)
 	log.Printf("[API] Set stats collect interval to %v", apiServer.statsIntv)
-
-	sort.Ints(apiServer.config.LuckWindow)
 
 	apiServer.collectStats()
 

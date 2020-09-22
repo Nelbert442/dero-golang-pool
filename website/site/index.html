@@ -127,11 +127,11 @@
 		}
 
 		function getBlockchainUrl(id) {
-			return blockchainExplorer.replace('{symbol}', lastStats.config.coin.toLowerCase()).replace('{id}', id);
+			return lastStats.config.blockchainExplorer.replace('{symbol}', lastStats.config.coin.toLowerCase()).replace('{id}', id);
 		}
 
 		function getTransactionUrl(id) {
-			return transactionExplorer.replace('{symbol}', lastStats.config.coin.toLowerCase()).replace('{id}', id);
+			return lastStats.config.transactionExplorer.replace('{symbol}', lastStats.config.coin.toLowerCase()).replace('{id}', id);
 		}
 	
 		function getReadableHashRateString(hashrate){

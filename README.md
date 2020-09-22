@@ -10,17 +10,17 @@ Golang Mining Pool for DERO
 * Daemon failover, leverage multiple daemons (upstreams) and pool will get work from the first alive node, while monitoring the rest for backups
 * Concurrent shares processing by using multiple threads
 * Supports mining rewards sent directly to an exchange or wallet
-* Allows use of integrated addresses (dERi)
+* Allows use of integrated addresses (dERi) and paymentIDs
 * API in JSON for easy integration to web frontend
 * Utils functions and switch for mining algorithm support, this way you can modify which mining algo is required from config.json with ease and update code in only a couple places
 * Support for fixed difficulty with minimum difficulty settings on a per-port basis
+* Support for variable difficulty with maxjump flexibilities and customization settings
 * Support of pool and solo mining
 * PROP Payment Scheme
-* Light-weight webpage with built-in functionalities for more, but template used to get off the ground running.
+* Light-weight webpage with built-in basic pool statistics, but template used to get off the ground running.
 
 ##### Future Features
 * (FUTURE) PPLNS and potentially other pool schemes support
-* (FUTURE) Support for variable difficulties
 
 #### Requirements
 * Coin daemon (find the coin's repo and build latest version from source)
@@ -51,16 +51,16 @@ Explanation for each field:
 ```javascript
 {
 	/* Pool host that will be displayed on frontend for miners to connect to */
-	"poolHost": "127.0.0.1",
+	"poolHost": "your_pool_host_name",
 
 	/* Blockchain explorer, i.e. explorer.dero.io */
-	"blockchainExplorer": "http://127.0.0.1:8081/block/{id}",
+	"blockchainExplorer": "https://explorer.dero.io/block/{id}",
 
 	/* Transaction explorer, i.e. explorer.dero.io */
-	"transactionExplorer": "http://127.0.0.1:8081/tx/{id}",
+	"transactionExplorer": "https://explorer.dero.io/tx/{id}",
 
     /*  Mining pool address */
-	"address": "dEToUEe3q57XoqLgbuDE7DUmoB6byMtNBWtz85DmLAHAC8wSpetw4ggLVE4nB3KRMRhnFdxRT3fnh9geaAMmGrhP2UDY18gVNr",
+	"address": "<pool_DERO_Address>",
 
     /*  True: Do not worry about verifying miner shares [faster processing, but potentially wrong algo], False: Validate miner shares with built-in derosuite functions */
 	"bypassShareValidation": false,
@@ -174,33 +174,23 @@ Explanation for each field:
 		"statsCollectInterval": "5s",	// Set interval for stats collection to run
 		"hashrateWindow": "10m",		// Fast hashrate estimation window for each miner from its' shares
 		"hashrateLargeWindow": "3h",	// Long and precise hashrate from shares
-		"luckWindow": [64, 128, 256],	// Collect stats for shares/diff ratio for this number of blocks
 		"payments": 30,					// Max number of payments to display in frontend
 		"blocks": 50					// Max number of blocks to display in frontend
 	},
 
-	"redis": {
-		"enabled": true,            // Set redis enabled to true, utilized, or false, not utilized
-		"host": "127.0.0.1",    	// Set address to reach redis db over
-		"port": 6379,               // Set port to append to host
-		"password": "",             // Set password for db access
-		"DB": 0                     // Set index of db
-	},
-
 	"unlocker": {
 		"enabled": true,			// Set block unlocker enabled to true, utilized, or false, not utilized
-		"poolFee": 0,				// Set pool fee. This will be taken away from the block reward (paid to the pool addr)
+		"poolFee": 0.1,				// Set pool fee. This will be taken away from the block reward (paid to the pool addr)
 		"depth": 60,				// Set depth for block unlocks. This value is compared against the core base block depth for validation
-		"interval": "10m"			// Set interval to check for block unlocks. The faster you check, the more noisy/busy that process can get.
+		"interval": "5m"			// Set interval to check for block unlocks. The faster you check, the more noisy/busy that process can get.
 	},
 
 	"payments": {
 		"enabled": false,			// Set payments enabled to true, utilized, or false, not utilized
-		"interval": "30s",			// Run payments in this interval
+		"interval": "10m",			// Run payments in this interval
 		"mixin": 8,					// Define mixin for transactions
 		"maxAddresses": 2,			// Define maximum number of addresses to send a single TX to [Usually safer to keep lower, but 1-5 should suffice]
 		"minPayment": 100,			// Define the minimum payment (uint64). i.e.: 1 DERO = 1000000000000
-		"bgsave": true,				// Perform BGSAVE on Redis after successful payouts session
 		"walletHost": "127.0.0.1",	// Defines the host of the wallet daemon
 		"walletPort": "30309"		// Defines the port of the wallet daemon [DERO Mainnet defaults to 20209 and Testnet to 30309]
 	},
@@ -232,34 +222,10 @@ Once `config.json` has "api"."enabled" set to true, it will listen by default lo
 
 API Examples:
 
-* ".../api/allstats" Example (this is currently just for testing, perhaps replaces the additional listed below):
-
-```json
-{"blocks":{"candidates":[{"height":350,"timestamp":1598645388,"difficulty":21600,"shares":3000,"orphan":false,"hash":"d994d904e7391c2dd73376ddca36f8373a12c09b698d01b5db4d1527eff0806b","reward":""}],"candidatesTotal":1,"immature":[{"height":349,"timestamp":1598645382,"difficulty":21600,"shares":25000,"orphan":false,"hash":"3685777465a264ce7c915fd8dd578205725eebd4404c56816f66cc03405f10bf","reward":"2345520714920"},{"height":348,"timestamp":1598645300,"difficulty":21600,"shares":4000,"orphan":false,"hash":"6b002d39347fb9f5a3b2ab9046c1618a12fe8141faf92e0006c2115fd68883fc","reward":"2345521013169"},{"height":347,"timestamp":1598645282,"difficulty":21600,"shares":14000,"orphan":false,"hash":"2beb0b3e2aade298c872aade250b80b438650f53f045a547f0add7d821e219a0","reward":"2345521311417"},{"height":346,"timestamp":1598645225,"difficulty":21600,"shares":32000,"orphan":false,"hash":"762cabfa570fba9eca47672aef72781bb4ccd21e6c4f105434d8f09ce28ceeff","reward":"2350021609665"}],"immatureTotal":4,"luck":{"5":{"luck":0.787037037037037,"orphanRate":0}},"matured":[{"height":345,"timestamp":1598644983,"difficulty":21600,"shares":10000,"orphan":false,"hash":"dd3af49211f1bf162f67eb81a670cf6eaad35d48dbd1958c7c1e1084a7f163ad","reward":"2350021907914"}],"maturedTotal":1},"lastblock":[{"difficulty":"21600","hash":"d994d904e7391c2dd73376ddca36f8373a12c09b698d01b5db4d1527eff0806b","height":"350","reward":"2345520416672","timestamp":"1598645382"}],"miners":{"hashrate":5191,"miners":{"dEToUEe...Y18gVNr":{"lastBeat":1598645390,"hr":5191,"offline":false}},"minersTotal":1},"network":[{"difficulty":"21600","height":"350"}],"nodes":[{"difficulty":"21600","height":"351","lastBeat":"1598645392","name":"DERO"}],"now":1598645392,"payments":{"payments":[{"address":"dEToUEe...Y18gVNr","amount":2347671886006,"timestamp":1598644998,"tx":"64c71edd3430ec404607e9ec604738baaa4055a53186dbc247aa0478f91bebd3"}],"paymentsTotal":1},"stats":{"hashrate":5191,"minersTotal":1,"stats":{"lastBlockFound":1598645388,"roundShares":1000}}}
-```
-
 * ".../api/stats" Example:
 
 ```json
-{"candidatesTotal":0,"hashrate":0,"immatureTotal":0,"maturedTotal":18,"minersTotal":0,"nodes":[{"difficulty":"21600","height":"304","lastBeat":"1598387614","name":"DERO"}],"now":1598388148,"stats":{"lastBlockFound":1598372847,"roundShares":1000}}
-```
-
-* ".../api/miners" Example:
-
-```json
-{"hashrate":58,"miners":{"dEToUEe3q57XoqLgbuDE7DUmoB6byMtNBWtz85DmLAHAC8wSpetw4ggLVE4nB3KRMRhnFdxRT3fnh9geaAMmGrhP2UDY18gVNr":{"lastBeat":1598388251,"hr":58,"offline":false}},"minersTotal":1,"now":1598388256}
-```
-
-* ".../api/payments" Example:
-
-```json
-{"payments":[{"address":"dEToUEe3q57XoqLgbuDE7DUmoB6byMtNBWtz85DmLAHAC8wSpetw4ggLVE4nB3KRMRhnFdxRT3fnh9geaAMmGrhP2UDY18gVNr+21e63470b34e45a7d6bc7f28fd95c22ecbcb9e98f42b23709f253c4ee2b232ef","amount":2234574584664,"timestamp":1598370885,"tx":"dc54781434adc31a3023cee9357c296ec2437852e55ced502aa751cb5a1a9bea"},{"address":"dETiVQuGunuXoqLgbuDE7DUmoB6byMtNBWtz85DmLAHAC8wSpetw4ggLVE4nB3KRMRhnFdxRT3fnh9geaAMmGrhP7V8KdLKzLkj5B9dneLXW8","amount":117609188667,"timestamp":1598370057,"tx":"298b46754b8d8546399b853d16551b1705b84d54ee436e6d24b4bc08afe14985"},{"address":"dETiVQuGunuXoqLgbuDE7DUmoB6byMtNBWtz85DmLAHAC8wSpetw4ggLVE4nB3KRMRhnFdxRT3fnh9geaAMmGrhP7V8KdLKzLkj5B9dneLXW8","amount":939674828513,"timestamp":1598369842,"tx":"7a39bba315e113e67d5627195e67bf7424ea91be2320f13cb58d78f43544c08e"},{"address":"dEToUEe3q57XoqLgbuDE7DUmoB6byMtNBWtz85DmLAHAC8wSpetw4ggLVE4nB3KRMRhnFdxRT3fnh9geaAMmGrhP2UDY18gVNr","amount":1409512242769,"timestamp":1598369842,"tx":"1fdba086065723207645e7533d5b4d08c8801a531526006c9bf53cc6c83aeaf5"},{"address":"dEToUEe3q57XoqLgbuDE7DUmoB6byMtNBWtz85DmLAHAC8wSpetw4ggLVE4nB3KRMRhnFdxRT3fnh9geaAMmGrhP2UDY18gVNr","amount":4690882536423,"timestamp":1598369586,"tx":"2a2dfb06183883c1548f7da85994ae576b0eef1791f6a451e777024b6adf1737"},{"address":"dEToUEe3q57XoqLgbuDE7DUmoB6byMtNBWtz85DmLAHAC8wSpetw4ggLVE4nB3KRMRhnFdxRT3fnh9geaAMmGrhP2UDY18gVNr","amount":2355181965140,"timestamp":1598369496,"tx":"74d6ff58a4d1b5ff3493aafd80c7b3bf2995205a25cdec1fd8a3c1fa5276743f"}],"paymentsTotal":6}
-```
-
-* ".../api/blocks" Example:
-
-```json
-{"candidates":null,"candidatesTotal":0,"immature":null,"immatureTotal":0,"luck":{"18":{"luck":0.9689881025139554,"orphanRate":0}},"matured":[{"height":303,"timestamp":1598372847,"difficulty":21600,"shares":9000,"orphan":false,"hash":"e6074915fecbaa55eda9616f1053234d23724af284eb87f7ab7b8531f7f16c97","reward":"2345534434387"},{"height":302,"timestamp":1598372806,"difficulty":21816,"shares":26000,"orphan":false,"hash":"17419fb7b7dcc9755d6634849895da5abd35fe517cd8bef241e27be9980dd9c3","reward":"2345534732637"},{"height":301,"timestamp":1598372625,"difficulty":21600,"shares":70000,"orphan":false,"hash":"b76557cb3a0a9d53aedf8ef1e00d39cf5f90862a3c68f1164563a0ab61fd3404","reward":"2345535030887"},{"height":300,"timestamp":1598372196,"difficulty":21600,"shares":42000,"orphan":false,"hash":"b275dc380c8f599c424ba65605b6592e84b473f59f59c3d667cc223e8cef34d9","reward":"2345535329137"},{"height":299,"timestamp":1598371955,"difficulty":21600,"shares":9000,"orphan":false,"hash":"25c399cc0844ef31478308ef9eed77c376a3d031f4fb8e83d8a0f12b20f243e7","reward":"2345535627388"},{"height":298,"timestamp":1598371910,"difficulty":21600,"shares":5000,"orphan":false,"hash":"397d3a96e4ef45a7276a8bb387f678bd6d1bc34c4dd80810dd7848535c83ab9a","reward":"2345535925638"},{"height":297,"timestamp":1598371891,"difficulty":21600,"shares":5000,"orphan":false,"hash":"31e601c44de50056d0f79e30a2b2a07693d874e7c1ba94a4974d5da846abb374","reward":"2345536223888"},{"height":296,"timestamp":1598371871,"difficulty":21600,"shares":16000,"orphan":false,"hash":"cacadef57e58a1b5c801463b13345064885e95534fdfcab69e2a475210337905","reward":"2345536522139"},{"height":295,"timestamp":1598371814,"difficulty":21600,"shares":16000,"orphan":false,"hash":"af6a99396e9ca606ae6f579fc419cbdc7dbb167534a4b8e9996567494787737d","reward":"2345536820389"},{"height":294,"timestamp":1598371770,"difficulty":21600,"shares":7000,"orphan":false,"hash":"b45865df9c7988004890b759e2e440f57468b20bfb9fc509fcadf96bb0f8d16f","reward":"2345537118639"},{"height":293,"timestamp":1598371733,"difficulty":21600,"shares":18000,"orphan":false,"hash":"1c4d4f3861a08e68c9abab84021e23d2773debb8d8e4f5c8326e4082942910ba","reward":"2345537416890"},{"height":292,"timestamp":1598371637,"difficulty":21600,"shares":74000,"orphan":false,"hash":"8318949ba3ccb2f494c88984f97ceb7f7a874d8f80c7b5cb1849ee0d409c0e90","reward":"2345537715141"},{"height":291,"timestamp":1598371225,"difficulty":21600,"shares":8000,"orphan":false,"hash":"c2f3f4374bc470042514d7da88e65e473c1ccadb71f32766b071d21c75763938","reward":"2354538013391"},{"height":290,"timestamp":1598370036,"difficulty":21600,"shares":20000,"orphan":false,"hash":"8cac959e324abe7a59fc73a6c4362d5fd6fe970e9a7c3df8f0aa7ef1db2989c0","reward":"2354538311642"},{"height":289,"timestamp":1598369817,"difficulty":21600,"shares":10000,"orphan":false,"hash":"0428b8b54b991d2c457c688225d927c833eb7129940e2e5c7ae81f3f01ecf8b9","reward":"2351538609892"},{"height":288,"timestamp":1598369577,"difficulty":21600,"shares":2000,"orphan":false,"hash":"c348cf03b08328df2fd4974723adc3ea4e08574673be6dac3918b037b5283d2d","reward":"2350038908143"},{"height":287,"timestamp":1598369562,"difficulty":21600,"shares":20000,"orphan":false,"hash":"972b59578a388e63ea9957b566423aaecc3a4f507e75f77f71814cba3a941af9","reward":"2345539206394"},{"height":286,"timestamp":1598369478,"difficulty":21600,"shares":20000,"orphan":false,"hash":"7580458fe1e7da60b6c8e5bc80accf4eca92715ecbf631da6f73d81434e82c55","reward":"2357539504645"}],"maturedTotal":18}
+{"blocksTotal":18,"candidates":null,"candidatesTotal":0,"config":{"algo":"astrobwt","blockchainExplorer":"http://127.0.0.1:8081/block/{id}","coin":"DERO","coinDecimalPlaces":4,"coinDifficultyTarget":27,"coinUnits":1000000000000,"fixedDiffAddressSeparator":".","payIDAddressSeparator":"+","paymentInterval":30,"paymentMinimum":10000000000,"paymentMixin":8,"poolFee":0.1,"poolHost":"127.0.0.1","ports":[{"diff":1000,"minDiff":500,"host":"0.0.0.0","port":1111,"maxConn":32768},{"diff":2500,"minDiff":500,"host":"0.0.0.0","port":3333,"maxConn":32768},{"diff":5000,"minDiff":500,"host":"0.0.0.0","port":5555,"maxConn":32768}],"transactionExplorer":"http://127.0.0.1:8081/tx/{id}","unlockDepth":5,"unlockInterval":10,"version":"1.0.0","workIDAddressSeparator":"@"},"immature":[{"Hash":"770efbc1377ca0f1818ac9e01b0f697bd461e716160b24826b6b96931ac392d2","Address":"dEToUEe...8gVNr","Height":1017,"Orphan":false,"Timestamp":1600807603,"Difficulty":22254,"TotalShares":29975,"Reward":2351321493449,"Solo":false},{"Hash":"efca19034b80b48366f984a2bdb81647e786481a1528942d406412b219109f6a","Address":"dEToUEe...8gVNr","Height":1014,"Orphan":false,"Timestamp":1600807420,"Difficulty":21816,"TotalShares":2000,"Reward":2345322388119,"Solo":false},{"Hash":"c3d54ee8d3c7919e0f426ec964516efa33f5d00b4608536c47e389329677425d","Address":"dEToUEe...8gVNr","Height":1016,"Orphan":false,"Timestamp":1600807598,"Difficulty":22254,"TotalShares":27780,"Reward":2345321791672,"Solo":false},{"Hash":"5ba9184f441c125fd67549d1aeecc8a1d1d664d51e1caf62b0357089492a1ee3","Address":"dEToUEe...8gVNr","Height":1013,"Orphan":false,"Timestamp":1600807411,"Difficulty":21600,"TotalShares":2000,"Reward":2345322686342,"Solo":false},{"Hash":"1c3bfe247f02f44c60301bfa54f85fa7e18f1604320ee8f2a775dea66567d128","Address":"dEToUEe...8gVNr","Height":1015,"Orphan":false,"Timestamp":1600807439,"Difficulty":22034,"TotalShares":5000,"Reward":2349822089896,"Solo":false}],"immatureTotal":5,"lastblock":{"Difficulty":"22254","Height":1017,"Timestamp":1600807598,"Reward":2351321493449,"Hash":"770efbc1377ca0f1818ac9e01b0f697bd461e716160b24826b6b96931ac392d2"},"matured":[{"Hash":"339ad336c07e86913f388fb45fc3d03dc03ef9ae7cdd82e98e7ee0d97c470f79","Address":"dEToUEe...8gVNr","Height":1000,"Orphan":false,"Timestamp":1600806375,"Difficulty":21600,"TotalShares":13000,"Reward":2354326563247,"Solo":false},{"Hash":"b2cbf4b90d36a10521092ea3bd8d20d0a29676b190492bb715b188fec17b0130","Address":"dEToUEe...8gVNr","Height":1007,"Orphan":false,"Timestamp":1600807040,"Difficulty":21600,"TotalShares":0,"Reward":2349824475682,"Solo":false},{"Hash":"4454bf01932bc8ae601e8aee345a294e8fde99790e05b71a481b7c4eec4bd084","Address":"dEToUEe...8gVNr","Height":1008,"Orphan":false,"Timestamp":1600807153,"Difficulty":21600,"TotalShares":0,"Reward":2349824177459,"Solo":false},{"Hash":"aadf5246f36cc098b341bf6c694dd08d6ca6969b0784d91c82f3cb3791812652","Address":"dEToUEe...8gVNr","Height":1011,"Orphan":false,"Timestamp":1600807224,"Difficulty":21600,"TotalShares":12000,"Reward":2349823282789,"Solo":false},{"Hash":"dfa60fede87c7c4e7d351c54b87e46c3239209ae10d6db58050a27a9b147457d","Address":"dEToUEe...8gVNr","Height":1012,"Orphan":false,"Timestamp":1600807401,"Difficulty":21600,"TotalShares":5000,"Reward":2354322984565,"Solo":false},{"Hash":"a6eccb0be31558bed06a8add669fe7846d388410e09bb37e8a29c1d5ab992f3e","Address":"dEToUEe...8gVNr","Height":1003,"Orphan":false,"Timestamp":1600806585,"Difficulty":21600,"TotalShares":10500,"Reward":2345325668576,"Solo":false},{"Hash":"f79af5914e15373fa998819cfacc7d74ffe18bb315787572c7fbbe1bb93aaed4","Address":"dEToUEe...8gVNr","Height":1004,"Orphan":false,"Timestamp":1600806855,"Difficulty":21600,"TotalShares":43500,"Reward":2345325370353,"Solo":false},{"Hash":"da99e1f3600508708a38f48959210ca9de914ab524aaa153882fa04c3873811a","Address":"dEToUEe...8gVNr","Height":1010,"Orphan":false,"Timestamp":1600807222,"Difficulty":21600,"TotalShares":0,"Reward":2349823581012,"Solo":false},{"Hash":"3fe81b154a9f4a07fce72d621fbaf169e457baf918be8d092a9b735a2159ce73","Address":"dEToUEe...8gVNr","Height":1002,"Orphan":false,"Timestamp":1600806516,"Difficulty":21600,"TotalShares":11500,"Reward":2345325966800,"Solo":false},{"Hash":"1068ccc0d92c1d49d375a675018154c29b5404bbb297b0f2da329154efe9e832","Address":"dEToUEe...8gVNr","Height":1006,"Orphan":false,"Timestamp":1600807020,"Difficulty":21600,"TotalShares":11250,"Reward":2345324773905,"Solo":false},{"Hash":"98310319fd9e80d97742e4e906a8b594f5423122b6a133511c672aaedfa29277","Address":"dEToUEe...8gVNr","Height":1001,"Orphan":false,"Timestamp":1600806383,"Difficulty":21600,"TotalShares":0,"Reward":2345326265023,"Solo":false},{"Hash":"e5fbce21b8003876d249ff2b050c474c44bc54dbfc7069d1845100d6b55cae42","Address":"dEToUEe...8gVNr","Height":1009,"Orphan":false,"Timestamp":1600807188,"Difficulty":21600,"TotalShares":0,"Reward":2349823879235,"Solo":false},{"Hash":"38984e8ac3ccd2c1ebc4eba781d38a4ecc76d461c80731d6c81ad94265e9d8e4","Address":"dEToUEe...8gVNr","Height":1005,"Orphan":false,"Timestamp":1600806908,"Difficulty":21600,"TotalShares":13500,"Reward":2345325072129,"Solo":false}],"maturedTotal":13,"miners":[{"LastBeat":1600807678,"StartedAt":1600807391,"ValidShares":36,"InvalidShares":0,"StaleShares":0,"Accepts":6,"Rejects":0,"RoundShares":29975,"Hashrate":151,"Offline":false,"Id":"dEToUEe3q57XoqLgbuDE7DUmoB6byMtNBWtz85DmLAHAC8wSpetw4ggLVE4nB3KRMRhnFdxRT3fnh9geaAMmGrhP2UDY18gVNr","Address":"dEToUEe3q57XoqLgbuDE7DUmoB6byMtNBWtz85DmLAHAC8wSpetw4ggLVE4nB3KRMRhnFdxRT3fnh9geaAMmGrhP2UDY18gVNr","IsSolo":false}],"now":1600807685,"payments":[{"Hash":"205e4ac6547a784eb94cba28f50f4a26595f3335ae28a8d3d39dccdf6e0fae10","Timestamp":1600807021,"Payees":1,"Mixin":8,"Amount":2345326265023},{"Hash":"88621a2fee06d0c2d97b8bf5137ed26d22789ec5602263bcad9505c32f9caaf1","Timestamp":1600807202,"Payees":1,"Mixin":8,"Amount":2342980044983},{"Hash":"c24bedcaa513204d5663028821559379544754132d515030c68cf75f76a9eb70","Timestamp":1600807263,"Payees":1,"Mixin":8,"Amount":2342979449131},{"Hash":"2616b795413d6207da75aff72c1b66fd17af3cb7f99fca06bd073c60bd398088","Timestamp":1600807627,"Payees":1,"Mixin":8,"Amount":4699442121086},{"Hash":"e64c7bed69b3dfd2aa02100e9790dfa3e4904c63f59bd5067e4d0f71dbbb4b19","Timestamp":1600806931,"Payees":1,"Mixin":8,"Amount":2351972236684},{"Hash":"186615582db0e54b2e21c23f715d82ccc8b686e3aaeb243486a805517def5872","Timestamp":1600807051,"Payees":1,"Mixin":8,"Amount":2342980640833},{"Hash":"969334e0cd6e40947d9d016509965c7e52ef66e17ed650e700d29285f9c6824d","Timestamp":1600807172,"Payees":1,"Mixin":8,"Amount":2342980342907},{"Hash":"c2f3413e0579de5bba9bd10e810586d051f7a4b4e37e1f316278f15daf5e52ca","Timestamp":1600807233,"Payees":1,"Mixin":8,"Amount":2342979747057},{"Hash":"3eaa0b54c80b7856b46226d927cf114a7abbcbeb8a947cb7d9769590c9abbc24","Timestamp":1600807417,"Payees":1,"Mixin":8,"Amount":2349824475682},{"Hash":"b4e24d9a16ab1a3ae7c9254f43e660b3e697330925d933601c289fecc75f1e8e","Timestamp":1600807447,"Payees":1,"Mixin":8,"Amount":4699647460247}],"poolHashrate":151,"soloHashrate":0,"totalMinersPaid":1,"totalPayments":10,"totalPoolMiners":1,"totalSoloMiners":0}
 ```
 
 #### 5) Host the frontend
@@ -269,12 +235,13 @@ Once `config.json` has "website"."enabled" set to true, it will listen by defaul
 website.go is the runner, which just starts the listenandserve on the port defined, then serves up content within /website/Pages , feel free to make modifications to folder structure, just be sure to update website.go
 
 ![DERO Pool Home](https://git.dero.io/Nelbert442/dero-golang-pool/raw/branch/master/images/home.PNG) 
-![DERO Pool GS](https://git.dero.io/Nelbert442/dero-golang-pool/raw/branch/master/images/gettingstarted.PNG)
 ![DERO Pool Blocks](https://git.dero.io/Nelbert442/dero-golang-pool/raw/branch/master/images/poolBlock.PNG)
 ![DERO Pool Pay](https://git.dero.io/Nelbert442/dero-golang-pool/raw/branch/master/images/poolpayment.PNG)
 
 Credits
 ---------
 
-* [sammy007](https://github.com/sammy007) - Developer on [monero-stratum](https://github.com/sammy007/monero-stratum) .
-* [JKKGBE](https://github.com/JKKGBE) - Developer on [open-zcash-pool](https://github.com/JKKGBE/open-zcash-pool) which is forked from [sammy007](https://github.com/sammy007) project [open-ethereum-pool](https://github.com/sammy007/open-ethereum-pool)
+* [sammy007](https://github.com/sammy007) - Developer on [monero-stratum](https://github.com/sammy007/monero-stratum) which started the basis for stratum building for this project.
+* [JKKGBE](https://github.com/JKKGBE) - Developer on [open-zcash-pool](https://github.com/JKKGBE/open-zcash-pool) which is forked from [sammy007](https://github.com/sammy007) project [open-ethereum-pool](https://github.com/sammy007/open-ethereum-pool) for some additional ideas/thoughts throughout dev when REDIS was utilized, but later migrated to Graviton from scratch with other implementations.
+* [Graviton](https://github.com/deroproject/graviton) - Graviton DB which is leveraged within this project for backend data storage.
+* [Derosuite](https://github.com/deroproject/derosuite) - Derosuite (DERO) which is the cryptocurrency in which this pool was originally built for and focused for.
