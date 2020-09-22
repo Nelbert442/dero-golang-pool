@@ -371,7 +371,7 @@ func (m *Miner) processShare(s *StratumServer, cs *Session, job *Job, t *BlockTe
 			log.Printf("[BLOCK] Block rejected at height %d: %v", t.Height, err)
 			return false, "Bad hash"
 		} else {
-			now := util.MakeTimestamp()
+			now := util.MakeTimestamp() / 1000
 
 			atomic.AddInt64(&m.Accepts, 1)
 			atomic.AddInt64(&r.Accepts, 1)
@@ -390,8 +390,7 @@ func (m *Miner) processShare(s *StratumServer, cs *Session, job *Job, t *BlockTe
 
 			// Graviton store of successful block
 			// This could be 'cleaned' to one-liners etc., but just depends on how you feel. Upon build/testing was simpler to view in-line for spec values
-			ms := util.MakeTimestamp()
-			ts := ms / 1000
+			ts := util.MakeTimestamp() / 1000
 			info := &BlockDataGrav{}
 			info.Height = int64(t.Height)
 			info.RoundHeight = int64(t.Height)
@@ -447,7 +446,6 @@ func (m *Miner) processShare(s *StratumServer, cs *Session, job *Job, t *BlockTe
 	//atomic.AddInt64(&s.roundShares, cs.difficulty)
 
 	atomic.AddInt64(&m.ValidShares, 1)
-	atomic.StoreInt64(&m.Hashrate, m.getHashrate(s.estimationWindow, s.hashrateExpiration))
 
 	log.Printf("[Miner] %s share at difficulty %v/%v from %v@%v", shareType, cs.difficulty, hashDiff, params.Id, cs.ip)
 
