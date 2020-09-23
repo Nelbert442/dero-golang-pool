@@ -164,7 +164,36 @@ func (g *GravitonStore) WriteBlocks(info *BlockDataGrav, blockType string) error
 	tree, _ := ss.GetTree(g.DBTree) // use or create tree named by poolhost in config
 	key := "block:" + blockType + ":" + strconv.FormatInt(info.Height, 10)
 	tree.Put([]byte(key), []byte(confBytes)) // insert a value
-	graviton.Commit(tree)                    // commit the tree
+
+	// Remove blocks from previous rounds (orphaned removes candidate, immature removes candidate, matured removes immature)
+	switch blockType {
+	case "orphaned":
+		key := "block:" + "candidate" + ":" + strconv.FormatInt(info.Height, 10)
+
+		log.Printf("[Graviton] Removing info: %v", key)
+		err := tree.Delete([]byte(key))
+		if err != nil {
+			return err
+		}
+	case "immature":
+		key := "block:" + "candidate" + ":" + strconv.FormatInt(info.Height, 10)
+
+		log.Printf("[Graviton] Removing info: %v", key)
+		err := tree.Delete([]byte(key))
+		if err != nil {
+			return err
+		}
+	case "matured":
+		key := "block:" + "immature" + ":" + strconv.FormatInt(info.Height, 10)
+
+		log.Printf("[Graviton] Removing info: %v", key)
+		err := tree.Delete([]byte(key))
+		if err != nil {
+			return err
+		}
+	}
+
+	graviton.Commit(tree) // commit the tree
 
 	return nil
 }
@@ -320,10 +349,12 @@ func (g *GravitonStore) WriteImmatureBlock(block *BlockDataGrav) error {
 
 	// Remove candidate store after no err from adding to orphan store
 	//log.Printf("[Graviton] Removing block from candidate store: %v", block)
-	err = g.RemoveBlock("candidate", block.Height)
-	if err != nil {
-		log.Printf("[Graviton] Error when removing candidate block store at height %v: %v", block.Height, err)
-	}
+	/*
+		err = g.RemoveBlock("candidate", block.Height)
+		if err != nil {
+			log.Printf("[Graviton] Error when removing candidate block store at height %v: %v", block.Height, err)
+		}
+	*/
 
 	return nil
 }
@@ -347,10 +378,12 @@ func (g *GravitonStore) WriteMaturedBlocks(block *BlockDataGrav) error {
 
 	// Remove immature store after no err from adding to orphan store
 	//log.Printf("[Graviton] Removing block from immature store: %v", block)
-	err = g.RemoveBlock("immature", block.Height)
-	if err != nil {
-		log.Printf("[Graviton] Error when removing immature block store at height %v: %v", block.Height, err)
-	}
+	/*
+		err = g.RemoveBlock("immature", block.Height)
+		if err != nil {
+			log.Printf("[Graviton] Error when removing immature block store at height %v: %v", block.Height, err)
+		}
+	*/
 
 	return nil
 }
@@ -369,11 +402,13 @@ func (g *GravitonStore) WriteOrphanedBlocks(orphanedBlocks []*BlockDataGrav) err
 
 		// Remove candidate store after no err from adding to orphan store
 		//log.Printf("[Graviton] Removing block from candidate store: %v", value)
-		err = g.RemoveBlock("candidate", value.Height)
-		if err != nil {
-			log.Printf("[Graviton] Error when removing candidate block store at height %v: %v", value.Height, err)
-			break
-		}
+		/*
+			err = g.RemoveBlock("candidate", value.Height)
+			if err != nil {
+				log.Printf("[Graviton] Error when removing candidate block store at height %v: %v", value.Height, err)
+				break
+			}
+		*/
 	}
 
 	return nil
