@@ -417,7 +417,7 @@ func (m *Miner) processShare(s *StratumServer, cs *Session, job *Job, t *BlockTe
 			}
 			m.LastRoundShares[int64(t.Height)] = m.RoundShares + cs.difficulty
 			log.Printf("[Miner-submitblock] %v - adding m.RoundShares (%v) and setting m.LastRoundShares[%v] to %v . m.RoundShares will then be set to: %v", m.Id, m.RoundShares, t.Height, m.LastRoundShares[int64(t.Height)], cs.difficulty)
-			m.RoundShares = cs.difficulty
+			m.RoundShares = 0
 			m.Unlock()
 
 			// Only update next round miner stats if a pool block is found, so can determine this by the miner who found the block's solo status
