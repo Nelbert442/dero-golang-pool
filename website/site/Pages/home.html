@@ -2,23 +2,14 @@
 <div class="poolStatsHolder">
 	<div><span class=bg-info">Total Pool Miners: <span id="totalPoolMiners"></span></span></div>
 	<div><span class=bg-info">Total Solo Miners: <span id="totalSoloMiners"></span></span></div>
-	<!--
-	<div><span class=bg-info">Total Pool Hashrate: <span id="totalPoolHashrate"></span></span></div>
-	<div><span class=bg-info">Total Solo Hashrate: <span id="totalSoloHashrate"></span></span></div>
-	-->
 </div>
 
 <hr>
 
 <!-- Network Stats -->
 <div class="poolStatsHolder">
-	<!--
-	<span class=bg-info">Network Hashrate: <span id="blockchainHashrate"></span></span>
-	<span class=bg-info">Difficulty: <span id="blockchainDifficulty"></span></span>
-	<span class=bg-info">Blockchain Height: <span id="blockchainHeight"></span></span>
-	-->
-	<div><span class=bg-info">Last Reward: <span id="lastBlockReward"></span></span></div>
-	<div><span class=bg-info">Last Hash: <a id="lastBlockHash" target="_blank">N/A</a></span></div>
+	<div><span class=bg-info">Last Network Reward: <span id="lastBlockReward"></span></span></div>
+	<div><span class=bg-info">Last Network Hash: <a id="lastBlockHash" target="_blank">N/A</a></span></div>
 </div>
 
 <script>
@@ -39,29 +30,7 @@
                 updateText('totalSoloMiners', lastStats.totalSoloMiners.toString());
 			} else { updateText('totalSoloMiners', "0"); }
 			
-			/*
-            if (lastStats.poolHashrate != null) {
-                updateText('totalPoolHashrate', lastStats.poolHashrate.toString());
-			} else { updateText('totalPoolHashrate', "0"); }
-			
-            if (lastStats.soloHashrate != null) {
-                updateText('totalSoloHashrate', lastStats.soloHashrate.toString());
-			} else { updateText('totalSoloHashrate', "0"); }
-			
-			// Last Block stats
-
-            if (lastStats.lastblock != null) {
-                updateText('blockchainHashrate', getReadableHashRateString(lastStats.lastblock.Difficulty / lastStats.config.coinDifficultyTarget) + '/sec');
-			} else { updateText('blockchainHashrate', "0"); }
-
-            if (lastStats.lastblock != null) {
-                updateText('blockchainDifficulty', lastStats.lastblock.Difficulty.toString());
-			} else { updateText('blockchainDifficulty', "0"); }
-
-            if (lastStats.lastblock != null) {
-                updateText('blockchainHeight', lastStats.lastblock.Height.toString());
-			} else { updateText('blockchainHeight', "0"); }
-			*/
+			// Network stats
 
             if (lastStats.lastblock != null) {
                 updateText('lastBlockReward', getReadableCoins(lastStats.lastblock.Reward.toString(), 5, false));
