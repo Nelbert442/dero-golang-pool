@@ -246,8 +246,8 @@ func (apiServer *ApiServer) convertBlocksResults(minedBlocks []*BlockDataGrav) [
 	return blocksArr
 }
 
-func (apiServer *ApiServer) convertMinerResults(miners MinersMap) ([]*ApiMiner, int64, int64, int64, int64) {
-	registeredMiners := apiServer.backend.GetMinerIDRegistrations()
+func (apiServer *ApiServer) convertMinerResults(miners []*Miner) ([]*ApiMiner, int64, int64, int64, int64) {
+	//registeredMiners := apiServer.backend.GetMinerIDRegistrations()
 	apiMiners := make(map[string]*ApiMiner)
 	var minersArr []*ApiMiner
 	var poolHashrate int64
@@ -255,10 +255,10 @@ func (apiServer *ApiServer) convertMinerResults(miners MinersMap) ([]*ApiMiner, 
 	var totalPoolMiners int64
 	var totalSoloMiners int64
 
-	for _, value := range registeredMiners {
+	for _, currMiner := range miners {
 		reply := &ApiMiner{}
 		if miners != nil {
-			currMiner, _ := miners.Get(value.Id)
+			//currMiner, _ := miners.Get(value.Id)
 			if currMiner != nil {
 				var tempDuration time.Duration
 				now := util.MakeTimestamp() / 1000

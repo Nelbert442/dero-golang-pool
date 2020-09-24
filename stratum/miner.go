@@ -212,7 +212,9 @@ func (m *Miner) storeShare(diff, templateHeight int64) {
 	if m.IsSolo {
 		// If miner is solo, we don't care about updating roundheight/roundshares etc. These vals aren't used as upon a solo block being found, the address who finds get all rewards
 		// Just normal tracking of shares for hashrate purposes
+		m.Lock()
 		m.Shares[now] += diff
+		m.Unlock()
 	} else {
 
 		blockHeightArr := Graviton_backend.GetBlocksFoundByHeightArr()
@@ -423,10 +425,10 @@ func (m *Miner) processShare(s *StratumServer, cs *Session, job *Job, t *BlockTe
 			// Only update next round miner stats if a pool block is found, so can determine this by the miner who found the block's solo status
 			if !m.IsSolo {
 				log.Printf("[Miner] Updating miner stats for the next round...")
-				nextRoundMiners := s.gravitonDB.NextRound(int64(t.Height))
+				s.gravitonDB.NextRound(int64(t.Height), s.hashrateExpiration)
 
 				log.Printf("[Miner] Updating miner stats in DB for current round...")
-				_ = s.gravitonDB.WriteMinerStats(nextRoundMiners, s.hashrateExpiration)
+				_ = s.gravitonDB.WriteMinerStats(s.miners, s.hashrateExpiration)
 			}
 		}
 	} else if hashDiff.Cmp(&setDiff) < 0 {
