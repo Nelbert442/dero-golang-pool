@@ -12,7 +12,7 @@
 	"coinDecimalPlaces": 4,
 	"coinDifficultyTarget": 27,
 
-	"trustedSharesCount": 30,
+	"trustedSharesCount": 1000000,
 	"blockRefreshInterval": "120ms",
 	"hashrateExpiration": "3h",
 

@@ -61,7 +61,6 @@ func (job *Job) submit(nonce string) bool {
 
 func NewMiner(id string, address string, paymentid string, fixedDiff uint64, workID string, isSolo bool, ip string) *Miner {
 	shares := make(map[int64]int64)
-	//lastRoundShares := make(map[int64]int64)
 	now := util.MakeTimestamp() / 1000
 	return &Miner{Id: id, Address: address, PaymentID: paymentid, FixedDiff: fixedDiff, IsSolo: isSolo, WorkID: workID, Ip: ip, Shares: shares, StartedAt: now}
 }
@@ -225,16 +224,12 @@ func (m *Miner) storeShare(diff, templateHeight int64) {
 				if atomic.LoadInt64(&m.RoundHeight) <= height {
 					// Miner round height is less than a pre-found block [usually happens for disconnected miners && new rounds]. Reset counters
 					m.Lock()
-					//m.RoundHeight = templateHeight
 					atomic.StoreInt64(&m.RoundHeight, templateHeight)
 					// No need to add blank diff shares to m.Shares. Usually only 0 if running NextRound from storage.go
 					if diff != 0 {
 						m.Shares[now] += diff
 					}
-					// This should be taken care of in NextRound function call
-					//m.LastRoundShares = m.RoundShares
 					atomic.StoreInt64(&m.LastRoundShares, atomic.LoadInt64(&m.RoundShares))
-					//m.RoundShares = diff
 					atomic.StoreInt64(&m.RoundShares, diff)
 					m.Unlock()
 					resetVars = true
@@ -244,13 +239,11 @@ func (m *Miner) storeShare(diff, templateHeight int64) {
 
 		if !resetVars {
 			m.Lock()
-			//m.RoundHeight = templateHeight
 			atomic.StoreInt64(&m.RoundHeight, templateHeight)
 			// No need to add blank diff shares to m.Shares. Usually only 0 if running NextRound from storage.go
 			if diff != 0 {
 				m.Shares[now] += diff
 			}
-			//m.RoundShares += diff
 			atomic.AddInt64(&m.RoundShares, diff)
 			m.Unlock()
 		}
@@ -311,11 +304,15 @@ func (m *Miner) processShare(s *StratumServer, cs *Session, job *Job, t *BlockTe
 	nonceBuff, _ := hex.DecodeString(nonce)
 	copy(shareBuff[39:], nonceBuff)
 
-	if atomic.LoadInt64(&m.TrustedShares) >= s.trustedSharesCount {
-		shareType = "Trusted"
-	} else {
-		shareType = "Valid"
-	}
+	/*
+		// For some reason, upon shareType == "Trusted", miner stats stop being stored. Need to figure that out before re-enabling that piece
+		if atomic.LoadInt64(&m.TrustedShares) >= s.trustedSharesCount {
+			shareType = "Trusted"
+		} else {
+			shareType = "Valid"
+		}
+	*/
+	shareType = "Valid"
 
 	// Append share type, solo or pool for logging assistance
 	if m.IsSolo {
@@ -398,8 +395,6 @@ func (m *Miner) processShare(s *StratumServer, cs *Session, job *Job, t *BlockTe
 			// Immediately refresh current BT and send new jobs
 			s.refreshBlockTemplate(true)
 
-			//m.storeShare(cs.difficulty, int64(t.Height))
-
 			// Graviton store of successful block
 			// This could be 'cleaned' to one-liners etc., but just depends on how you feel. Upon build/testing was simpler to view in-line for spec values
 			ts := util.MakeTimestamp() / 1000
@@ -422,18 +417,13 @@ func (m *Miner) processShare(s *StratumServer, cs *Session, job *Job, t *BlockTe
 			}
 
 			m.Lock()
-			//m.RoundHeight = int64(t.Height)
 			atomic.StoreInt64(&m.RoundHeight, int64(t.Height))
 			// No need to add blank diff shares to m.Shares. Usually only 0 if running NextRound from storage.go
 			if cs.difficulty != 0 {
 				m.Shares[now] += cs.difficulty
 			}
-			// This should be taken care of by NextRound function call
-			//m.LastRoundShares[int64(t.Height)] = m.RoundShares + cs.difficulty
-			//log.Printf("[Miner-submitblock] %v - adding m.RoundShares (%v) and setting m.LastRoundShares[%v] to %v . m.RoundShares will then be set to: %v", m.Id, m.RoundShares, t.Height, m.LastRoundShares[int64(t.Height)], cs.difficulty)
-			//m.LastRoundShares = m.RoundShares + cs.difficulty
+
 			atomic.AddInt64(&m.LastRoundShares, atomic.LoadInt64(&m.RoundShares)+cs.difficulty)
-			//m.RoundShares = 0
 			atomic.StoreInt64(&m.RoundShares, 0)
 			m.Unlock()
 
@@ -445,7 +435,7 @@ func (m *Miner) processShare(s *StratumServer, cs *Session, job *Job, t *BlockTe
 				log.Printf("[Miner] Updating miner stats for the next round...")
 				s.gravitonDB.NextRound(int64(t.Height), s.hashrateExpiration)
 			}
-			//m.LastRoundShares = 0
+
 			atomic.StoreInt64(&m.LastRoundShares, 0)
 		}
 	} else if hashDiff.Cmp(&setDiff) < 0 {
@@ -462,7 +452,6 @@ func (m *Miner) processShare(s *StratumServer, cs *Session, job *Job, t *BlockTe
 	if !block && !checkPowHashBig {
 		m.storeShare(cs.difficulty, int64(t.Height))
 	}
-	//atomic.AddInt64(&s.roundShares, cs.difficulty)
 
 	atomic.AddInt64(&m.ValidShares, 1)
 

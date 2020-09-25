@@ -84,7 +84,8 @@ Explanation for each field:
 	"coinDifficultyTarget": 27,
 
 	/* Used for defining how many validated shares to submit in a row before passThru hashing [trusted] */
-	"trustedSharesCount": 30,
+	/* NOTE: This is currently not going to do anything, see miner.go --> processShare(). Some reason causing issues with miner data, TODO for later */
+	"trustedSharesCount": 1000000,
 
     /*  Defines how often the upstream (daemon) getblocktemplate is refreshed.
         DERO blockchain is fast and runs on 27 Seconds blocktime. Best practice is to update your mining job at-least every second. 
