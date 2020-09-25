@@ -36,16 +36,17 @@ type ApiPayments struct {
 }
 
 type ApiMiner struct {
-	LastBeat      int64
-	StartedAt     int64
-	ValidShares   int64
-	InvalidShares int64
-	StaleShares   int64
-	Accepts       int64
-	Rejects       int64
-	RoundShares   int64
-	Hashrate      int64
-	Offline       bool
+	LastBeat        int64
+	StartedAt       int64
+	ValidShares     int64
+	InvalidShares   int64
+	StaleShares     int64
+	Accepts         int64
+	Rejects         int64
+	LastRoundShares int64
+	RoundShares     int64
+	Hashrate        int64
+	Offline         bool
 	sync.RWMutex
 	Id      string
 	Address string
@@ -294,19 +295,20 @@ func (apiServer *ApiServer) convertMinerResults(miners []*Miner) ([]*ApiMiner, i
 
 					// Generate struct for miner stats
 					reply = &ApiMiner{
-						LastBeat:      currMiner.LastBeat,
-						StartedAt:     currMiner.StartedAt,
-						ValidShares:   currMiner.ValidShares,
-						InvalidShares: currMiner.InvalidShares,
-						StaleShares:   currMiner.StaleShares,
-						Accepts:       currMiner.Accepts,
-						Rejects:       currMiner.Rejects,
-						RoundShares:   currMiner.RoundShares,
-						Hashrate:      Hashrate,
-						Offline:       Offline,
-						Id:            ID,
-						Address:       currMiner.Address,
-						IsSolo:        currMiner.IsSolo,
+						LastBeat:        currMiner.LastBeat,
+						StartedAt:       currMiner.StartedAt,
+						ValidShares:     currMiner.ValidShares,
+						InvalidShares:   currMiner.InvalidShares,
+						StaleShares:     currMiner.StaleShares,
+						Accepts:         currMiner.Accepts,
+						Rejects:         currMiner.Rejects,
+						LastRoundShares: currMiner.LastRoundShares,
+						RoundShares:     currMiner.RoundShares,
+						Hashrate:        Hashrate,
+						Offline:         Offline,
+						Id:              ID,
+						Address:         currMiner.Address,
+						IsSolo:          currMiner.IsSolo,
 					}
 
 					apiMiners[ID] = reply

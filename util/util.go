@@ -48,8 +48,6 @@ func GetHashDifficulty(hashBytes []byte) (*big.Int, bool) {
 }
 
 func ValidateAddress(addy string, poolAddy string) bool {
-	var poolAddyNetwork string
-
 	prefix, _ := utf8.DecodeRuneInString(addy)
 	poolPrefix, _ := utf8.DecodeRuneInString(poolAddy)
 	if prefix != poolPrefix {
@@ -58,7 +56,7 @@ func ValidateAddress(addy string, poolAddy string) bool {
 	addyRune := []rune(addy)
 	poolAddyRune := []rune(poolAddy)
 	// Validating only first 3 (dET or dER) since possibly integrated addrs could be dETi or dERi and pool addr could be either dETi, dERi, dETo, dERo [i for integrated]
-	poolAddyNetwork = string(poolAddyRune[0:3])
+	poolAddyNetwork := string(poolAddyRune[0:3])
 
 	if string(addyRune[0:3]) != poolAddyNetwork {
 		log.Printf("[Util] Invalid address, pool address and supplied address don't match testnet(dETo)/mainnet(dERo). Pool Address is in %s", poolAddyNetwork)
