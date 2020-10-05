@@ -751,6 +751,16 @@ func (g *GravitonStore) CompareMinerStats(storedMiner, miner *Miner, hashrateExp
 					diff = 0
 				}
 				updatedMiner.RoundShares += diff
+
+				// Remove old shares from backend - older than hashrate expiration of pool config
+				now := util.MakeTimestamp() / 1000
+				hashExpiration := int64(hashrateExpiration / time.Second)
+
+				for k, _ := range updatedMiner.Shares {
+					if k < now-hashExpiration {
+						delete(updatedMiner.Shares, k)
+					}
+				}
 			}
 		} else if oldHashes && updatedMiner == nil {
 			// If no current miner, but new round is defined, set roundShares to 0 since their stored shares are not counted anymore

@@ -256,14 +256,14 @@ func (u *PayoutsProcessor) process(s *StratumServer) {
 			amount := payee.Amount
 
 			// Remove pending payout from graviton db
-			log.Printf("[Payments] Before Payment Pruning: %v", payPending)
+			//log.Printf("[Payments] Before Payment Pruning: %v", payPending)
 			//f := paymentsToRemove[login] - p
 			//log.Printf("[Payments] Removing payPending: %v", payPending[f])
 			//payPending = removePendingPayments(payPending, f)
 
 			for j, f := range payPending {
 				if login == f.Address {
-					log.Printf("[Payments] Removing payPending: %v", payPending[j])
+					//log.Printf("[Payments] Removing payPending: %v", payPending[j])
 					payPending = removePendingPayments(payPending, j)
 					break
 				}
@@ -343,14 +343,14 @@ func (u *PayoutsProcessor) process(s *StratumServer) {
 						amount := payoutList[lastPos+k].Amount
 
 						// Remove pending payout from graviton db
-						log.Printf("[Payments] Before Payment Pruning: %v", payPending)
+						//log.Printf("[Payments] Before Payment Pruning: %v", payPending)
 						//f := paymentsToRemove[login] - k
 						//log.Printf("[Payments] Removing payPending: %v", payPending[f])
 						//payPending = removePendingPayments(payPending, f)
 
 						for j, f := range payPending {
 							if login == f.Address {
-								log.Printf("[Payments] Removing payPending: %v", payPending[j])
+								//log.Printf("[Payments] Removing payPending: %v", payPending[j])
 								payPending = removePendingPayments(payPending, j)
 								break
 							}
@@ -405,14 +405,14 @@ func (u *PayoutsProcessor) process(s *StratumServer) {
 					amount := value.Amount
 
 					// Remove pending payout from graviton db
-					log.Printf("[Payments] Before Payment Pruning: %v", payPending)
+					//log.Printf("[Payments] Before Payment Pruning: %v", payPending)
 					//f := paymentsToRemove[login]
 					//log.Printf("[Payments] Removing payPending: %v", payPending[f])
 					//payPending = removePendingPayments(payPending, f)
 
 					for j, f := range payPending {
 						if login == f.Address {
-							log.Printf("[Payments] Removing payPending: %v", payPending[j])
+							//log.Printf("[Payments] Removing payPending: %v", payPending[j])
 							payPending = removePendingPayments(payPending, j)
 							break
 						}

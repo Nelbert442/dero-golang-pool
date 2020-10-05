@@ -470,7 +470,7 @@ func (m *Miner) processShare(s *StratumServer, cs *Session, job *Job, t *BlockTe
 		cs.VarDiff.LastTimeStamp = ts
 	}
 
-	log.Printf("[Miner-processShare] roundShares: %v; lastRoundShares: %v; id: %v", atomic.LoadInt64(&m.RoundShares), atomic.LoadInt64(&m.LastRoundShares), m.Id)
+	//log.Printf("[Miner-processShare] roundShares: %v; lastRoundShares: %v; id: %v", atomic.LoadInt64(&m.RoundShares), atomic.LoadInt64(&m.LastRoundShares), m.Id)
 
 	s.miners.Set(m.Id, m)
 
