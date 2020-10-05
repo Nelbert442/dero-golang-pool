@@ -89,7 +89,8 @@ func (u *PayoutsProcessor) process(s *StratumServer) {
 	var paymentIDPayeeList []rpc.Destinations
 	var payIDList []string
 	var payPending []*PaymentPending
-	paymentsToRemove := make(map[string][]int)
+	//paymentsToRemove := make(map[string][]int)
+	//paymentsToRemove := make(map[string]int)
 
 	walletURL := fmt.Sprintf("http://%s:%v/json_rpc", u.config.WalletHost, u.config.WalletPort)
 	mustPay := 0
@@ -98,7 +99,7 @@ func (u *PayoutsProcessor) process(s *StratumServer) {
 
 	// Graviton DB Pending Balance
 	payPending = Graviton_backend.GetPendingPayments()
-	for i, val := range payPending {
+	for _, val := range payPending {
 
 		login := val.Address
 		amount := val.Amount
@@ -107,7 +108,8 @@ func (u *PayoutsProcessor) process(s *StratumServer) {
 			continue
 		}
 
-		paymentsToRemove[login] = append(paymentsToRemove[login], i)
+		// Add index of payPending to array of paymentsToRemove which will be used later to cleanup DB
+		//paymentsToRemove[login] = i
 
 		// Check if we have enough funds
 		poolBalanceObj, err := u.rpc.GetBalance(walletURL)
@@ -255,23 +257,34 @@ func (u *PayoutsProcessor) process(s *StratumServer) {
 
 			// Remove pending payout from graviton db
 			log.Printf("[Payments] Before Payment Pruning: %v", payPending)
-			for j, i := range paymentsToRemove[login] {
+			//f := paymentsToRemove[login] - p
+			//log.Printf("[Payments] Removing payPending: %v", payPending[f])
+			//payPending = removePendingPayments(payPending, f)
+
+			for j, f := range payPending {
+				if login == f.Address {
+					log.Printf("[Payments] Removing payPending: %v", payPending[j])
+					payPending = removePendingPayments(payPending, j)
+					break
+				}
+			}
+			/*for j, f := range paymentsToRemove[login] {
 				// This keeps the array val in check while processing payments.
 				// Example:
-				// login 1: i = 0
-				// login 2: i = 1
-				// login 1 gets pruned, payPending length is now 1, need to reduce login 2 i = 0 instead of 1, else out of range index, so 1 - 1 and so on..
-				if i <= j {
-					i = j - i
+				// login 1: f = 0
+				// login 2: f = 1
+				// login 1 gets pruned, payPending length is now 1, need to reduce login 2 f = 0 instead of 1, else out of range index, so 1 - 1 and so on..
+				if f <= j {
+					f = j - f
 				}
-				payPending = removePendingPayments(payPending, i)
-			}
+				payPending = removePendingPayments(payPending, f)
+			}*/
 
 			prunedPaymentsPending := &PendingPayments{PendingPayout: payPending}
 
 			err = Graviton_backend.OverwritePendingPayments(prunedPaymentsPending)
 			if err != nil {
-				log.Printf("[Payments] Error overwriting pending payments. %v", paymentsToRemove)
+				log.Printf("[Payments] Error overwriting pending payments. %v", err)
 				break
 			}
 
@@ -331,23 +344,38 @@ func (u *PayoutsProcessor) process(s *StratumServer) {
 
 						// Remove pending payout from graviton db
 						log.Printf("[Payments] Before Payment Pruning: %v", payPending)
-						for j, i := range paymentsToRemove[login] {
-							// This keeps the array val in check while processing payments.
-							// Example:
-							// login 1: i = 0
-							// login 2: i = 1
-							// login 1 gets pruned, payPending length is now 1, need to reduce login 2 i = 0 instead of 1, else out of range index, so 1 - 1 and so on..
-							if i <= j {
-								i = j - i
+						//f := paymentsToRemove[login] - k
+						//log.Printf("[Payments] Removing payPending: %v", payPending[f])
+						//payPending = removePendingPayments(payPending, f)
+
+						for j, f := range payPending {
+							if login == f.Address {
+								log.Printf("[Payments] Removing payPending: %v", payPending[j])
+								payPending = removePendingPayments(payPending, j)
+								break
 							}
-							payPending = removePendingPayments(payPending, i)
 						}
+						/*
+							for j, f := range paymentsToRemove[login] {
+								// This keeps the array val in check while processing payments.
+								// Example:
+								// login 1: f = 0
+								// login 2: f = 1
+								// login 1 gets pruned, payPending length is now 1, need to reduce login 2 f = 0 instead of 1, else out of range index, so 1 - 1 and so on..
+								log.Printf("f: %v; j: %v", f, j)
+								if f <= j {
+									f = j - f
+								}
+								log.Printf("f: %v; j: %v", f, j)
+								payPending = removePendingPayments(payPending, f)
+							}
+						*/
 
 						prunedPaymentsPending := &PendingPayments{PendingPayout: payPending}
 
 						err = Graviton_backend.OverwritePendingPayments(prunedPaymentsPending)
 						if err != nil {
-							log.Printf("[Payments] Error overwriting pending payments. %v", paymentsToRemove)
+							log.Printf("[Payments] Error overwriting pending payments. %v", err)
 							break
 						}
 
@@ -378,23 +406,37 @@ func (u *PayoutsProcessor) process(s *StratumServer) {
 
 					// Remove pending payout from graviton db
 					log.Printf("[Payments] Before Payment Pruning: %v", payPending)
-					for j, i := range paymentsToRemove[login] {
-						// This keeps the array val in check while processing payments.
-						// Example:
-						// login 1: i = 0
-						// login 2: i = 1
-						// login 1 gets pruned, payPending length is now 1, need to reduce login 2 i = 0 instead of 1, else out of range index, so 1 - 1 and so on..
-						if i <= j {
-							i = j - i
+					//f := paymentsToRemove[login]
+					//log.Printf("[Payments] Removing payPending: %v", payPending[f])
+					//payPending = removePendingPayments(payPending, f)
+
+					for j, f := range payPending {
+						if login == f.Address {
+							log.Printf("[Payments] Removing payPending: %v", payPending[j])
+							payPending = removePendingPayments(payPending, j)
+							break
 						}
-						payPending = removePendingPayments(payPending, i)
 					}
+
+					/*
+						for j, f := range paymentsToRemove[login] {
+							// This keeps the array val in check while processing payments.
+							// Example:
+							// login 1: f = 0
+							// login 2: f = 1
+							// login 1 gets pruned, payPending length is now 1, need to reduce login 2 f = 0 instead of 1, else out of range index, so 1 - 1 and so on..
+							if f <= j {
+								f = j - f
+							}
+							payPending = removePendingPayments(payPending, f)
+						}
+					*/
 
 					prunedPaymentsPending := &PendingPayments{PendingPayout: payPending}
 
 					err = Graviton_backend.OverwritePendingPayments(prunedPaymentsPending)
 					if err != nil {
-						log.Printf("[Payments] Error overwriting pending payments. %v", paymentsToRemove)
+						log.Printf("[Payments] Error overwriting pending payments. %v", err)
 						break
 					}
 

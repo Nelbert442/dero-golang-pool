@@ -372,7 +372,6 @@ func (m *Miner) processShare(s *StratumServer, cs *Session, job *Job, t *BlockTe
 		if blockSubmit.Result != nil {
 			err = json.Unmarshal(*blockSubmit.Result, &blockSubmitReply)
 		}
-		log.Printf("[BLOCK] Block accepted. Hash: %s, Status: %s", blockSubmitReply.BLID, blockSubmitReply.Status)
 
 		if err != nil || blockSubmitReply.Status != "OK" {
 			atomic.AddInt64(&m.Rejects, 1)
@@ -380,6 +379,8 @@ func (m *Miner) processShare(s *StratumServer, cs *Session, job *Job, t *BlockTe
 			log.Printf("[BLOCK] Block rejected at height %d: %v", t.Height, err)
 			return false, "Bad hash"
 		} else {
+			log.Printf("[BLOCK] Block accepted. Hash: %s, Status: %s", blockSubmitReply.BLID, blockSubmitReply.Status)
+
 			now := util.MakeTimestamp() / 1000
 
 			atomic.AddInt64(&m.Accepts, 1)

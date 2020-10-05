@@ -6,6 +6,7 @@ import (
 	"log"
 	"math/big"
 	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
@@ -134,7 +135,7 @@ func (g *GravitonStore) NewGravDB(poolhost string) {
 		log.Printf("%v", err)
 	}
 
-	g.DBPath = current_path + "\\pooldb"
+	g.DBPath = filepath.Join(current_path, "pooldb")
 
 	g.DB, _ = graviton.NewDiskStore(g.DBPath)
 
