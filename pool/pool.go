@@ -78,7 +78,6 @@ type APIConfig struct {
 	Listen               string `json:"listen"`
 	StatsCollectInterval string `json:"statsCollectInterval"`
 	HashrateWindow       string `json:"hashrateWindow"`
-	HashrateLargeWindow  string `json:"hashrateLargeWindow"`
 	Blocks               int64  `json:"blocks"`
 	Payments             int64  `json:"payments"`
 }

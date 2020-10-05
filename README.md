@@ -174,7 +174,6 @@ Explanation for each field:
 		"listen": "0.0.0.0:8082",		// Set bind address and port for api [Note: poolAddr/api/* (stats, blocks, etc. defined in api.go)]
 		"statsCollectInterval": "5s",	// Set interval for stats collection to run
 		"hashrateWindow": "10m",		// Fast hashrate estimation window for each miner from its' shares
-		"hashrateLargeWindow": "3h",	// Long and precise hashrate from shares
 		"payments": 30,					// Max number of payments to display in frontend
 		"blocks": 50					// Max number of blocks to display in frontend
 	},

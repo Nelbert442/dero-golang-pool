@@ -16,15 +16,14 @@ import (
 )
 
 type ApiServer struct {
-	config              pool.APIConfig
-	backend             *GravitonStore
-	hashrateWindow      time.Duration
-	hashrateLargeWindow time.Duration
-	stats               atomic.Value
-	miners              map[string]*Entry
-	minersMu            sync.RWMutex
-	statsIntv           time.Duration
-	stratum             *StratumServer
+	config         pool.APIConfig
+	backend        *GravitonStore
+	hashrateWindow time.Duration
+	stats          atomic.Value
+	miners         map[string]*Entry
+	minersMu       sync.RWMutex
+	statsIntv      time.Duration
+	stratum        *StratumServer
 }
 
 type ApiPayments struct {
@@ -72,14 +71,12 @@ type Entry struct {
 
 func NewApiServer(cfg *pool.APIConfig, s *StratumServer) *ApiServer {
 	hashrateWindow, _ := time.ParseDuration(cfg.HashrateWindow)
-	hashrateLargeWindow, _ := time.ParseDuration(cfg.HashrateLargeWindow)
 	return &ApiServer{
-		config:              *cfg,
-		backend:             s.gravitonDB,
-		hashrateWindow:      hashrateWindow,
-		hashrateLargeWindow: hashrateLargeWindow,
-		miners:              make(map[string]*Entry),
-		stratum:             s,
+		config:         *cfg,
+		backend:        s.gravitonDB,
+		hashrateWindow: hashrateWindow,
+		miners:         make(map[string]*Entry),
+		stratum:        s,
 	}
 }
 

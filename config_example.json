@@ -93,7 +93,6 @@
 		"listen": "0.0.0.0:8082",
 		"statsCollectInterval": "5s",
 		"hashrateWindow": "10m",
-		"hashrateLargeWindow": "3h",
 		"payments": 30,
 		"blocks": 50
 	},
