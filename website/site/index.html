@@ -77,7 +77,7 @@
 			setTimeout(function(){
 				stats_update.style.transition = 'opacity 7000ms linear';
 				stats_update.style.opacity = 0;
-			}, 500);
+			}, 5000);
 		}
 
 		window.onhashchange = function(){
@@ -95,7 +95,9 @@
 				updateIndex();
 				currentPage.update();
 			}).always(function () {
-				fetchLiveStats();
+				setInterval(function(){ 
+					fetchLiveStats();
+				}, 5000);
 			});
 		}
 	

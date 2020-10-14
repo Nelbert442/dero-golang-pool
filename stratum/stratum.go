@@ -74,9 +74,9 @@ func NewStratum(cfg *pool.Config) *StratumServer {
 	stratum := &StratumServer{config: cfg}
 
 	// Startup/create new gravitondb (if it doesn't exist), write the configuration file (config.json) into storage for use / api surfacing later
-	stratum.gravitonDB = Graviton_backend
-	stratum.gravitonDB.NewGravDB(cfg.PoolHost)
-	stratum.gravitonDB.WriteConfig(cfg)
+	//stratum.gravitonDB = Graviton_backend
+	Graviton_backend.NewGravDB(cfg.PoolHost, "pooldb") //stratum.gravitonDB.NewGravDB(cfg.PoolHost, "pooldb") // TODO: Add to params in config.json file
+	Graviton_backend.WriteConfig(cfg)                  //stratum.gravitonDB.WriteConfig(cfg)
 
 	/* - testing just to output a val from db while development process is going
 	plConfig := stratum.gravitonDB.GetConfig(cfg.Coin)
@@ -223,9 +223,8 @@ func NewStratum(cfg *pool.Config) *StratumServer {
 						log.Printf("[Stratum] Error while retrieving block %s from node: %v", currentWork.Prev_Hash, getHashERR)
 					} else {
 						lastBlock := prevBlock.BlockHeader
-
 						lastblockDB := &LastBlock{Difficulty: lastBlock.Difficulty, Height: lastBlock.Height, Timestamp: int64(lastBlock.Timestamp), Reward: int64(lastBlock.Reward), Hash: lastBlock.Hash}
-						lastblockErr := stratum.gravitonDB.WriteLastBlock(lastblockDB)
+						lastblockErr := Graviton_backend.WriteLastBlock(lastblockDB) //stratum.gravitonDB.WriteLastBlock(lastblockDB)
 						if lastblockErr != nil {
 							log.Printf("[Stratum] Graviton DB err: %v", lastblockErr)
 						}

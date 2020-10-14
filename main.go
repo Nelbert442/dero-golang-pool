@@ -75,6 +75,7 @@ func readConfig(cfg *pool.Config) {
 }
 
 func main() {
+	log.SetFlags(log.LstdFlags | log.Lmicroseconds)
 	rand.Seed(time.Now().UTC().UnixNano())
 
 	readConfig(&cfg)

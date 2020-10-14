@@ -73,7 +73,7 @@ func NewApiServer(cfg *pool.APIConfig, s *StratumServer) *ApiServer {
 	hashrateWindow, _ := time.ParseDuration(cfg.HashrateWindow)
 	return &ApiServer{
 		config:         *cfg,
-		backend:        s.gravitonDB,
+		backend:        Graviton_backend, //s.gravitonDB,
 		hashrateWindow: hashrateWindow,
 		miners:         make(map[string]*Entry),
 		stratum:        s,
@@ -387,6 +387,14 @@ func (apiServer *ApiServer) StatsIndex(writer http.ResponseWriter, _ *http.Reque
 		reply["totalPoolMiners"] = stats["totalPoolMiners"]
 		reply["soloHashrate"] = stats["soloHashrate"]
 		reply["totalSoloMiners"] = stats["totalSoloMiners"]
+		/*
+			temp := Graviton_backend.DBCPNum - 1
+			if temp != 0 {
+				reply["currDBFolder"] = Graviton_backend.DBFolder + strconv.FormatInt(temp, 10)
+			} else {
+				reply["currDBFolder"] = Graviton_backend.DBFolder
+			}
+		*/
 	}
 
 	err := json.NewEncoder(writer).Encode(reply)

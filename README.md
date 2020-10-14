@@ -21,12 +21,20 @@ Golang Mining Pool for DERO
 
 ##### Future Features
 * (FUTURE) PPLNS and potentially other pool schemes support
+* (FUTURE) Management functions/go files for modifying / reporting of payments etc.
 
 #### Requirements
 * Coin daemon (find the coin's repo and build latest version from source)
     * [Derosuite](https://github.com/deroproject/derosuite/releases/latest)
 * [Golang](https://golang.org/dl/)
     * All code built and tested with Go v1.13.6
+* Repos to get once golang is installed:
+```
+go get github.com/deroproject/derosuite/...
+go get github.com/deroproject/graviton/...
+go get github.com/gorilla/mux/...
+go get git.dero.io/Nelbert442/dero-golang-pool/...
+```
 
 **Do not run the pool as root** : create a new user without ssh access to avoid security issues :
 ```bash

@@ -367,10 +367,12 @@ func (m *Miner) processShare(s *StratumServer, cs *Session, job *Job, t *BlockTe
 
 	if checkPowHashBig && block {
 		blockSubmit, err := r.SubmitBlock(t.Blocktemplate_blob, hex.EncodeToString(shareBuff))
-		var blockSubmitReply *rpc.SubmitBlock_Result
+		var blockSubmitReply *rpc.SubmitBlock_Result = &rpc.SubmitBlock_Result{}
 
-		if blockSubmit.Result != nil {
-			err = json.Unmarshal(*blockSubmit.Result, &blockSubmitReply)
+		if blockSubmit != nil {
+			if blockSubmit.Result != nil {
+				err = json.Unmarshal(*blockSubmit.Result, &blockSubmitReply)
+			}
 		}
 
 		if err != nil || blockSubmitReply.Status != "OK" {
@@ -412,7 +414,7 @@ func (m *Miner) processShare(s *StratumServer, cs *Session, job *Job, t *BlockTe
 			info.Solo = m.IsSolo
 			info.Address = m.Address
 			info.BlockState = "candidate"
-			infoErr := s.gravitonDB.WriteBlocks(info, info.BlockState)
+			infoErr := Graviton_backend.WriteBlocks(info, info.BlockState) //s.gravitonDB.WriteBlocks(info, info.BlockState)
 			if infoErr != nil {
 				log.Printf("[BLOCK] Graviton DB err: %v", infoErr)
 			}
@@ -431,10 +433,10 @@ func (m *Miner) processShare(s *StratumServer, cs *Session, job *Job, t *BlockTe
 			// Only update next round miner stats if a pool block is found, so can determine this by the miner who found the block's solo status
 			if !m.IsSolo {
 				log.Printf("[Miner] Updating miner stats in DB for current round...")
-				_ = s.gravitonDB.WriteMinerStats(s.miners, s.hashrateExpiration)
+				_ = Graviton_backend.WriteMinerStats(s.miners, s.hashrateExpiration) //s.gravitonDB.WriteMinerStats(s.miners, s.hashrateExpiration)
 
 				log.Printf("[Miner] Updating miner stats for the next round...")
-				s.gravitonDB.NextRound(int64(t.Height), s.hashrateExpiration)
+				Graviton_backend.NextRound(int64(t.Height), s.hashrateExpiration) //s.gravitonDB.NextRound(int64(t.Height), s.hashrateExpiration)
 			}
 
 			atomic.StoreInt64(&m.LastRoundShares, 0)

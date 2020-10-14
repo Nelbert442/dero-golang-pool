@@ -216,12 +216,12 @@ func (u *BlockUnlocker) unlockAndCreditMiners(s *StratumServer) {
 			info.Address = login
 			info.Amount = uint64(amount)
 			info.Timestamp = util.MakeTimestamp() / 1000
-			infoErr := s.gravitonDB.WritePendingPayments(info)
+			infoErr := Graviton_backend.WritePendingPayments(info) //s.gravitonDB.WritePendingPayments(info)
 			if infoErr != nil {
 				log.Printf("[Unlocker] Graviton DB err: %v", infoErr)
 			}
 		}
-		// To be used later, total taken from redis func, will be used for "pool" balance/payment stats
+		// To be used later, total taken from db func, will be used for "pool" balance/payment stats
 		_ = total
 
 		totalRevenue.Add(totalRevenue, revenue)
@@ -229,12 +229,11 @@ func (u *BlockUnlocker) unlockAndCreditMiners(s *StratumServer) {
 		totalPoolProfit.Add(totalPoolProfit, poolProfit)
 
 		logEntry := fmt.Sprintf(
-			"[Unlocker] MATURED %v: revenue %v, minersProfit %v, poolProfit %v, roundRewards %v",
+			"[Unlocker] MATURED %v: revenue %v, minersProfit %v, poolProfit %v",
 			block.RoundKey(),
 			revenue.FloatString(8),
 			minersProfit.FloatString(8),
 			poolProfit.FloatString(8),
-			roundRewards,
 		)
 		entries := []string{logEntry}
 		for login, reward := range roundRewards {

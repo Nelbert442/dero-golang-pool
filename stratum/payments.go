@@ -297,7 +297,7 @@ func (u *PayoutsProcessor) process(s *StratumServer) {
 			info.Mixin = u.config.Mixin
 			info.Amount = amount
 			info.Timestamp = util.MakeTimestamp() / 1000
-			infoErr := s.gravitonDB.WriteProcessedPayments(info)
+			infoErr := Graviton_backend.WriteProcessedPayments(info) //s.gravitonDB.WriteProcessedPayments(info)
 			if infoErr != nil {
 				log.Printf("[Payments] Graviton DB err: %v", infoErr)
 				break
@@ -305,7 +305,7 @@ func (u *PayoutsProcessor) process(s *StratumServer) {
 
 			minersPaid++
 			totalAmount.Add(totalAmount, big.NewInt(int64(amount)))
-			log.Printf("[Payments] Paid %v DERO to %v, PaymentID: %v, TxHash: %v, Fee: %v, Mixin: %v", int64(amount), login, currPayout.Payment_ID, txHash[0], txFee[0], u.config.Mixin)
+			//log.Printf("[Payments] Paid %v DERO to %v, PaymentID: %v, TxHash: %v, Fee: %v, Mixin: %v", int64(amount), login, currPayout.Payment_ID, txHash[0], txFee[0], u.config.Mixin)
 		}
 		currPayout.Destinations = nil
 
@@ -388,7 +388,7 @@ func (u *PayoutsProcessor) process(s *StratumServer) {
 						info.Mixin = u.config.Mixin
 						info.Amount = amount
 						info.Timestamp = util.MakeTimestamp() / 1000
-						infoErr := s.gravitonDB.WriteProcessedPayments(info)
+						infoErr := Graviton_backend.WriteProcessedPayments(info) //s.gravitonDB.WriteProcessedPayments(info)
 						if infoErr != nil {
 							log.Printf("[Payments] Graviton DB err: %v", infoErr)
 							break
@@ -396,7 +396,7 @@ func (u *PayoutsProcessor) process(s *StratumServer) {
 
 						minersPaid++
 						totalAmount.Add(totalAmount, big.NewInt(int64(amount)))
-						log.Printf("[Payments] Paid %v DERO to %v, TxHash: %v, Fee: %v, Mixin: %v", int64(amount), login, txHash[0], txFee[0], u.config.Mixin)
+						//log.Printf("[Payments] Paid %v DERO to %v, TxHash: %v, Fee: %v, Mixin: %v", int64(amount), login, txHash[0], txFee[0], u.config.Mixin)
 					}
 				} else {
 					log.Printf("[Payments] Processing payoutList[i]: %v", payoutList[i])
@@ -449,7 +449,7 @@ func (u *PayoutsProcessor) process(s *StratumServer) {
 					info.Mixin = u.config.Mixin
 					info.Amount = amount
 					info.Timestamp = util.MakeTimestamp() / 1000
-					infoErr := s.gravitonDB.WriteProcessedPayments(info)
+					infoErr := Graviton_backend.WriteProcessedPayments(info) //s.gravitonDB.WriteProcessedPayments(info)
 					if infoErr != nil {
 						log.Printf("[Payments] Graviton DB err: %v", infoErr)
 						break
@@ -457,7 +457,7 @@ func (u *PayoutsProcessor) process(s *StratumServer) {
 
 					minersPaid++
 					totalAmount.Add(totalAmount, big.NewInt(int64(amount)))
-					log.Printf("[Payments] Paid %v DERO to %v, TxHash: %v, Fee: %v, Mixin: %v", int64(amount), login, txHash[0], txFee[0], u.config.Mixin)
+					//log.Printf("[Payments] Paid %v DERO to %v, TxHash: %v, Fee: %v, Mixin: %v", int64(amount), login, txHash[0], txFee[0], u.config.Mixin)
 				}
 				// Empty currpayout destinations array
 				currPayout.Destinations = nil
