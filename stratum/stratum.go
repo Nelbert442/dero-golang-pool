@@ -9,8 +9,11 @@ import (
 	"log"
 	"math/big"
 	"net"
+	"os"
+	"os/signal"
 	"sync"
 	"sync/atomic"
+	"syscall"
 	"time"
 
 	"git.dero.io/Nelbert442/dero-golang-pool/pool"
@@ -72,6 +75,9 @@ const (
 
 func NewStratum(cfg *pool.Config) *StratumServer {
 	stratum := &StratumServer{config: cfg}
+
+	// Setup our Ctrl+C handler
+	stratum.SetupCloseHandler()
 
 	// Startup/create new gravitondb (if it doesn't exist), write the configuration file (config.json) into storage for use / api surfacing later
 	//stratum.gravitonDB = Graviton_backend
@@ -527,4 +533,24 @@ func (s *StratumServer) isSick() bool {
 // Upon success to redis, set failsCount to 0 and mark OK again
 func (s *StratumServer) markOk() {
 	atomic.StoreInt64(&s.failsCount, 0)
+}
+
+// SetupCloseHandler creates a 'listener' on a new goroutine which will notify the
+// program if it receives an interrupt from the OS. We then handle this by calling
+// our clean up procedure and exiting the program.
+// Reference: https://golangcode.com/handle-ctrl-c-exit-in-terminal/
+func (s *StratumServer) SetupCloseHandler() {
+	c := make(chan os.Signal)
+	signal.Notify(c, os.Interrupt, syscall.SIGTERM)
+	go func() {
+		<-c
+		log.Println("\r- Ctrl+C pressed in Terminal")
+		log.Printf("Closing - syncing miner stats...")
+		err := Graviton_backend.WriteMinerStats(s.miners, s.hashrateExpiration)
+		if err != nil {
+			log.Printf("[Stratum] Err storing miner stats: %v", err)
+		}
+		Graviton_backend.DB.Close()
+		os.Exit(0)
+	}()
 }
