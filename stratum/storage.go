@@ -61,24 +61,20 @@ type MinedBlocks struct {
 */
 
 type BlockDataGrav struct {
-	Height         int64
-	Timestamp      int64
-	Difficulty     int64
-	TotalShares    int64
-	Orphan         bool
-	Solo           bool
-	Hash           string
-	Address        string
-	Nonce          string
-	PowHash        string
-	Reward         uint64
-	ExtraReward    *big.Int
-	ImmatureReward string
-	RewardString   string
-	RoundHeight    int64
-	candidateKey   string
-	immatureKey    string
-	BlockState     string
+	Height      int64
+	Timestamp   int64
+	Difficulty  int64
+	TotalShares int64
+	Orphan      bool
+	Solo        bool
+	Hash        string
+	Address     string
+	Nonce       string
+	PowHash     string
+	Reward      uint64
+	ExtraReward *big.Int
+	RoundHeight int64
+	BlockState  string
 }
 
 type BlocksFoundByHeight struct {
@@ -111,14 +107,6 @@ type PaymentPending struct {
 
 type PendingPayments struct {
 	PendingPayout []*PaymentPending
-}
-
-type LastBlock struct {
-	Difficulty string
-	Height     int64
-	Timestamp  int64
-	Reward     int64
-	Hash       string
 }
 
 type GravitonStore struct {
@@ -266,7 +254,7 @@ func (g *GravitonStore) SwapGravDB(poolhost, dbFolder string) {
 		tree.Put(val.k, val.v)
 	}
 	log.Printf("Committing k/v pairs to tree")
-	tree.Commit()
+	graviton.Commit(tree)
 	log.Printf("Migration to new DB is done.")
 	g.migrating = 0
 }
@@ -304,8 +292,39 @@ func (g *GravitonStore) WriteBlocks(info *BlockDataGrav, blockType string) error
 	}
 
 	tree, _ := ss.GetTree(g.DBTree) // use or create tree named by poolhost in config
-	key := "block:" + blockType + ":" + strconv.FormatInt(info.Height, 10)
-	tree.Put([]byte(key), []byte(confBytes)) // insert a value
+
+	// Store non-matured blocks (candidates, orphaned, immature etc.) normally with key block:blocktype:height, matured within an array of matured blocks for db growth & k/v growth mgmt
+	if blockType != "matured" {
+		key := "block:" + blockType + ":" + strconv.FormatInt(info.Height, 10)
+		tree.Put([]byte(key), []byte(confBytes)) // insert a value
+	} else {
+		key := "block:matured"
+		currMaturedBlocks, err := tree.Get([]byte(key))
+		var maturedBlocks *BlocksFound
+
+		var newMaturedBlocks []byte
+
+		if err != nil {
+			// Returns key not found if != nil, or other err, but assuming keynotfound/leafnotfound
+			var maturedBlocksArr []*BlockDataGrav
+			maturedBlocksArr = append(maturedBlocksArr, info)
+			maturedBlocks = &BlocksFound{MinedBlocks: maturedBlocksArr}
+		} else {
+			// Retrieve value and convert to BlocksFoundByHeight, so that you can manipulate and update db
+			log.Printf("Appending block. Stored []byte maturedblocks slice size: %v", len(currMaturedBlocks))
+			_ = json.Unmarshal(currMaturedBlocks, &maturedBlocks)
+
+			maturedBlocks.MinedBlocks = append(maturedBlocks.MinedBlocks, info)
+			log.Printf("Appending block. MaturedBlock slice size: %v", len(maturedBlocks.MinedBlocks))
+		}
+		newMaturedBlocks, err = json.Marshal(maturedBlocks)
+		if err != nil {
+			return fmt.Errorf("[Graviton] could not marshal maturedBlocks info: %v", err)
+		}
+
+		// TODO: max value size of 104857600 would come out to ~209,715 blocks [~[500]byte or so a piece] capable of being stored this way before errs on value store and need for splitting.
+		tree.Put([]byte(key), newMaturedBlocks)
+	}
 
 	// Remove blocks from previous rounds (orphaned removes candidate, immature removes candidate, matured removes immature)
 	switch blockType {
@@ -485,13 +504,28 @@ func (g *GravitonStore) GetBlocksFound(blocktype string) *BlocksFound {
 		}
 
 		// Matured
-		if blocktype == "matured" || blocktype == "all" {
-			key := "block:matured:" + strconv.FormatInt(currHeight, 10)
-			v, _ := tree.Get([]byte(key))
-			if v != nil {
-				var reply *BlockDataGrav
-				_ = json.Unmarshal(v, &reply)
-				blocksFound.MinedBlocks = append(blocksFound.MinedBlocks, reply)
+		/*
+			if blocktype == "matured" || blocktype == "all" {
+				key := "block:matured:" + strconv.FormatInt(currHeight, 10)
+				v, _ := tree.Get([]byte(key))
+				if v != nil {
+					var reply *BlockDataGrav
+					_ = json.Unmarshal(v, &reply)
+					blocksFound.MinedBlocks = append(blocksFound.MinedBlocks, reply)
+				}
+			}
+		*/
+	}
+
+	if blocktype == "matured" || blocktype == "all" {
+		key := "block:matured"
+		v, _ := tree.Get([]byte(key))
+		if v != nil {
+			var reply *BlocksFound
+			_ = json.Unmarshal(v, &reply)
+
+			for _, v := range reply.MinedBlocks {
+				blocksFound.MinedBlocks = append(blocksFound.MinedBlocks, v)
 			}
 		}
 	}
@@ -804,9 +838,11 @@ func (g *GravitonStore) WriteProcessedPayments(info *MinerPayments) error {
 		paymentsProcessed = &ProcessedPayments{MinerPayments: paymentsProcessedArr}
 	} else {
 		// Retrieve value and convert to BlocksFoundByHeight, so that you can manipulate and update db
+		log.Printf("Appending payment processed. Stored []byte minerpayments slice size: %v", len(currPaymentsProcessed))
 		_ = json.Unmarshal(currPaymentsProcessed, &paymentsProcessed)
 
 		paymentsProcessed.MinerPayments = append(paymentsProcessed.MinerPayments, info)
+		log.Printf("Appending payment processed. MinerPayments slice size: %v", len(paymentsProcessed.MinerPayments))
 	}
 	newPaymentsProcessed, err = json.Marshal(paymentsProcessed)
 	if err != nil {
@@ -814,6 +850,7 @@ func (g *GravitonStore) WriteProcessedPayments(info *MinerPayments) error {
 	}
 
 	tree.Put([]byte(key), newPaymentsProcessed)
+	// TODO: max value size of 104857600 would come out to ~299,593 payments [~[350]byte or so a piece] capable of being stored this way before errs on value store and need for splitting.
 	graviton.Commit(tree)
 
 	return nil
@@ -886,6 +923,8 @@ func (blockDataGrav *BlockDataGrav) RoundKey() string {
 	return join(blockDataGrav.RoundHeight, blockDataGrav.Hash)
 }
 
+/*
+// Replacing the need for storing the last block with just normal rpc calls within api, lowers # of commits to DB
 func (g *GravitonStore) WriteLastBlock(lastBlock *LastBlock) error {
 	confBytes, err := json.Marshal(lastBlock)
 	if err != nil {
@@ -948,6 +987,7 @@ func (g *GravitonStore) GetLastBlock() *LastBlock {
 
 	return nil
 }
+*/
 
 func (g *GravitonStore) WriteConfig(config *pool.Config) error {
 	confBytes, err := json.Marshal(config)
@@ -1106,7 +1146,7 @@ func (g *GravitonStore) GetMinerIDRegistrations() []*Miner {
 	return nil
 }
 
-func (g *GravitonStore) CompareMinerStats(storedMiner, miner *Miner, hashrateExpiration time.Duration) *Miner {
+func (g *GravitonStore) CompareMinerStats(storedMiner, miner *Miner, hashrateExpiration time.Duration) (*Miner, bool) {
 	// Get existing, compare the roundShares of each...
 	// Check online etc.
 	// Compare storedMiner to miner input, update the stored miner with a few 'appends'
@@ -1170,21 +1210,24 @@ func (g *GravitonStore) CompareMinerStats(storedMiner, miner *Miner, hashrateExp
 			*/
 
 			updatedMiner.Unlock()
+		} else {
+			return storedMiner, false
 		}
 	}
 
 	var newMiner *Miner
 	if updatedMiner != nil {
 		newMiner = updatedMiner
-		return newMiner
+		return newMiner, true
 	} else {
-		return storedMiner
+		return storedMiner, false
 	}
 }
 
 func (g *GravitonStore) WriteMinerStats(miners MinersMap, hashrateExpiration time.Duration) error {
 	var confBytes []byte
 	var err error
+	var Commit bool
 	storedMinerSlice := g.GetAllMinerStats()
 
 	store := g.DB
@@ -1210,20 +1253,23 @@ func (g *GravitonStore) WriteMinerStats(miners MinersMap, hashrateExpiration tim
 	if storedMinerSlice != nil {
 		for _, storedMiner := range storedMinerSlice {
 			currMiner, _ := miners.Get(storedMiner.Id)
-			updatedMiner := g.CompareMinerStats(storedMiner, currMiner, hashrateExpiration)
+			updatedMiner, changes := g.CompareMinerStats(storedMiner, currMiner, hashrateExpiration)
 			//log.Printf("currMiner: %v ; updatedMiner: %v ; miner = updatedMiner: %v", &currMiner, &updatedMiner, &currMiner == &updatedMiner)
 
 			// Sometimes can run into concurrent read/write with updatedMiner. Possible misuse of same memory space, investigate further through testing might be required.]
 			// Initial thought is the memory index of the map for shares is still linked back to in-use miner struct on each share submission, however that's just used to calc hashrate, so np missing one
-			updatedMiner.Lock()
-			confBytes, err = json.Marshal(updatedMiner)
-			updatedMiner.Unlock()
-			if err != nil {
-				return fmt.Errorf("[Graviton] could not marshal miner stats: %v", err)
-			}
+			if changes {
+				Commit = true
+				updatedMiner.Lock()
+				confBytes, err = json.Marshal(updatedMiner)
+				updatedMiner.Unlock()
+				if err != nil {
+					return fmt.Errorf("[Graviton] could not marshal miner stats: %v", err)
+				}
 
-			key := "miners:stats:" + updatedMiner.Id // TODO: Append on the miner ID
-			tree.Put([]byte(key), []byte(confBytes)) // insert a value
+				key := "miners:stats:" + updatedMiner.Id // TODO: Append on the miner ID
+				tree.Put([]byte(key), []byte(confBytes)) // insert a value
+			}
 		}
 	} else {
 		registeredMiners := g.GetMinerIDRegistrations()
@@ -1243,7 +1289,10 @@ func (g *GravitonStore) WriteMinerStats(miners MinersMap, hashrateExpiration tim
 		}
 	}
 
-	graviton.Commit(tree) // commit the tree
+	if Commit {
+		log.Printf("SS Version: %v", ss.GetVersion())
+		graviton.Commit(tree) // commit the tree
+	}
 
 	return nil
 }
@@ -1251,7 +1300,7 @@ func (g *GravitonStore) WriteMinerStats(miners MinersMap, hashrateExpiration tim
 func (g *GravitonStore) WriteMinerStatsByID(miner *Miner, hashrateExpiration time.Duration) error {
 	storedMiner := g.GetMinerStatsByID(miner.Id)
 
-	updatedMiner := g.CompareMinerStats(storedMiner, miner, hashrateExpiration)
+	updatedMiner, _ := g.CompareMinerStats(storedMiner, miner, hashrateExpiration)
 
 	confBytes, err := json.Marshal(updatedMiner)
 	if err != nil {

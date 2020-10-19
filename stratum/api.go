@@ -64,6 +64,14 @@ type ApiBlocks struct {
 	Solo        bool
 }
 
+type LastBlock struct {
+	Difficulty string
+	Height     int64
+	Timestamp  int64
+	Reward     int64
+	Hash       string
+}
+
 type Entry struct {
 	stats     map[string]interface{}
 	updatedAt int64
@@ -127,7 +135,27 @@ func (apiServer *ApiServer) collectStats() {
 	var numCandidateBlocks, numImmatureBlocks, numMaturedBlocks int
 
 	// Build last block stats
-	stats["lastblock"] = apiServer.backend.GetLastBlock()
+	//stats["lastblock"] = apiServer.backend.GetLastBlock()
+
+	v := apiServer.stratum.rpc()
+	currentWork := apiServer.stratum.currentWork()
+	prevBlock, getHashERR := v.GetLastBlockHeader()
+
+	if getHashERR != nil {
+		log.Printf("[Stratum] Error while retrieving block %s from node: %v", currentWork.Prev_Hash, getHashERR)
+		lastblockDB := &LastBlock{}
+		stats["lastblock"] = lastblockDB
+	} else {
+		lastBlock := prevBlock.BlockHeader
+		lastblockDB := &LastBlock{Difficulty: lastBlock.Difficulty, Height: lastBlock.Height, Timestamp: int64(lastBlock.Timestamp), Reward: int64(lastBlock.Reward), Hash: lastBlock.Hash}
+		/*
+			lastblockErr := Graviton_backend.WriteLastBlock(lastblockDB) //stratum.gravitonDB.WriteLastBlock(lastblockDB)
+			if lastblockErr != nil {
+				log.Printf("[Stratum] Graviton DB err: %v", lastblockErr)
+			}
+		*/
+		stats["lastblock"] = lastblockDB
+	}
 
 	// Build Payments stats
 	processedPayments := apiServer.backend.GetProcessedPayments()

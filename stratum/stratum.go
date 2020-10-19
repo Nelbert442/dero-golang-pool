@@ -156,7 +156,7 @@ func NewStratum(cfg *pool.Config) *StratumServer {
 	checkTimer := time.NewTimer(checkIntv)
 	log.Printf("[Stratum] Set upstream check interval every %v", checkIntv)
 
-	minerStatsIntv, _ := time.ParseDuration("2s")
+	minerStatsIntv, _ := time.ParseDuration("5s")
 	minerStatsTimer := time.NewTimer(minerStatsIntv)
 	log.Printf("[Stratum] Set upstream check interval every %v", checkIntv)
 
@@ -223,18 +223,20 @@ func NewStratum(cfg *pool.Config) *StratumServer {
 					var diff big.Int
 					diff.SetUint64(currentWork.Difficulty)
 
-					prevBlock, getHashERR := v.GetLastBlockHeader()
+					/*
+						prevBlock, getHashERR := v.GetLastBlockHeader()
 
-					if getHashERR != nil {
-						log.Printf("[Stratum] Error while retrieving block %s from node: %v", currentWork.Prev_Hash, getHashERR)
-					} else {
-						lastBlock := prevBlock.BlockHeader
-						lastblockDB := &LastBlock{Difficulty: lastBlock.Difficulty, Height: lastBlock.Height, Timestamp: int64(lastBlock.Timestamp), Reward: int64(lastBlock.Reward), Hash: lastBlock.Hash}
-						lastblockErr := Graviton_backend.WriteLastBlock(lastblockDB) //stratum.gravitonDB.WriteLastBlock(lastblockDB)
-						if lastblockErr != nil {
-							log.Printf("[Stratum] Graviton DB err: %v", lastblockErr)
+						if getHashERR != nil {
+							log.Printf("[Stratum] Error while retrieving block %s from node: %v", currentWork.Prev_Hash, getHashERR)
+						} else {
+							lastBlock := prevBlock.BlockHeader
+							lastblockDB := &LastBlock{Difficulty: lastBlock.Difficulty, Height: lastBlock.Height, Timestamp: int64(lastBlock.Timestamp), Reward: int64(lastBlock.Reward), Hash: lastBlock.Hash}
+							lastblockErr := Graviton_backend.WriteLastBlock(lastblockDB) //stratum.gravitonDB.WriteLastBlock(lastblockDB)
+							if lastblockErr != nil {
+								log.Printf("[Stratum] Graviton DB err: %v", lastblockErr)
+							}
 						}
-					}
+					*/
 
 					_, err := v.UpdateInfo()
 					if err != nil {
