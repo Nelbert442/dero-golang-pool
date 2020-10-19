@@ -156,15 +156,12 @@ func NewStratum(cfg *pool.Config) *StratumServer {
 	checkTimer := time.NewTimer(checkIntv)
 	log.Printf("[Stratum] Set upstream check interval every %v", checkIntv)
 
-	minerStatsIntv, _ := time.ParseDuration("5s")
+	minerStatsIntv, _ := time.ParseDuration(cfg.StoreMinerStatsInterval)
 	minerStatsTimer := time.NewTimer(minerStatsIntv)
-	log.Printf("[Stratum] Set upstream check interval every %v", checkIntv)
+	log.Printf("[Stratum] Set miner stats store interval every %v", minerStatsIntv)
 
 	infoIntv, _ := time.ParseDuration(cfg.UpstreamCheckInterval)
 	infoTimer := time.NewTimer(infoIntv)
-	// TODO: Separate out individual config intervals for miner stats + lastblock stats
-	log.Printf("[Stratum] Set miner stats store interval every %v", infoIntv)
-	log.Printf("[Stratum] Set lastblock stats store interval every %v", infoIntv)
 
 	// Init block template
 	go stratum.refreshBlockTemplate(false)
@@ -552,6 +549,8 @@ func (s *StratumServer) SetupCloseHandler() {
 		if err != nil {
 			log.Printf("[Stratum] Err storing miner stats: %v", err)
 		}
+		// Add 1 second sleep prior to closing to prevent writeminerstats issues
+		time.Sleep(time.Second)
 		Graviton_backend.DB.Close()
 		os.Exit(0)
 	}()

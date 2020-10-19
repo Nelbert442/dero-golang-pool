@@ -101,6 +101,8 @@ Explanation for each field:
 
 	"hashrateExpiration": "3h",		// TTL for workers stats, usually should be equal to large hashrate window from API section. NOTE: Use "0s" for infinite expiration time
 
+	"storeMinerStatsInterval": "5s",	// How often to run WriteMinerStats() to sync MinersMap and DB of all current miners. [Do not put this value in milliseconds, leave at least >= 1s, 2 is better]
+
 	"upstreamCheckInterval": "5s",  // How often to poll upstream (daemon) for successful connections
 
 	/*

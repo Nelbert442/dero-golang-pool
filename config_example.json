@@ -15,6 +15,7 @@
 	"trustedSharesCount": 1000000,
 	"blockRefreshInterval": "120ms",
 	"hashrateExpiration": "3h",
+	"storeMinerStatsInterval": "5s",
 
 	"upstreamCheckInterval": "5s",
 

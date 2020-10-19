@@ -1210,8 +1210,6 @@ func (g *GravitonStore) CompareMinerStats(storedMiner, miner *Miner, hashrateExp
 			*/
 
 			updatedMiner.Unlock()
-		} else {
-			return storedMiner, false
 		}
 	}
 
