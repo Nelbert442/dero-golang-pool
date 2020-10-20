@@ -154,11 +154,11 @@ func (apiServer *ApiServer) collectStats() {
 	//stats["lastblock"] = apiServer.backend.GetLastBlock()
 
 	v := apiServer.stratum.rpc()
-	currentWork := apiServer.stratum.currentWork()
+	//currentWork := apiServer.stratum.currentWork()
 	prevBlock, getHashERR := v.GetLastBlockHeader()
 
 	if getHashERR != nil {
-		log.Printf("[Stratum] Error while retrieving block %s from node: %v", currentWork.Prev_Hash, getHashERR)
+		log.Printf("[Stratum] Error while retrieving block from node: %v", getHashERR)
 		lastblockDB := &LastBlock{}
 		stats["lastblock"] = lastblockDB
 	} else {

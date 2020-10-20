@@ -214,11 +214,11 @@ func NewStratum(cfg *pool.Config) *StratumServer {
 		for {
 			select {
 			case <-infoTimer.C:
-				currentWork := stratum.currentWork()
+				//currentWork := stratum.currentWork()
 				poll := func(v *rpc.RPCClient) {
 					// Need to make sure that this isn't too heavy of action, to call GetLastBlockHeader here. Otherwise, need to store it in another fashion
-					var diff big.Int
-					diff.SetUint64(currentWork.Difficulty)
+					//var diff big.Int
+					//diff.SetUint64(currentWork.Difficulty)
 
 					/*
 						prevBlock, getHashERR := v.GetLastBlockHeader()
