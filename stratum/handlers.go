@@ -137,6 +137,11 @@ func (s *StratumServer) handleSubmitRPC(cs *Session, params *SubmitParams) (*Sta
 	}
 	miner.heartbeat()
 
+	// Upon job submissions, miner(s) will get error message saying to contact pool owner when stratum .isSick()
+	if s.isSick() {
+		return nil, &ErrorReply{Code: -1, Message: "Server error. Contact pool owner."}
+	}
+
 	job := cs.findJob(params.JobId)
 	if job == nil {
 		return nil, &ErrorReply{Code: -1, Message: "Invalid job id"}
