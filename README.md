@@ -186,8 +186,8 @@ Explanation for each field:
 		"blocks": 50,					// Max number of blocks to display in frontend
 		"ssl": false,					// Enable SSL for api
 		"sslListen": "0.0.0.0:9092",	// Set bind address and port for SSL api
-		"certFile": "fullchain.cer",	// Set full chain cert file. Includes cert, chain and ca. Located within same dir as exe file. TODO Future could use filepath package
-		"keyFile": "cert.key"			// Set key file for cert file. Located within same dir as exe file. TODO Future could use filepath package
+		"certFile": "fullchain.cer",	// Set full chain cert file. Includes cert, chain and ca. Located within same dir as exe file. TODO Future could use filepath package.
+		"keyFile": "cert.key"			// Set key file for cert file. Located within same dir as exe file. TODO Future could use filepath package.
 	},
 
 	"unlocker": {
@@ -209,7 +209,11 @@ Explanation for each field:
 
 	"website": {
 		"enabled": true,			// Set website enabled to true, utilized, or false, not utilized
-		"port": "8080"				// Set the port for the website to be bound to
+		"port": "8080",				// Set the port for the website to be bound to
+		"ssl": false,				// Enable SSL for website
+		"sslPort": "9090",			// Set bind port for SSL site
+		"certFile": "fullchain.cer",// Set full chain cert file. Includes cert, chain and ca. Located within same dir as exe file. TODO Future could use filepath package.
+		"keyFile": "cert.key"		// Set key file for cert file. Located within same dir as exe file. TODO Future could use filepath package.
 	}
 }
 ```

@@ -106,6 +106,10 @@ type PaymentsConfig struct {
 }
 
 type Website struct {
-	Enabled bool   `json:"enabled"`
-	Port    string `json:"port"`
+	Enabled  bool   `json:"enabled"`
+	Port     string `json:"port"`
+	SSL      bool   `json:"ssl"`
+	SSLPort  string `json:"sslPort"`
+	CertFile string `json:"certFile"`
+	KeyFile  string `json:"keyFile"`
 }

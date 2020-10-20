@@ -121,6 +121,10 @@
 
 	"website": {
 		"enabled": true,
-		"port": "8080"
+		"port": "8080",
+		"ssl": false,
+		"sslPort": "9090",
+		"certFile": "fullchain.cer",
+		"keyFile": "cert.key"
 	}
 }
