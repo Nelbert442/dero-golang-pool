@@ -2,3 +2,5 @@ main.exe
 config.json
 /pooldb
 /pooldb_bak
+*.key
+*.cer

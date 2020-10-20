@@ -286,7 +286,7 @@ func (g *GravitonStore) WriteBlocks(info *BlockDataGrav, blockType string) error
 	}
 	if ss.GetVersion() >= DB_MAXSNAPSHOT {
 		Graviton_backend.SwapGravDB(Graviton_backend.DBTree, Graviton_backend.DBFolder)
-		//os.RemoveAll(prevPath)
+
 		store = g.DB
 		ss, _ = store.LoadSnapshot(0) // load most recent snapshot
 	}
@@ -373,7 +373,7 @@ func (g *GravitonStore) WriteBlocksFoundByHeightArr(height int64, isSolo bool) e
 	}
 	if ss.GetVersion() >= DB_MAXSNAPSHOT {
 		Graviton_backend.SwapGravDB(Graviton_backend.DBTree, Graviton_backend.DBFolder)
-		//os.RemoveAll(prevPath)
+
 		store = g.DB
 		ss, _ = store.LoadSnapshot(0) // load most recent snapshot
 	}
@@ -419,7 +419,7 @@ func (g *GravitonStore) GetBlocksFoundByHeightArr() *BlocksFoundByHeight {
 	}
 	if ss.GetVersion() >= DB_MAXSNAPSHOT {
 		Graviton_backend.SwapGravDB(Graviton_backend.DBTree, Graviton_backend.DBFolder)
-		//os.RemoveAll(prevPath)
+
 		store = g.DB
 		ss, _ = store.LoadSnapshot(0) // load most recent snapshot
 	}
@@ -450,7 +450,7 @@ func (g *GravitonStore) GetBlocksFound(blocktype string) *BlocksFound {
 	}
 	if ss.GetVersion() >= DB_MAXSNAPSHOT {
 		Graviton_backend.SwapGravDB(Graviton_backend.DBTree, Graviton_backend.DBFolder)
-		//os.RemoveAll(prevPath)
+
 		store = g.DB
 		ss, _ = store.LoadSnapshot(0) // load most recent snapshot
 	}
@@ -602,7 +602,7 @@ func (g *GravitonStore) RemoveKey(key string) error {
 	}
 	if ss.GetVersion() >= DB_MAXSNAPSHOT {
 		Graviton_backend.SwapGravDB(Graviton_backend.DBTree, Graviton_backend.DBFolder)
-		//os.RemoveAll(prevPath)
+
 		store = g.DB
 		ss, _ = store.LoadSnapshot(0) // load most recent snapshot
 	}
@@ -632,7 +632,7 @@ func (g *GravitonStore) WriteImmaturePayments(info *PaymentPending) error {
 	}
 	if ss.GetVersion() >= DB_MAXSNAPSHOT {
 		Graviton_backend.SwapGravDB(Graviton_backend.DBTree, Graviton_backend.DBFolder)
-		//os.RemoveAll(prevPath)
+
 		store = g.DB
 		ss, _ = store.LoadSnapshot(0) // load most recent snapshot
 	}
@@ -686,7 +686,7 @@ func (g *GravitonStore) WritePendingPayments(info *PaymentPending) error {
 	}
 	if ss.GetVersion() >= DB_MAXSNAPSHOT {
 		Graviton_backend.SwapGravDB(Graviton_backend.DBTree, Graviton_backend.DBFolder)
-		//os.RemoveAll(prevPath)
+
 		store = g.DB
 		ss, _ = store.LoadSnapshot(0) // load most recent snapshot
 	}
@@ -754,7 +754,7 @@ func (g *GravitonStore) GetPendingPayments() []*PaymentPending {
 	}
 	if ss.GetVersion() >= DB_MAXSNAPSHOT {
 		Graviton_backend.SwapGravDB(Graviton_backend.DBTree, Graviton_backend.DBFolder)
-		//os.RemoveAll(prevPath)
+
 		store = g.DB
 		ss, _ = store.LoadSnapshot(0) // load most recent snapshot
 	}
@@ -791,7 +791,7 @@ func (g *GravitonStore) OverwritePendingPayments(info *PendingPayments) error {
 	}
 	if ss.GetVersion() >= DB_MAXSNAPSHOT {
 		Graviton_backend.SwapGravDB(Graviton_backend.DBTree, Graviton_backend.DBFolder)
-		//os.RemoveAll(prevPath)
+
 		store = g.DB
 		ss, _ = store.LoadSnapshot(0) // load most recent snapshot
 	}
@@ -818,7 +818,7 @@ func (g *GravitonStore) WriteProcessedPayments(info *MinerPayments) error {
 	}
 	if ss.GetVersion() >= DB_MAXSNAPSHOT {
 		Graviton_backend.SwapGravDB(Graviton_backend.DBTree, Graviton_backend.DBFolder)
-		//os.RemoveAll(prevPath)
+
 		store = g.DB
 		ss, _ = store.LoadSnapshot(0) // load most recent snapshot
 	}
@@ -869,7 +869,7 @@ func (g *GravitonStore) GetProcessedPayments() *ProcessedPayments {
 	}
 	if ss.GetVersion() >= DB_MAXSNAPSHOT {
 		Graviton_backend.SwapGravDB(Graviton_backend.DBTree, Graviton_backend.DBFolder)
-		//os.RemoveAll(prevPath)
+
 		store = g.DB
 		ss, _ = store.LoadSnapshot(0) // load most recent snapshot
 	}
@@ -943,7 +943,7 @@ func (g *GravitonStore) WriteLastBlock(lastBlock *LastBlock) error {
 	}
 	if ss.GetVersion() >= DB_MAXSNAPSHOT {
 		Graviton_backend.SwapGravDB(Graviton_backend.DBTree, Graviton_backend.DBFolder)
-		//os.RemoveAll(prevPath)
+
 		store = g.DB
 		ss, _ = store.LoadSnapshot(0) // load most recent snapshot
 	}
@@ -970,7 +970,7 @@ func (g *GravitonStore) GetLastBlock() *LastBlock {
 	log.Printf("SS Version: %v", ss.GetVersion())
 	if ss.GetVersion() >= DB_MAXSNAPSHOT {
 		Graviton_backend.SwapGravDB(Graviton_backend.DBTree, Graviton_backend.DBFolder)
-		//os.RemoveAll(prevPath)
+
 		store = g.DB
 		ss, _ = store.LoadSnapshot(0) // load most recent snapshot
 	}
@@ -1007,7 +1007,7 @@ func (g *GravitonStore) WriteConfig(config *pool.Config) error {
 	}
 	if ss.GetVersion() >= DB_MAXSNAPSHOT {
 		Graviton_backend.SwapGravDB(Graviton_backend.DBTree, Graviton_backend.DBFolder)
-		//os.RemoveAll(prevPath)
+
 		store = g.DB
 		ss, _ = store.LoadSnapshot(0) // load most recent snapshot
 	}
@@ -1033,7 +1033,7 @@ func (g *GravitonStore) GetConfig(coin string) *pool.Config {
 	}
 	if ss.GetVersion() >= DB_MAXSNAPSHOT {
 		Graviton_backend.SwapGravDB(Graviton_backend.DBTree, Graviton_backend.DBFolder)
-		//os.RemoveAll(prevPath)
+
 		store = g.DB
 		ss, _ = store.LoadSnapshot(0) // load most recent snapshot
 	}
@@ -1065,7 +1065,7 @@ func (g *GravitonStore) WriteMinerIDRegistration(miner *Miner) error {
 	}
 	if ss.GetVersion() >= DB_MAXSNAPSHOT {
 		Graviton_backend.SwapGravDB(Graviton_backend.DBTree, Graviton_backend.DBFolder)
-		//os.RemoveAll(prevPath)
+
 		store = g.DB
 		ss, _ = store.LoadSnapshot(0) // load most recent snapshot
 	}
@@ -1128,7 +1128,7 @@ func (g *GravitonStore) GetMinerIDRegistrations() []*Miner {
 	}
 	if ss.GetVersion() >= DB_MAXSNAPSHOT {
 		Graviton_backend.SwapGravDB(Graviton_backend.DBTree, Graviton_backend.DBFolder)
-		//os.RemoveAll(prevPath)
+
 		store = g.DB
 		ss, _ = store.LoadSnapshot(0) // load most recent snapshot
 	}
@@ -1240,7 +1240,7 @@ func (g *GravitonStore) WriteMinerStats(miners MinersMap, hashrateExpiration tim
 	}
 	if ss.GetVersion() >= DB_MAXSNAPSHOT {
 		Graviton_backend.SwapGravDB(Graviton_backend.DBTree, Graviton_backend.DBFolder)
-		//os.RemoveAll(prevPath)
+
 		store = g.DB
 		ss, _ = store.LoadSnapshot(0) // load most recent snapshot
 	}
@@ -1317,7 +1317,7 @@ func (g *GravitonStore) WriteMinerStatsByID(miner *Miner, hashrateExpiration tim
 	}
 	if ss.GetVersion() >= DB_MAXSNAPSHOT {
 		Graviton_backend.SwapGravDB(Graviton_backend.DBTree, Graviton_backend.DBFolder)
-		//os.RemoveAll(prevPath)
+
 		store = g.DB
 		ss, _ = store.LoadSnapshot(0) // load most recent snapshot
 	}
@@ -1346,7 +1346,7 @@ func (g *GravitonStore) GetAllMinerStats() []*Miner {
 	}
 	if ss.GetVersion() >= DB_MAXSNAPSHOT {
 		Graviton_backend.SwapGravDB(Graviton_backend.DBTree, Graviton_backend.DBFolder)
-		//os.RemoveAll(prevPath)
+
 		store = g.DB
 		ss, _ = store.LoadSnapshot(0) // load most recent snapshot
 	}
@@ -1385,7 +1385,7 @@ func (g *GravitonStore) GetMinerStatsByID(minerID string) *Miner {
 	}
 	if ss.GetVersion() >= DB_MAXSNAPSHOT {
 		Graviton_backend.SwapGravDB(Graviton_backend.DBTree, Graviton_backend.DBFolder)
-		//os.RemoveAll(prevPath)
+
 		store = g.DB
 		ss, _ = store.LoadSnapshot(0) // load most recent snapshot
 	}
@@ -1418,7 +1418,7 @@ func (g *GravitonStore) GetRoundShares(roundHeight int64) (map[string]int64, int
 	}
 	if ss.GetVersion() >= DB_MAXSNAPSHOT {
 		Graviton_backend.SwapGravDB(Graviton_backend.DBTree, Graviton_backend.DBFolder)
-		//os.RemoveAll(prevPath)
+
 		store = g.DB
 		ss, _ = store.LoadSnapshot(0) // load most recent snapshot
 	}
@@ -1459,7 +1459,7 @@ func (g *GravitonStore) WriteRoundShares(roundHeight int64, roundShares map[stri
 	}
 	if ss.GetVersion() >= DB_MAXSNAPSHOT {
 		Graviton_backend.SwapGravDB(Graviton_backend.DBTree, Graviton_backend.DBFolder)
-		//os.RemoveAll(prevPath)
+
 		store = g.DB
 		ss, _ = store.LoadSnapshot(0) // load most recent snapshot
 	}

@@ -183,7 +183,11 @@ Explanation for each field:
 		"statsCollectInterval": "5s",	// Set interval for stats collection to run
 		"hashrateWindow": "10m",		// Fast hashrate estimation window for each miner from its' shares
 		"payments": 30,					// Max number of payments to display in frontend
-		"blocks": 50					// Max number of blocks to display in frontend
+		"blocks": 50,					// Max number of blocks to display in frontend
+		"ssl": false,					// Enable SSL for api
+		"sslListen": "0.0.0.0:9092",	// Set bind address and port for SSL api
+		"certFile": "fullchain.cer",	// Set full chain cert file. Includes cert, chain and ca. Located within same dir as exe file. TODO Future could use filepath package
+		"keyFile": "cert.key"			// Set key file for cert file. Located within same dir as exe file. TODO Future could use filepath package
 	},
 
 	"unlocker": {

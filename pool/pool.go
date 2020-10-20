@@ -79,8 +79,12 @@ type APIConfig struct {
 	Listen               string `json:"listen"`
 	StatsCollectInterval string `json:"statsCollectInterval"`
 	HashrateWindow       string `json:"hashrateWindow"`
-	Blocks               int64  `json:"blocks"`
 	Payments             int64  `json:"payments"`
+	Blocks               int64  `json:"blocks"`
+	SSL                  bool   `json:"ssl"`
+	SSLListen            string `json:"sslListen"`
+	CertFile             string `json:"certFile"`
+	KeyFile              string `json:"keyFile"`
 }
 
 type UnlockerConfig struct {

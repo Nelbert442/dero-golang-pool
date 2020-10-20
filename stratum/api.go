@@ -90,8 +90,6 @@ func NewApiServer(cfg *pool.APIConfig, s *StratumServer) *ApiServer {
 
 func (apiServer *ApiServer) Start() {
 
-	log.Printf("[API] Starting API on %v", apiServer.config.Listen)
-
 	apiServer.statsIntv, _ = time.ParseDuration(apiServer.config.StatsCollectInterval)
 	statsTimer := time.NewTimer(apiServer.statsIntv)
 	log.Printf("[API] Set stats collect interval to %v", apiServer.statsIntv)
@@ -108,10 +106,17 @@ func (apiServer *ApiServer) Start() {
 		}
 	}()
 
-	apiServer.listen()
+	// If SSL is configured, due to nature of listenandserve, put HTTP in go routine then call SSL afterwards so they can run in parallel. Otherwise, run http as normal
+	if apiServer.config.SSL {
+		go apiServer.listen()
+		apiServer.listenSSL()
+	} else {
+		apiServer.listen()
+	}
 }
 
 func (apiServer *ApiServer) listen() {
+	log.Printf("[API] Starting API on %v", apiServer.config.Listen)
 	router := mux.NewRouter()
 	router.HandleFunc("/api/stats", apiServer.StatsIndex)
 	//router.HandleFunc("/api/accounts/{login:dE[0-9a-zA-Z]{96}}", apiServer.AccountIndex)
@@ -119,6 +124,17 @@ func (apiServer *ApiServer) listen() {
 	err := http.ListenAndServe(apiServer.config.Listen, router)
 	if err != nil {
 		log.Fatalf("[API] Failed to start API: %v", err)
+	}
+}
+
+func (apiServer *ApiServer) listenSSL() {
+	log.Printf("[API] Starting SSL API on %v", apiServer.config.SSLListen)
+	routerSSL := mux.NewRouter()
+	routerSSL.HandleFunc("/api/stats", apiServer.StatsIndex)
+	routerSSL.NotFoundHandler = http.HandlerFunc(notFound)
+	err := http.ListenAndServeTLS(apiServer.config.SSLListen, apiServer.config.CertFile, apiServer.config.KeyFile, routerSSL)
+	if err != nil {
+		log.Fatalf("[API] Failed to start SSL API: %v", err)
 	}
 }
 

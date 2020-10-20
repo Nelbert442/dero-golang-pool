@@ -95,7 +95,11 @@
 		"statsCollectInterval": "5s",
 		"hashrateWindow": "10m",
 		"payments": 30,
-		"blocks": 50
+		"blocks": 50,
+		"ssl": false,
+		"sslListen": "0.0.0.0:9092",
+		"certFile": "fullchain.cer",
+		"keyFile": "cert.key"
 	},
 
 	"unlocker": {
