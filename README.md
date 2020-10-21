@@ -1,7 +1,7 @@
-# dero-golang-pool
+# DERO Golang Pool
 Golang Mining Pool for DERO
 
-#### Features
+## Features
 * Developed in Golang
 * Utilizing Graviton for backend, built and supported by deroproject core team
 * In-built http/https server for web UI
@@ -19,7 +19,7 @@ Golang Mining Pool for DERO
 * PROP Payment Scheme
 * Light-weight webpage with built-in basic pool statistics, but template used to get off the ground running.
 
-##### Future Features
+### Future Features
 * (FUTURE) PPLNS and potentially other pool schemes support
 * (FUTURE) Management functions/go files for modifying / reporting of payments etc.
 * (FUTURE) More feature sets within the frontend such as admin page, individual miner pages etc.
@@ -35,7 +35,7 @@ Golang Mining Pool for DERO
 1. [Backend database choices](#7-backend-database-choices)
 1. [Credits](#credits)
 
-#### Requirements
+### Requirements
 * Coin daemon (find the coin's repo and build latest version from source)
     * [Derosuite](https://github.com/deroproject/derosuite/releases/latest)
 * [Golang](https://golang.org/dl/)
@@ -50,7 +50,7 @@ To login with this user :
 sudo su - your-user
 ```
 
-#### 1) Downloading & Installing
+### Downloading & Installing
 
 * Supporting repos to get:
 ```bash
@@ -64,7 +64,7 @@ go get github.com/gorilla/mux/...
 go get github.com/Nelbert442/dero-golang-pool
 ```
 
-#### 2) Configuration
+### Configuration
 
 Copy the `config_example.json` file of your choice to `config.json` then overview each options and change any to match your preferred setup.
 
@@ -248,7 +248,7 @@ Explanation for each field:
 }
 ```
 
-#### 3) Build/Start the pool
+### Build/Start the pool
 
 Per-run basis:
 
@@ -262,7 +262,7 @@ Or build:
 go build main.go
 ```
 
-#### 4) Host the api
+### Host the api
 
 Once `config.json` has "api"."enabled" set to true, it will listen by default locally on :8082 (or whichever port defined). You can use an example below to pull the content, or just poll it directly in a browser:
 
@@ -274,7 +274,7 @@ API Examples:
 {"blocksTotal":18,"candidates":null,"candidatesTotal":0,"config":{"algo":"astrobwt","blockchainExplorer":"http://127.0.0.1:8081/block/{id}","coin":"DERO","coinDecimalPlaces":4,"coinDifficultyTarget":27,"coinUnits":1000000000000,"fixedDiffAddressSeparator":".","payIDAddressSeparator":"+","paymentInterval":30,"paymentMinimum":10000000000,"paymentMixin":8,"poolFee":0.1,"poolHost":"127.0.0.1","ports":[{"diff":1000,"minDiff":500,"host":"0.0.0.0","port":1111,"maxConn":32768},{"diff":2500,"minDiff":500,"host":"0.0.0.0","port":3333,"maxConn":32768},{"diff":5000,"minDiff":500,"host":"0.0.0.0","port":5555,"maxConn":32768}],"transactionExplorer":"http://127.0.0.1:8081/tx/{id}","unlockDepth":5,"unlockInterval":10,"version":"1.0.0","workIDAddressSeparator":"@"},"immature":[{"Hash":"770efbc1377ca0f1818ac9e01b0f697bd461e716160b24826b6b96931ac392d2","Address":"dEToUEe...8gVNr","Height":1017,"Orphan":false,"Timestamp":1600807603,"Difficulty":22254,"TotalShares":29975,"Reward":2351321493449,"Solo":false},{"Hash":"efca19034b80b48366f984a2bdb81647e786481a1528942d406412b219109f6a","Address":"dEToUEe...8gVNr","Height":1014,"Orphan":false,"Timestamp":1600807420,"Difficulty":21816,"TotalShares":2000,"Reward":2345322388119,"Solo":false},{"Hash":"c3d54ee8d3c7919e0f426ec964516efa33f5d00b4608536c47e389329677425d","Address":"dEToUEe...8gVNr","Height":1016,"Orphan":false,"Timestamp":1600807598,"Difficulty":22254,"TotalShares":27780,"Reward":2345321791672,"Solo":false},{"Hash":"5ba9184f441c125fd67549d1aeecc8a1d1d664d51e1caf62b0357089492a1ee3","Address":"dEToUEe...8gVNr","Height":1013,"Orphan":false,"Timestamp":1600807411,"Difficulty":21600,"TotalShares":2000,"Reward":2345322686342,"Solo":false},{"Hash":"1c3bfe247f02f44c60301bfa54f85fa7e18f1604320ee8f2a775dea66567d128","Address":"dEToUEe...8gVNr","Height":1015,"Orphan":false,"Timestamp":1600807439,"Difficulty":22034,"TotalShares":5000,"Reward":2349822089896,"Solo":false}],"immatureTotal":5,"lastblock":{"Difficulty":"22254","Height":1017,"Timestamp":1600807598,"Reward":2351321493449,"Hash":"770efbc1377ca0f1818ac9e01b0f697bd461e716160b24826b6b96931ac392d2"},"matured":[{"Hash":"339ad336c07e86913f388fb45fc3d03dc03ef9ae7cdd82e98e7ee0d97c470f79","Address":"dEToUEe...8gVNr","Height":1000,"Orphan":false,"Timestamp":1600806375,"Difficulty":21600,"TotalShares":13000,"Reward":2354326563247,"Solo":false},{"Hash":"b2cbf4b90d36a10521092ea3bd8d20d0a29676b190492bb715b188fec17b0130","Address":"dEToUEe...8gVNr","Height":1007,"Orphan":false,"Timestamp":1600807040,"Difficulty":21600,"TotalShares":0,"Reward":2349824475682,"Solo":false},{"Hash":"4454bf01932bc8ae601e8aee345a294e8fde99790e05b71a481b7c4eec4bd084","Address":"dEToUEe...8gVNr","Height":1008,"Orphan":false,"Timestamp":1600807153,"Difficulty":21600,"TotalShares":0,"Reward":2349824177459,"Solo":false},{"Hash":"aadf5246f36cc098b341bf6c694dd08d6ca6969b0784d91c82f3cb3791812652","Address":"dEToUEe...8gVNr","Height":1011,"Orphan":false,"Timestamp":1600807224,"Difficulty":21600,"TotalShares":12000,"Reward":2349823282789,"Solo":false},{"Hash":"dfa60fede87c7c4e7d351c54b87e46c3239209ae10d6db58050a27a9b147457d","Address":"dEToUEe...8gVNr","Height":1012,"Orphan":false,"Timestamp":1600807401,"Difficulty":21600,"TotalShares":5000,"Reward":2354322984565,"Solo":false},{"Hash":"a6eccb0be31558bed06a8add669fe7846d388410e09bb37e8a29c1d5ab992f3e","Address":"dEToUEe...8gVNr","Height":1003,"Orphan":false,"Timestamp":1600806585,"Difficulty":21600,"TotalShares":10500,"Reward":2345325668576,"Solo":false},{"Hash":"f79af5914e15373fa998819cfacc7d74ffe18bb315787572c7fbbe1bb93aaed4","Address":"dEToUEe...8gVNr","Height":1004,"Orphan":false,"Timestamp":1600806855,"Difficulty":21600,"TotalShares":43500,"Reward":2345325370353,"Solo":false},{"Hash":"da99e1f3600508708a38f48959210ca9de914ab524aaa153882fa04c3873811a","Address":"dEToUEe...8gVNr","Height":1010,"Orphan":false,"Timestamp":1600807222,"Difficulty":21600,"TotalShares":0,"Reward":2349823581012,"Solo":false},{"Hash":"3fe81b154a9f4a07fce72d621fbaf169e457baf918be8d092a9b735a2159ce73","Address":"dEToUEe...8gVNr","Height":1002,"Orphan":false,"Timestamp":1600806516,"Difficulty":21600,"TotalShares":11500,"Reward":2345325966800,"Solo":false},{"Hash":"1068ccc0d92c1d49d375a675018154c29b5404bbb297b0f2da329154efe9e832","Address":"dEToUEe...8gVNr","Height":1006,"Orphan":false,"Timestamp":1600807020,"Difficulty":21600,"TotalShares":11250,"Reward":2345324773905,"Solo":false},{"Hash":"98310319fd9e80d97742e4e906a8b594f5423122b6a133511c672aaedfa29277","Address":"dEToUEe...8gVNr","Height":1001,"Orphan":false,"Timestamp":1600806383,"Difficulty":21600,"TotalShares":0,"Reward":2345326265023,"Solo":false},{"Hash":"e5fbce21b8003876d249ff2b050c474c44bc54dbfc7069d1845100d6b55cae42","Address":"dEToUEe...8gVNr","Height":1009,"Orphan":false,"Timestamp":1600807188,"Difficulty":21600,"TotalShares":0,"Reward":2349823879235,"Solo":false},{"Hash":"38984e8ac3ccd2c1ebc4eba781d38a4ecc76d461c80731d6c81ad94265e9d8e4","Address":"dEToUEe...8gVNr","Height":1005,"Orphan":false,"Timestamp":1600806908,"Difficulty":21600,"TotalShares":13500,"Reward":2345325072129,"Solo":false}],"maturedTotal":13,"miners":[{"LastBeat":1600807678,"StartedAt":1600807391,"ValidShares":36,"InvalidShares":0,"StaleShares":0,"Accepts":6,"Rejects":0,"RoundShares":29975,"Hashrate":151,"Offline":false,"Id":"dEToUEe3q57XoqLgbuDE7DUmoB6byMtNBWtz85DmLAHAC8wSpetw4ggLVE4nB3KRMRhnFdxRT3fnh9geaAMmGrhP2UDY18gVNr","Address":"dEToUEe3q57XoqLgbuDE7DUmoB6byMtNBWtz85DmLAHAC8wSpetw4ggLVE4nB3KRMRhnFdxRT3fnh9geaAMmGrhP2UDY18gVNr","IsSolo":false}],"now":1600807685,"payments":[{"Hash":"205e4ac6547a784eb94cba28f50f4a26595f3335ae28a8d3d39dccdf6e0fae10","Timestamp":1600807021,"Payees":1,"Mixin":8,"Amount":2345326265023},{"Hash":"88621a2fee06d0c2d97b8bf5137ed26d22789ec5602263bcad9505c32f9caaf1","Timestamp":1600807202,"Payees":1,"Mixin":8,"Amount":2342980044983},{"Hash":"c24bedcaa513204d5663028821559379544754132d515030c68cf75f76a9eb70","Timestamp":1600807263,"Payees":1,"Mixin":8,"Amount":2342979449131},{"Hash":"2616b795413d6207da75aff72c1b66fd17af3cb7f99fca06bd073c60bd398088","Timestamp":1600807627,"Payees":1,"Mixin":8,"Amount":4699442121086},{"Hash":"e64c7bed69b3dfd2aa02100e9790dfa3e4904c63f59bd5067e4d0f71dbbb4b19","Timestamp":1600806931,"Payees":1,"Mixin":8,"Amount":2351972236684},{"Hash":"186615582db0e54b2e21c23f715d82ccc8b686e3aaeb243486a805517def5872","Timestamp":1600807051,"Payees":1,"Mixin":8,"Amount":2342980640833},{"Hash":"969334e0cd6e40947d9d016509965c7e52ef66e17ed650e700d29285f9c6824d","Timestamp":1600807172,"Payees":1,"Mixin":8,"Amount":2342980342907},{"Hash":"c2f3413e0579de5bba9bd10e810586d051f7a4b4e37e1f316278f15daf5e52ca","Timestamp":1600807233,"Payees":1,"Mixin":8,"Amount":2342979747057},{"Hash":"3eaa0b54c80b7856b46226d927cf114a7abbcbeb8a947cb7d9769590c9abbc24","Timestamp":1600807417,"Payees":1,"Mixin":8,"Amount":2349824475682},{"Hash":"b4e24d9a16ab1a3ae7c9254f43e660b3e697330925d933601c289fecc75f1e8e","Timestamp":1600807447,"Payees":1,"Mixin":8,"Amount":4699647460247}],"poolHashrate":151,"soloHashrate":0,"totalMinersPaid":1,"totalPayments":10,"totalPoolMiners":1,"totalSoloMiners":0}
 ```
 
-#### 5) Host the frontend
+### Host the frontend
 
 Once `config.json` has "website"."enabled" set to true, it will listen by default locally on :8080 (or whichever port defined). It will leverage standard js/html/css files that a static webpage would, and integrate with the API above in #4.
 
@@ -284,11 +284,11 @@ website.go is the runner, which just starts the listenandserve on the port defin
 ![DERO Pool Blocks](images/poolBlock.PNG?raw=true "DERO Pool Blocks")
 ![DERO Pool Pay](images/poolpayment.PNG?raw=true "DERO Pool Pay")
 
-#### 6) SSL for API and frontend
+### SSL for API and frontend
 
 Within `config.json`, there are SSL sections within both API and website to leverage in order to define your key/cert files and ports to run the website or api locally. The cert and key files are to be placed in the same directory as your built package. The cert file should include cert, chain and ca while the key file is your private key. Store these files locally and make sure to .gitignore them properly, by default there is *.key and *.cer , however different folks use different file types.
 
-#### 7) Backend database choices
+### Backend database choices
 
 Due to the nature of this pool being developed with [DERO](https://github.com/deroproject/) in mind, I decided to follow-suite with configuring the pool to leverage the same newly-released [Graviton](https://github.com/deroproject/graviton) database as the backend for the pool. I'll go into some currently existing cons and workarounds I've implemented, however this pool could easily be re-configured for other DB types such as: redis, boltdb, badgerdb, Graviton etc. Redis was used in previous commit history, you can also see implementation of redis on other pools, see Credits section.
 
