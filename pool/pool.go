@@ -16,6 +16,8 @@ type Config struct {
 	BlockRefreshInterval    string         `json:"blockRefreshInterval"`
 	HashrateExpiration      string         `json:"hashrateExpiration"`
 	StoreMinerStatsInterval string         `json:"storeMinerStatsInterval"`
+	GravitonMaxSnapshots    uint64         `json:"gravitonMaxSnapshots"`
+	GravitonMigrateWait     string         `json:"gravitonMigrateWait"`
 	UpstreamCheckInterval   string         `json:"upstreamCheckInterval"`
 	Upstream                []Upstream     `json:"upstream"`
 	Stratum                 Stratum        `json:"stratum"`

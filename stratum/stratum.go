@@ -81,8 +81,8 @@ func NewStratum(cfg *pool.Config) *StratumServer {
 
 	// Startup/create new gravitondb (if it doesn't exist), write the configuration file (config.json) into storage for use / api surfacing later
 	//stratum.gravitonDB = Graviton_backend
-	Graviton_backend.NewGravDB(cfg.PoolHost, "pooldb") //stratum.gravitonDB.NewGravDB(cfg.PoolHost, "pooldb") // TODO: Add to params in config.json file
-	Graviton_backend.WriteConfig(cfg)                  //stratum.gravitonDB.WriteConfig(cfg)
+	Graviton_backend.NewGravDB(cfg.PoolHost, "pooldb", cfg.GravitonMigrateWait, cfg.GravitonMaxSnapshots) //stratum.gravitonDB.NewGravDB(cfg.PoolHost, "pooldb") // TODO: Add to params in config.json file
+	Graviton_backend.WriteConfig(cfg)                                                                     //stratum.gravitonDB.WriteConfig(cfg)
 
 	/* - testing just to output a val from db while development process is going
 	plConfig := stratum.gravitonDB.GetConfig(cfg.Coin)

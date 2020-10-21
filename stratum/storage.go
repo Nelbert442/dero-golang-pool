@@ -3,7 +3,6 @@ package stratum
 import (
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"log"
 	"math/big"
 	"os"
@@ -110,12 +109,14 @@ type PendingPayments struct {
 }
 
 type GravitonStore struct {
-	DB        *graviton.Store
-	DBFolder  string
-	DBPath    string
-	DBTree    string
-	DBCPNum   int64
-	migrating int
+	DB       *graviton.Store
+	DBFolder string
+	DBPath   string
+	DBTree   string
+	//DBCPNum       int64
+	migrating     int
+	DBMaxSnapshot uint64
+	DBMigrateWait time.Duration
 }
 
 type TreeKV struct {
@@ -127,54 +128,32 @@ var Graviton_backend *GravitonStore = &GravitonStore{}
 
 // Set of vars for maximum commits to keep within the live DB and DB_bak directories, this is for space control, ~5k-10k is fine for pool. Testing has been ok for 100k+, just space gets LARGE (25GB-40GB DBs etc.)
 // TODO: Make part of config.json configuration file
-const DB_MAXSNAPSHOT = 5000
-const DB_MAXCOPIES = 5
-const DB_WAITTIMEOUT = 100 // Timeout in milliseconds to wait for g.migrating to free up on reads/writes if actions clash. This is for data safety to not get/set something inbetween db moves
+//const DB_MAXSNAPSHOT = 5000
 
-func (g *GravitonStore) NewGravDB(poolhost, dbFolder string) {
+//const DB_MAXCOPIES = 5
+//const g.DBMigrateWait = 100 // Timeout in milliseconds to wait for g.migrating to free up on reads/writes if actions clash. This is for data safety to not get/set something inbetween db moves
+
+func (g *GravitonStore) NewGravDB(poolhost, dbFolder, dbmigratewait string, dbmaxsnapshot uint64) {
 	current_path, err := os.Getwd()
 	if err != nil {
 		log.Printf("%v", err)
 	}
 
-	files, err := ioutil.ReadDir(current_path)
+	g.DBMigrateWait, _ = time.ParseDuration(dbmigratewait)
 
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	// Quick logic to search folder structure for pre-existing DB folders, taking the folder found (even if it's i.e. pooldb or pooldb5) - this is old method for _bak of db, but keeping code here for now
-	var folderName string
-	for i := int64(1); i <= DB_MAXCOPIES; i++ {
-		for _, file := range files {
-			if file.IsDir() {
-				folderName = dbFolder + strconv.FormatInt(i, 10)
-				if file.Name() == folderName {
-					g.DBCPNum = int64(i) + 1
-					break
-				}
-			}
-		}
-		if g.DBCPNum != 0 {
-			break
-		}
-	}
-
-	if g.DBCPNum == 0 {
-		folderName = dbFolder
-	}
+	g.DBMaxSnapshot = dbmaxsnapshot
 
 	g.DBFolder = dbFolder
 
-	g.DBPath = filepath.Join(current_path, folderName)
+	g.DBPath = filepath.Join(current_path, dbFolder)
 
 	g.DB, _ = graviton.NewDiskStore(g.DBPath)
 
 	g.DBTree = poolhost
 
-	g.DBCPNum++
+	//g.DBCPNum++
 
-	log.Printf("[Graviton] Initializing graviton store at path: %v", filepath.Join(current_path, folderName))
+	log.Printf("[Graviton] Initializing graviton store at path: %v", filepath.Join(current_path, dbFolder))
 }
 
 // Swaps the store pointer from existing to new after copying latest snapshot to new DB - fast as cursor + disk writes allow [possible other alternatives such as mem store for some of these interwoven, testing needed]
@@ -221,7 +200,7 @@ func (g *GravitonStore) SwapGravDB(poolhost, dbFolder string) {
 	log.Printf("Closing store")
 	store.Close()
 
-	// Backup last set of DB_MAXSNAPSHOT snapshots, can offload elsewhere or make this process as X many times as you want to backup.
+	// Backup last set of g.DBMaxSnapshot snapshots, can offload elsewhere or make this process as X many times as you want to backup.
 	var oldFolder string
 	oldFolder = g.DBPath
 	log.Printf("Renaming directory %v to %v", oldFolder, bakFolder)
@@ -277,14 +256,14 @@ func (g *GravitonStore) WriteBlocks(info *BlockDataGrav, blockType string) error
 	store := g.DB
 	ss, _ := store.LoadSnapshot(0) // load most recent snapshot
 
-	// Swap DB at DB_MAXSNAPSHOT+ commits. Check for g.migrating, if so sleep for DB_WAITTIMEOUT ms
+	// Swap DB at g.DBMaxSnapshot+ commits. Check for g.migrating, if so sleep for g.DBMigrateWait ms
 	for g.migrating == 1 {
-		log.Printf("[WriteBlocks] G is migrating... sleeping for %v ms...", DB_WAITTIMEOUT)
-		time.Sleep(time.Millisecond * DB_WAITTIMEOUT)
+		log.Printf("[WriteBlocks] G is migrating... sleeping for %v...", g.DBMigrateWait)
+		time.Sleep(g.DBMigrateWait)
 		store = g.DB
 		ss, _ = store.LoadSnapshot(0) // load most recent snapshot
 	}
-	if ss.GetVersion() >= DB_MAXSNAPSHOT {
+	if ss.GetVersion() >= g.DBMaxSnapshot {
 		Graviton_backend.SwapGravDB(Graviton_backend.DBTree, Graviton_backend.DBFolder)
 
 		store = g.DB
@@ -364,14 +343,14 @@ func (g *GravitonStore) WriteBlocksFoundByHeightArr(height int64, isSolo bool) e
 	store := g.DB
 	ss, _ := store.LoadSnapshot(0) // load most recent snapshot
 
-	// Swap DB at DB_MAXSNAPSHOT+ commits. Check for g.migrating, if so sleep for DB_WAITTIMEOUT ms
+	// Swap DB at g.DBMaxSnapshot+ commits. Check for g.migrating, if so sleep for g.DBMigrateWait ms
 	for g.migrating == 1 {
-		log.Printf("[WriteBlocksFoundByHeightArr] G is migrating... sleeping for %v ms...", DB_WAITTIMEOUT)
-		time.Sleep(time.Millisecond * DB_WAITTIMEOUT)
+		log.Printf("[WriteBlocksFoundByHeightArr] G is migrating... sleeping for %v...", g.DBMigrateWait)
+		time.Sleep(g.DBMigrateWait)
 		store = g.DB
 		ss, _ = store.LoadSnapshot(0) // load most recent snapshot
 	}
-	if ss.GetVersion() >= DB_MAXSNAPSHOT {
+	if ss.GetVersion() >= g.DBMaxSnapshot {
 		Graviton_backend.SwapGravDB(Graviton_backend.DBTree, Graviton_backend.DBFolder)
 
 		store = g.DB
@@ -410,14 +389,14 @@ func (g *GravitonStore) GetBlocksFoundByHeightArr() *BlocksFoundByHeight {
 	store := g.DB
 	ss, _ := store.LoadSnapshot(0) // load most recent snapshot
 
-	// Swap DB at DB_MAXSNAPSHOT+ commits. Check for g.migrating, if so sleep for DB_WAITTIMEOUT ms
+	// Swap DB at g.DBMaxSnapshot+ commits. Check for g.migrating, if so sleep for g.DBMigrateWait ms
 	for g.migrating == 1 {
-		log.Printf("[GetBlocksFoundByHeightArr] G is migrating... sleeping for %v ms...", DB_WAITTIMEOUT)
-		time.Sleep(time.Millisecond * DB_WAITTIMEOUT)
+		log.Printf("[GetBlocksFoundByHeightArr] G is migrating... sleeping for %v...", g.DBMigrateWait)
+		time.Sleep(g.DBMigrateWait)
 		store = g.DB
 		ss, _ = store.LoadSnapshot(0) // load most recent snapshot
 	}
-	if ss.GetVersion() >= DB_MAXSNAPSHOT {
+	if ss.GetVersion() >= g.DBMaxSnapshot {
 		Graviton_backend.SwapGravDB(Graviton_backend.DBTree, Graviton_backend.DBFolder)
 
 		store = g.DB
@@ -441,14 +420,14 @@ func (g *GravitonStore) GetBlocksFound(blocktype string) *BlocksFound {
 	store := g.DB
 	ss, _ := store.LoadSnapshot(0) // load most recent snapshot
 
-	// Swap DB at DB_MAXSNAPSHOT+ commits. Check for g.migrating, if so sleep for DB_WAITTIMEOUT ms
+	// Swap DB at g.DBMaxSnapshot+ commits. Check for g.migrating, if so sleep for g.DBMigrateWait ms
 	for g.migrating == 1 {
-		log.Printf("[GetBlocksFound] G is migrating... sleeping for %v ms...", DB_WAITTIMEOUT)
-		time.Sleep(time.Millisecond * DB_WAITTIMEOUT)
+		log.Printf("[GetBlocksFound] G is migrating... sleeping for %v...", g.DBMigrateWait)
+		time.Sleep(g.DBMigrateWait)
 		store = g.DB
 		ss, _ = store.LoadSnapshot(0) // load most recent snapshot
 	}
-	if ss.GetVersion() >= DB_MAXSNAPSHOT {
+	if ss.GetVersion() >= g.DBMaxSnapshot {
 		Graviton_backend.SwapGravDB(Graviton_backend.DBTree, Graviton_backend.DBFolder)
 
 		store = g.DB
@@ -593,14 +572,14 @@ func (g *GravitonStore) RemoveKey(key string) error {
 	store := g.DB
 	ss, _ := store.LoadSnapshot(0) // load most recent snapshot
 
-	// Swap DB at DB_MAXSNAPSHOT+ commits. Check for g.migrating, if so sleep for DB_WAITTIMEOUT ms
+	// Swap DB at g.DBMaxSnapshot+ commits. Check for g.migrating, if so sleep for g.DBMigrateWait ms
 	for g.migrating == 1 {
-		log.Printf("[RemoveKey] G is migrating... sleeping for %v ms...", DB_WAITTIMEOUT)
-		time.Sleep(time.Millisecond * DB_WAITTIMEOUT)
+		log.Printf("[RemoveKey] G is migrating... sleeping for %v...", g.DBMigrateWait)
+		time.Sleep(g.DBMigrateWait)
 		store = g.DB
 		ss, _ = store.LoadSnapshot(0) // load most recent snapshot
 	}
-	if ss.GetVersion() >= DB_MAXSNAPSHOT {
+	if ss.GetVersion() >= g.DBMaxSnapshot {
 		Graviton_backend.SwapGravDB(Graviton_backend.DBTree, Graviton_backend.DBFolder)
 
 		store = g.DB
@@ -623,14 +602,14 @@ func (g *GravitonStore) WriteImmaturePayments(info *PaymentPending) error {
 	store := g.DB
 	ss, _ := store.LoadSnapshot(0) // load most recent snapshot
 
-	// Swap DB at DB_MAXSNAPSHOT+ commits. Check for g.migrating, if so sleep for DB_WAITTIMEOUT ms
+	// Swap DB at g.DBMaxSnapshot+ commits. Check for g.migrating, if so sleep for g.DBMigrateWait ms
 	for g.migrating == 1 {
-		log.Printf("[WriteImmaturePayments] G is migrating... sleeping for %v ms...", DB_WAITTIMEOUT)
-		time.Sleep(time.Millisecond * DB_WAITTIMEOUT)
+		log.Printf("[WriteImmaturePayments] G is migrating... sleeping for %v...", g.DBMigrateWait)
+		time.Sleep(g.DBMigrateWait)
 		store = g.DB
 		ss, _ = store.LoadSnapshot(0) // load most recent snapshot
 	}
-	if ss.GetVersion() >= DB_MAXSNAPSHOT {
+	if ss.GetVersion() >= g.DBMaxSnapshot {
 		Graviton_backend.SwapGravDB(Graviton_backend.DBTree, Graviton_backend.DBFolder)
 
 		store = g.DB
@@ -677,14 +656,14 @@ func (g *GravitonStore) WritePendingPayments(info *PaymentPending) error {
 	store := g.DB
 	ss, _ := store.LoadSnapshot(0) // load most recent snapshot
 
-	// Swap DB at DB_MAXSNAPSHOT+ commits. Check for g.migrating, if so sleep for DB_WAITTIMEOUT ms
+	// Swap DB at g.DBMaxSnapshot+ commits. Check for g.migrating, if so sleep for g.DBMigrateWait ms
 	for g.migrating == 1 {
-		log.Printf("[WritePendingPayments] G is migrating... sleeping for %v ms...", DB_WAITTIMEOUT)
-		time.Sleep(time.Millisecond * DB_WAITTIMEOUT)
+		log.Printf("[WritePendingPayments] G is migrating... sleeping for %v...", g.DBMigrateWait)
+		time.Sleep(g.DBMigrateWait)
 		store = g.DB
 		ss, _ = store.LoadSnapshot(0) // load most recent snapshot
 	}
-	if ss.GetVersion() >= DB_MAXSNAPSHOT {
+	if ss.GetVersion() >= g.DBMaxSnapshot {
 		Graviton_backend.SwapGravDB(Graviton_backend.DBTree, Graviton_backend.DBFolder)
 
 		store = g.DB
@@ -745,14 +724,14 @@ func (g *GravitonStore) GetPendingPayments() []*PaymentPending {
 	store := g.DB
 	ss, _ := store.LoadSnapshot(0) // load most recent snapshot
 
-	// Swap DB at DB_MAXSNAPSHOT+ commits. Check for g.migrating, if so sleep for DB_WAITTIMEOUT ms
+	// Swap DB at g.DBMaxSnapshot+ commits. Check for g.migrating, if so sleep for g.DBMigrateWait ms
 	for g.migrating == 1 {
-		log.Printf("[GetPendingPayments] G is migrating... sleeping for %v ms...", DB_WAITTIMEOUT)
-		time.Sleep(time.Millisecond * DB_WAITTIMEOUT)
+		log.Printf("[GetPendingPayments] G is migrating... sleeping for %v...", g.DBMigrateWait)
+		time.Sleep(g.DBMigrateWait)
 		store = g.DB
 		ss, _ = store.LoadSnapshot(0) // load most recent snapshot
 	}
-	if ss.GetVersion() >= DB_MAXSNAPSHOT {
+	if ss.GetVersion() >= g.DBMaxSnapshot {
 		Graviton_backend.SwapGravDB(Graviton_backend.DBTree, Graviton_backend.DBFolder)
 
 		store = g.DB
@@ -782,14 +761,14 @@ func (g *GravitonStore) OverwritePendingPayments(info *PendingPayments) error {
 	store := g.DB
 	ss, _ := store.LoadSnapshot(0) // load most recent snapshot
 
-	// Swap DB at DB_MAXSNAPSHOT+ commits. Check for g.migrating, if so sleep for DB_WAITTIMEOUT ms
+	// Swap DB at g.DBMaxSnapshot+ commits. Check for g.migrating, if so sleep for g.DBMigrateWait ms
 	for g.migrating == 1 {
-		log.Printf("[OverwritePendingPayments] G is migrating... sleeping for %v ms...", DB_WAITTIMEOUT)
-		time.Sleep(time.Millisecond * DB_WAITTIMEOUT)
+		log.Printf("[OverwritePendingPayments] G is migrating... sleeping for %v...", g.DBMigrateWait)
+		time.Sleep(g.DBMigrateWait)
 		store = g.DB
 		ss, _ = store.LoadSnapshot(0) // load most recent snapshot
 	}
-	if ss.GetVersion() >= DB_MAXSNAPSHOT {
+	if ss.GetVersion() >= g.DBMaxSnapshot {
 		Graviton_backend.SwapGravDB(Graviton_backend.DBTree, Graviton_backend.DBFolder)
 
 		store = g.DB
@@ -809,14 +788,14 @@ func (g *GravitonStore) WriteProcessedPayments(info *MinerPayments) error {
 	store := g.DB
 	ss, _ := store.LoadSnapshot(0) // load most recent snapshot
 
-	// Swap DB at DB_MAXSNAPSHOT+ commits. Check for g.migrating, if so sleep for DB_WAITTIMEOUT ms
+	// Swap DB at g.DBMaxSnapshot+ commits. Check for g.migrating, if so sleep for g.DBMigrateWait ms
 	for g.migrating == 1 {
-		log.Printf("[WriteProcessedPayments] G is migrating... sleeping for %v ms...", DB_WAITTIMEOUT)
-		time.Sleep(time.Millisecond * DB_WAITTIMEOUT)
+		log.Printf("[WriteProcessedPayments] G is migrating... sleeping for %v...", g.DBMigrateWait)
+		time.Sleep(g.DBMigrateWait)
 		store = g.DB
 		ss, _ = store.LoadSnapshot(0) // load most recent snapshot
 	}
-	if ss.GetVersion() >= DB_MAXSNAPSHOT {
+	if ss.GetVersion() >= g.DBMaxSnapshot {
 		Graviton_backend.SwapGravDB(Graviton_backend.DBTree, Graviton_backend.DBFolder)
 
 		store = g.DB
@@ -860,14 +839,14 @@ func (g *GravitonStore) GetProcessedPayments() *ProcessedPayments {
 	store := g.DB
 	ss, _ := store.LoadSnapshot(0) // load most recent snapshot
 
-	// Swap DB at DB_MAXSNAPSHOT+ commits. Check for g.migrating, if so sleep for DB_WAITTIMEOUT ms
+	// Swap DB at g.DBMaxSnapshot+ commits. Check for g.migrating, if so sleep for g.DBMigrateWait ms
 	for g.migrating == 1 {
-		log.Printf("[GetProcessedPayments] G is migrating... sleeping for %v ms...", DB_WAITTIMEOUT)
-		time.Sleep(time.Millisecond * DB_WAITTIMEOUT)
+		log.Printf("[GetProcessedPayments] G is migrating... sleeping for %v...", g.DBMigrateWait)
+		time.Sleep(g.DBMigrateWait)
 		store = g.DB
 		ss, _ = store.LoadSnapshot(0) // load most recent snapshot
 	}
-	if ss.GetVersion() >= DB_MAXSNAPSHOT {
+	if ss.GetVersion() >= g.DBMaxSnapshot {
 		Graviton_backend.SwapGravDB(Graviton_backend.DBTree, Graviton_backend.DBFolder)
 
 		store = g.DB
@@ -934,14 +913,14 @@ func (g *GravitonStore) WriteLastBlock(lastBlock *LastBlock) error {
 	store := g.DB
 	ss, _ := store.LoadSnapshot(0) // load most recent snapshot
 
-	// Swap DB at DB_MAXSNAPSHOT+ commits. Check for g.migrating, if so sleep for DB_WAITTIMEOUT ms
+	// Swap DB at g.DBMaxSnapshot+ commits. Check for g.migrating, if so sleep for g.DBMigrateWait ms
 	for g.migrating == 1 {
-		log.Printf("[WriteLastBlock] G is migrating... sleeping for %v ms...", DB_WAITTIMEOUT)
-		time.Sleep(time.Millisecond * DB_WAITTIMEOUT)
+		log.Printf("[WriteLastBlock] G is migrating... sleeping for %v...", g.DBMigrateWait)
+		time.Sleep(g.DBMigrateWait)
 		store = g.DB
 		ss, _ = store.LoadSnapshot(0) // load most recent snapshot
 	}
-	if ss.GetVersion() >= DB_MAXSNAPSHOT {
+	if ss.GetVersion() >= g.DBMaxSnapshot {
 		Graviton_backend.SwapGravDB(Graviton_backend.DBTree, Graviton_backend.DBFolder)
 
 		store = g.DB
@@ -960,15 +939,15 @@ func (g *GravitonStore) GetLastBlock() *LastBlock {
 	store := g.DB
 	ss, _ := store.LoadSnapshot(0) // load most recent snapshot
 
-	// Swap DB at DB_MAXSNAPSHOT+ commits. Check for g.migrating, if so sleep for DB_WAITTIMEOUT ms
+	// Swap DB at g.DBMaxSnapshot+ commits. Check for g.migrating, if so sleep for g.DBMigrateWait ms
 	for g.migrating == 1 {
-		log.Printf("[GetLastBlock] G is migrating... sleeping for %v ms...", DB_WAITTIMEOUT)
-		time.Sleep(time.Millisecond * DB_WAITTIMEOUT)
+		log.Printf("[GetLastBlock] G is migrating... sleeping for %v...", g.DBMigrateWait)
+		time.Sleep(g.DBMigrateWait)
 		store = g.DB
 		ss, _ = store.LoadSnapshot(0) // load most recent snapshot
 	}
 	log.Printf("SS Version: %v", ss.GetVersion())
-	if ss.GetVersion() >= DB_MAXSNAPSHOT {
+	if ss.GetVersion() >= g.DBMaxSnapshot {
 		Graviton_backend.SwapGravDB(Graviton_backend.DBTree, Graviton_backend.DBFolder)
 
 		store = g.DB
@@ -998,14 +977,14 @@ func (g *GravitonStore) WriteConfig(config *pool.Config) error {
 	store := g.DB
 	ss, _ := store.LoadSnapshot(0) // load most recent snapshot
 
-	// Swap DB at DB_MAXSNAPSHOT+ commits. Check for g.migrating, if so sleep for DB_WAITTIMEOUT ms
+	// Swap DB at g.DBMaxSnapshot+ commits. Check for g.migrating, if so sleep for g.DBMigrateWait ms
 	for g.migrating == 1 {
-		log.Printf("[WriteConfig] G is migrating... sleeping for %v ms...", DB_WAITTIMEOUT)
-		time.Sleep(time.Millisecond * DB_WAITTIMEOUT)
+		log.Printf("[WriteConfig] G is migrating... sleeping for %v...", g.DBMigrateWait)
+		time.Sleep(g.DBMigrateWait)
 		store = g.DB
 		ss, _ = store.LoadSnapshot(0) // load most recent snapshot
 	}
-	if ss.GetVersion() >= DB_MAXSNAPSHOT {
+	if ss.GetVersion() >= g.DBMaxSnapshot {
 		Graviton_backend.SwapGravDB(Graviton_backend.DBTree, Graviton_backend.DBFolder)
 
 		store = g.DB
@@ -1024,14 +1003,14 @@ func (g *GravitonStore) GetConfig(coin string) *pool.Config {
 	store := g.DB
 	ss, _ := store.LoadSnapshot(0) // load most recent snapshot
 
-	// Swap DB at DB_MAXSNAPSHOT+ commits. Check for g.migrating, if so sleep for DB_WAITTIMEOUT ms
+	// Swap DB at g.DBMaxSnapshot+ commits. Check for g.migrating, if so sleep for g.DBMigrateWait ms
 	for g.migrating == 1 {
-		log.Printf("[GetConfig] G is migrating... sleeping for %v ms...", DB_WAITTIMEOUT)
-		time.Sleep(time.Millisecond * DB_WAITTIMEOUT)
+		log.Printf("[GetConfig] G is migrating... sleeping for %v...", g.DBMigrateWait)
+		time.Sleep(g.DBMigrateWait)
 		store = g.DB
 		ss, _ = store.LoadSnapshot(0) // load most recent snapshot
 	}
-	if ss.GetVersion() >= DB_MAXSNAPSHOT {
+	if ss.GetVersion() >= g.DBMaxSnapshot {
 		Graviton_backend.SwapGravDB(Graviton_backend.DBTree, Graviton_backend.DBFolder)
 
 		store = g.DB
@@ -1056,14 +1035,14 @@ func (g *GravitonStore) WriteMinerIDRegistration(miner *Miner) error {
 	store := g.DB
 	ss, _ := store.LoadSnapshot(0) // load most recent snapshot
 
-	// Swap DB at DB_MAXSNAPSHOT+ commits. Check for g.migrating, if so sleep for DB_WAITTIMEOUT ms
+	// Swap DB at g.DBMaxSnapshot+ commits. Check for g.migrating, if so sleep for g.DBMigrateWait ms
 	for g.migrating == 1 {
-		log.Printf("[WriteMinerIDRegistration] G is migrating... sleeping for %v ms...", DB_WAITTIMEOUT)
-		time.Sleep(time.Millisecond * DB_WAITTIMEOUT)
+		log.Printf("[WriteMinerIDRegistration] G is migrating... sleeping for %v...", g.DBMigrateWait)
+		time.Sleep(g.DBMigrateWait)
 		store = g.DB
 		ss, _ = store.LoadSnapshot(0) // load most recent snapshot
 	}
-	if ss.GetVersion() >= DB_MAXSNAPSHOT {
+	if ss.GetVersion() >= g.DBMaxSnapshot {
 		Graviton_backend.SwapGravDB(Graviton_backend.DBTree, Graviton_backend.DBFolder)
 
 		store = g.DB
@@ -1119,14 +1098,14 @@ func (g *GravitonStore) GetMinerIDRegistrations() []*Miner {
 	store := g.DB
 	ss, _ := store.LoadSnapshot(0) // load most recent snapshot
 
-	// Swap DB at DB_MAXSNAPSHOT+ commits. Check for g.migrating, if so sleep for DB_WAITTIMEOUT ms
+	// Swap DB at g.DBMaxSnapshot+ commits. Check for g.migrating, if so sleep for g.DBMigrateWait ms
 	for g.migrating == 1 {
-		log.Printf("[GetMinerIDRegistrations] G is migrating... sleeping for %v ms...", DB_WAITTIMEOUT)
-		time.Sleep(time.Millisecond * DB_WAITTIMEOUT)
+		log.Printf("[GetMinerIDRegistrations] G is migrating... sleeping for %v...", g.DBMigrateWait)
+		time.Sleep(g.DBMigrateWait)
 		store = g.DB
 		ss, _ = store.LoadSnapshot(0) // load most recent snapshot
 	}
-	if ss.GetVersion() >= DB_MAXSNAPSHOT {
+	if ss.GetVersion() >= g.DBMaxSnapshot {
 		Graviton_backend.SwapGravDB(Graviton_backend.DBTree, Graviton_backend.DBFolder)
 
 		store = g.DB
@@ -1231,14 +1210,14 @@ func (g *GravitonStore) WriteMinerStats(miners MinersMap, hashrateExpiration tim
 	store := g.DB
 	ss, _ := store.LoadSnapshot(0) // load most recent snapshot
 
-	// Swap DB at DB_MAXSNAPSHOT+ commits. Check for g.migrating, if so sleep for DB_WAITTIMEOUT ms
+	// Swap DB at g.DBMaxSnapshot+ commits. Check for g.migrating, if so sleep for g.DBMigrateWait ms
 	for g.migrating == 1 {
-		log.Printf("[WriteMinerStats] G is migrating... sleeping for %v ms...", DB_WAITTIMEOUT)
-		time.Sleep(time.Millisecond * DB_WAITTIMEOUT)
+		log.Printf("[WriteMinerStats] G is migrating... sleeping for %v...", g.DBMigrateWait)
+		time.Sleep(g.DBMigrateWait)
 		store = g.DB
 		ss, _ = store.LoadSnapshot(0) // load most recent snapshot
 	}
-	if ss.GetVersion() >= DB_MAXSNAPSHOT {
+	if ss.GetVersion() >= g.DBMaxSnapshot {
 		Graviton_backend.SwapGravDB(Graviton_backend.DBTree, Graviton_backend.DBFolder)
 
 		store = g.DB
@@ -1308,14 +1287,14 @@ func (g *GravitonStore) WriteMinerStatsByID(miner *Miner, hashrateExpiration tim
 	store := g.DB
 	ss, _ := store.LoadSnapshot(0) // load most recent snapshot
 
-	// Swap DB at DB_MAXSNAPSHOT+ commits. Check for g.migrating, if so sleep for DB_WAITTIMEOUT ms
+	// Swap DB at g.DBMaxSnapshot+ commits. Check for g.migrating, if so sleep for g.DBMigrateWait ms
 	for g.migrating == 1 {
-		log.Printf("[WriteMinerStatsByID] G is migrating... sleeping for %v ms...", DB_WAITTIMEOUT)
-		time.Sleep(time.Millisecond * DB_WAITTIMEOUT)
+		log.Printf("[WriteMinerStatsByID] G is migrating... sleeping for %v...", g.DBMigrateWait)
+		time.Sleep(g.DBMigrateWait)
 		store = g.DB
 		ss, _ = store.LoadSnapshot(0) // load most recent snapshot
 	}
-	if ss.GetVersion() >= DB_MAXSNAPSHOT {
+	if ss.GetVersion() >= g.DBMaxSnapshot {
 		Graviton_backend.SwapGravDB(Graviton_backend.DBTree, Graviton_backend.DBFolder)
 
 		store = g.DB
@@ -1337,14 +1316,14 @@ func (g *GravitonStore) GetAllMinerStats() []*Miner {
 	store := g.DB
 	ss, _ := store.LoadSnapshot(0) // load most recent snapshot
 
-	// Swap DB at DB_MAXSNAPSHOT+ commits. Check for g.migrating, if so sleep for DB_WAITTIMEOUT ms
+	// Swap DB at g.DBMaxSnapshot+ commits. Check for g.migrating, if so sleep for g.DBMigrateWait ms
 	for g.migrating == 1 {
-		log.Printf("[GetAllMinerStats] G is migrating... sleeping for %v ms...", DB_WAITTIMEOUT)
-		time.Sleep(time.Millisecond * DB_WAITTIMEOUT)
+		log.Printf("[GetAllMinerStats] G is migrating... sleeping for %v...", g.DBMigrateWait)
+		time.Sleep(g.DBMigrateWait)
 		store = g.DB
 		ss, _ = store.LoadSnapshot(0) // load most recent snapshot
 	}
-	if ss.GetVersion() >= DB_MAXSNAPSHOT {
+	if ss.GetVersion() >= g.DBMaxSnapshot {
 		Graviton_backend.SwapGravDB(Graviton_backend.DBTree, Graviton_backend.DBFolder)
 
 		store = g.DB
@@ -1376,14 +1355,14 @@ func (g *GravitonStore) GetMinerStatsByID(minerID string) *Miner {
 	store := g.DB
 	ss, _ := store.LoadSnapshot(0) // load most recent snapshot
 
-	// Swap DB at DB_MAXSNAPSHOT+ commits. Check for g.migrating, if so sleep for DB_WAITTIMEOUT ms
+	// Swap DB at g.DBMaxSnapshot+ commits. Check for g.migrating, if so sleep for g.DBMigrateWait ms
 	for g.migrating == 1 {
-		log.Printf("[GetMinerStatsByID] G is migrating... sleeping for %v ms...", DB_WAITTIMEOUT)
-		time.Sleep(time.Millisecond * DB_WAITTIMEOUT)
+		log.Printf("[GetMinerStatsByID] G is migrating... sleeping for %v...", g.DBMigrateWait)
+		time.Sleep(g.DBMigrateWait)
 		store = g.DB
 		ss, _ = store.LoadSnapshot(0) // load most recent snapshot
 	}
-	if ss.GetVersion() >= DB_MAXSNAPSHOT {
+	if ss.GetVersion() >= g.DBMaxSnapshot {
 		Graviton_backend.SwapGravDB(Graviton_backend.DBTree, Graviton_backend.DBFolder)
 
 		store = g.DB
@@ -1409,14 +1388,14 @@ func (g *GravitonStore) GetRoundShares(roundHeight int64) (map[string]int64, int
 	store := g.DB
 	ss, _ := store.LoadSnapshot(0) // load most recent snapshot
 
-	// Swap DB at DB_MAXSNAPSHOT+ commits. Check for g.migrating, if so sleep for DB_WAITTIMEOUT ms
+	// Swap DB at g.DBMaxSnapshot+ commits. Check for g.migrating, if so sleep for g.DBMigrateWait ms
 	for g.migrating == 1 {
-		log.Printf("[GetRoundShares] G is migrating... sleeping for %v ms...", DB_WAITTIMEOUT)
-		time.Sleep(time.Millisecond * DB_WAITTIMEOUT)
+		log.Printf("[GetRoundShares] G is migrating... sleeping for %v...", g.DBMigrateWait)
+		time.Sleep(g.DBMigrateWait)
 		store = g.DB
 		ss, _ = store.LoadSnapshot(0) // load most recent snapshot
 	}
-	if ss.GetVersion() >= DB_MAXSNAPSHOT {
+	if ss.GetVersion() >= g.DBMaxSnapshot {
 		Graviton_backend.SwapGravDB(Graviton_backend.DBTree, Graviton_backend.DBFolder)
 
 		store = g.DB
@@ -1450,14 +1429,14 @@ func (g *GravitonStore) WriteRoundShares(roundHeight int64, roundShares map[stri
 	store := g.DB
 	ss, _ := store.LoadSnapshot(0) // load most recent snapshot
 
-	// Swap DB at DB_MAXSNAPSHOT+ commits. Check for g.migrating, if so sleep for DB_WAITTIMEOUT ms
+	// Swap DB at g.DBMaxSnapshot+ commits. Check for g.migrating, if so sleep for g.DBMigrateWait ms
 	for g.migrating == 1 {
-		log.Printf("[WriteRoundShares] G is migrating... sleeping for %v ms...", DB_WAITTIMEOUT)
-		time.Sleep(time.Millisecond * DB_WAITTIMEOUT)
+		log.Printf("[WriteRoundShares] G is migrating... sleeping for %v...", g.DBMigrateWait)
+		time.Sleep(g.DBMigrateWait)
 		store = g.DB
 		ss, _ = store.LoadSnapshot(0) // load most recent snapshot
 	}
-	if ss.GetVersion() >= DB_MAXSNAPSHOT {
+	if ss.GetVersion() >= g.DBMaxSnapshot {
 		Graviton_backend.SwapGravDB(Graviton_backend.DBTree, Graviton_backend.DBFolder)
 
 		store = g.DB
