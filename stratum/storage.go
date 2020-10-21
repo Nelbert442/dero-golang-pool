@@ -41,24 +41,6 @@ type GravitonMiners struct {
 	Miners []*Miner
 }
 
-/*
-type MinedBlocks struct {
-	MinerID             string
-	MinerJobID          string
-	MinerJobNonce       string
-	MinerJobResult      string
-	SessionDiff         int64
-	TemplateDiff        int64
-	BlockTemplateHeight int64
-	HashrateExpiration  time.Duration
-	FeeReward           int64
-	SubmitReplyBLID     string
-	MinerIsSolo         bool
-	MinerAddress        string
-	BlockState          string
-}
-*/
-
 type BlockDataGrav struct {
 	Height      int64
 	Timestamp   int64
@@ -109,11 +91,10 @@ type PendingPayments struct {
 }
 
 type GravitonStore struct {
-	DB       *graviton.Store
-	DBFolder string
-	DBPath   string
-	DBTree   string
-	//DBCPNum       int64
+	DB            *graviton.Store
+	DBFolder      string
+	DBPath        string
+	DBTree        string
 	migrating     int
 	DBMaxSnapshot uint64
 	DBMigrateWait time.Duration
@@ -125,13 +106,6 @@ type TreeKV struct {
 }
 
 var Graviton_backend *GravitonStore = &GravitonStore{}
-
-// Set of vars for maximum commits to keep within the live DB and DB_bak directories, this is for space control, ~5k-10k is fine for pool. Testing has been ok for 100k+, just space gets LARGE (25GB-40GB DBs etc.)
-// TODO: Make part of config.json configuration file
-//const DB_MAXSNAPSHOT = 5000
-
-//const DB_MAXCOPIES = 5
-//const g.DBMigrateWait = 100 // Timeout in milliseconds to wait for g.migrating to free up on reads/writes if actions clash. This is for data safety to not get/set something inbetween db moves
 
 func (g *GravitonStore) NewGravDB(poolhost, dbFolder, dbmigratewait string, dbmaxsnapshot uint64) {
 	current_path, err := os.Getwd()
@@ -151,8 +125,6 @@ func (g *GravitonStore) NewGravDB(poolhost, dbFolder, dbmigratewait string, dbma
 
 	g.DBTree = poolhost
 
-	//g.DBCPNum++
-
 	log.Printf("[Graviton] Initializing graviton store at path: %v", filepath.Join(current_path, dbFolder))
 }
 
@@ -167,21 +139,6 @@ func (g *GravitonStore) SwapGravDB(poolhost, dbFolder string) {
 	os.Rename(bakFolder, bak2Folder)
 	log.Printf("Removing directory %v", bak2Folder)
 	go os.RemoveAll(bak2Folder)
-
-	// Track 'version' of DB builds, just to prevent stepping on toes of existing - old methods, new is just _bak
-	/*
-		log.Printf("g.DBCPNum: %v", g.DBCPNum)
-		if g.DBCPNum > 0 {
-			dbFolder = dbFolder + strconv.FormatInt(g.DBCPNum, 10)
-			log.Printf("dbFolder: %v", dbFolder)
-		}
-		g.DBCPNum++
-
-		// Recycle back to front of line when you hit X number of DB
-		if g.DBCPNum > DB_MAXCOPIES {
-			g.DBCPNum = 1
-		}
-	*/
 
 	// Get existing store values, defer close of original, and get store values for new DB to write to
 	store := g.DB
@@ -205,23 +162,9 @@ func (g *GravitonStore) SwapGravDB(poolhost, dbFolder string) {
 	oldFolder = g.DBPath
 	log.Printf("Renaming directory %v to %v", oldFolder, bakFolder)
 	os.Rename(oldFolder, bakFolder)
-	//os.RemoveAll(g.DBPath)
-
-	// Assign g pointer (Graviton_backend generally in our case) to new DB so other fncts calling will use new instead of old properly
-	/*
-		current_path, err := os.Getwd()
-		if err != nil {
-			log.Printf("%v", err)
-		}
-	*/
-
-	//g.DBPath = filepath.Join(current_path, dbFolder)
-	//log.Printf("g.DBPath: %v", g.DBPath)
 
 	log.Printf("Creating new disk store")
 	g.DB, _ = graviton.NewDiskStore(g.DBPath)
-
-	//g.DBTree = poolhost
 
 	// Take vals from previous DB store that were put into treeKV struct (array of), and commit to new DB after putting all k/v pairs back
 	store = g.DB
@@ -481,21 +424,9 @@ func (g *GravitonStore) GetBlocksFound(blocktype string) *BlocksFound {
 				blocksFound.MinedBlocks = append(blocksFound.MinedBlocks, reply)
 			}
 		}
-
-		// Matured
-		/*
-			if blocktype == "matured" || blocktype == "all" {
-				key := "block:matured:" + strconv.FormatInt(currHeight, 10)
-				v, _ := tree.Get([]byte(key))
-				if v != nil {
-					var reply *BlockDataGrav
-					_ = json.Unmarshal(v, &reply)
-					blocksFound.MinedBlocks = append(blocksFound.MinedBlocks, reply)
-				}
-			}
-		*/
 	}
 
+	// Matured. This is outside of the previous loop since all matured are stored as a slice array while the others are individually stored (and removed)
 	if blocktype == "matured" || blocktype == "all" {
 		key := "block:matured"
 		v, _ := tree.Get([]byte(key))
@@ -518,7 +449,7 @@ func (g *GravitonStore) WriteImmatureBlock(block *BlockDataGrav) error {
 	immatureBlock.BlockState = "immature"
 
 	// If block is not solo, set totalShares.
-	// TODO: Configure share tracking for solo as well.
+	// TODO: Configure share tracking for solo as well? For effort calcs
 	if !block.Solo {
 		_, totalShares, _ := g.GetRoundShares(block.Height)
 		immatureBlock.TotalShares = totalShares
@@ -538,7 +469,7 @@ func (g *GravitonStore) WriteMaturedBlocks(block *BlockDataGrav) error {
 	maturedBlock.BlockState = "matured"
 
 	// If block is not solo, set totalShares.
-	// TODO: Configure share tracking for solo as well.
+	// TODO: Configure share tracking for solo as well? For effort calcs
 	if !block.Solo {
 		_, totalShares, _ := g.GetRoundShares(block.Height)
 		maturedBlock.TotalShares = totalShares
@@ -902,72 +833,6 @@ func (blockDataGrav *BlockDataGrav) RoundKey() string {
 	return join(blockDataGrav.RoundHeight, blockDataGrav.Hash)
 }
 
-/*
-// Replacing the need for storing the last block with just normal rpc calls within api, lowers # of commits to DB
-func (g *GravitonStore) WriteLastBlock(lastBlock *LastBlock) error {
-	confBytes, err := json.Marshal(lastBlock)
-	if err != nil {
-		return fmt.Errorf("[Graviton] could not marshal lastblock info: %v", err)
-	}
-
-	store := g.DB
-	ss, _ := store.LoadSnapshot(0) // load most recent snapshot
-
-	// Swap DB at g.DBMaxSnapshot+ commits. Check for g.migrating, if so sleep for g.DBMigrateWait ms
-	for g.migrating == 1 {
-		log.Printf("[WriteLastBlock] G is migrating... sleeping for %v...", g.DBMigrateWait)
-		time.Sleep(g.DBMigrateWait)
-		store = g.DB
-		ss, _ = store.LoadSnapshot(0) // load most recent snapshot
-	}
-	if ss.GetVersion() >= g.DBMaxSnapshot {
-		Graviton_backend.SwapGravDB(Graviton_backend.DBTree, Graviton_backend.DBFolder)
-
-		store = g.DB
-		ss, _ = store.LoadSnapshot(0) // load most recent snapshot
-	}
-
-	tree, _ := ss.GetTree(g.DBTree) // use or create tree named by poolhost in config
-	key := "lastblock"
-	tree.Put([]byte(key), []byte(confBytes)) // insert a value
-	graviton.Commit(tree)                    // commit the tree
-
-	return nil
-}
-
-func (g *GravitonStore) GetLastBlock() *LastBlock {
-	store := g.DB
-	ss, _ := store.LoadSnapshot(0) // load most recent snapshot
-
-	// Swap DB at g.DBMaxSnapshot+ commits. Check for g.migrating, if so sleep for g.DBMigrateWait ms
-	for g.migrating == 1 {
-		log.Printf("[GetLastBlock] G is migrating... sleeping for %v...", g.DBMigrateWait)
-		time.Sleep(g.DBMigrateWait)
-		store = g.DB
-		ss, _ = store.LoadSnapshot(0) // load most recent snapshot
-	}
-	log.Printf("SS Version: %v", ss.GetVersion())
-	if ss.GetVersion() >= g.DBMaxSnapshot {
-		Graviton_backend.SwapGravDB(Graviton_backend.DBTree, Graviton_backend.DBFolder)
-
-		store = g.DB
-		ss, _ = store.LoadSnapshot(0) // load most recent snapshot
-	}
-
-	tree, _ := ss.GetTree(g.DBTree) // use or create tree named by poolhost in config
-	key := "lastblock"
-	var reply *LastBlock
-
-	v, _ := tree.Get([]byte(key))
-	if v != nil {
-		_ = json.Unmarshal(v, &reply)
-		return reply
-	}
-
-	return nil
-}
-*/
-
 func (g *GravitonStore) WriteConfig(config *pool.Config) error {
 	confBytes, err := json.Marshal(config)
 	if err != nil {
@@ -1231,7 +1096,6 @@ func (g *GravitonStore) WriteMinerStats(miners MinersMap, hashrateExpiration tim
 		for _, storedMiner := range storedMinerSlice {
 			currMiner, _ := miners.Get(storedMiner.Id)
 			updatedMiner, changes := g.CompareMinerStats(storedMiner, currMiner, hashrateExpiration)
-			//log.Printf("currMiner: %v ; updatedMiner: %v ; miner = updatedMiner: %v", &currMiner, &updatedMiner, &currMiner == &updatedMiner)
 
 			// Sometimes can run into concurrent read/write with updatedMiner. Possible misuse of same memory space, investigate further through testing might be required.]
 			// Initial thought is the memory index of the map for shares is still linked back to in-use miner struct on each share submission, however that's just used to calc hashrate, so np missing one
@@ -1453,7 +1317,6 @@ func (g *GravitonStore) WriteRoundShares(roundHeight int64, roundShares map[stri
 }
 
 func (g *GravitonStore) NextRound(roundHeight int64, hashrateExpiration time.Duration) error {
-	//registeredMiners := g.GetMinerIDRegistrations()
 	miners := g.GetAllMinerStats()
 	roundShares := make(map[string]int64)
 
