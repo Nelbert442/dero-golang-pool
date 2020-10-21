@@ -24,6 +24,17 @@ Golang Mining Pool for DERO
 * (FUTURE) Management functions/go files for modifying / reporting of payments etc.
 * (FUTURE) More feature sets within the frontend such as admin page, individual miner pages etc.
 
+## Table of Contents
+1. [Requirements](#requirements) 
+1. [Downloading & Installing](#1-downloading--installing) 
+1. [Configuration](#2-configuration)
+1. [Build/Start the pool](#3-buildstart-the-pool)
+1. [Host the api](#4-host-the-api)
+1. [Host the frontend](#5-host-the-frontend)
+1. [SSL for API and frontend](#6-ssl-for-api-and-frontend)
+1. [Backend database choices](#7-backend-database-choices)
+1. [Credits](#credits)
+
 #### Requirements
 * Coin daemon (find the coin's repo and build latest version from source)
     * [Derosuite](https://github.com/deroproject/derosuite/releases/latest)
@@ -73,6 +84,7 @@ Explanation for each field:
 	"address": "<pool_DERO_Address>",
 
     /*  True: Do not worry about verifying miner shares [faster processing, but potentially wrong algo], False: Validate miner shares with built-in derosuite functions */
+	/* NOTE: This is currently not going to do anything, see miner.go --> processShare(). Some reason causing issues with miner data, TODO for later */
 	"bypassShareValidation": false,
 
     /*  Number of threads to spawn stratum */
