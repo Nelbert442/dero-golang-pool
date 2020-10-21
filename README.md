@@ -4,14 +4,14 @@ Golang Mining Pool for DERO
 #### Features
 * Developed in Golang
 * Utilizing Graviton for backend, built and supported by deroproject core team
-* In-built http server for web UI
+* In-built http/https server for web UI
 * Mining hardware monitoring, track if workers are sick
 * Keep track of accepts, rejects and block stats
 * Daemon failover, leverage multiple daemons (upstreams) and pool will get work from the first alive node, while monitoring the rest for backups
 * Concurrent shares processing by using multiple threads
 * Supports mining rewards sent directly to an exchange or wallet
 * Allows use of integrated addresses (dERi) and paymentIDs
-* API in JSON for easy integration to web frontend
+* API (http/https) in JSON for easy integration to web frontend
 * Utils functions and switch for mining algorithm support, this way you can modify which mining algo is required from config.json with ease and update code in only a couple places
 * Support for fixed difficulty with minimum difficulty settings on a per-port basis
 * Support for variable difficulty with maxjump flexibilities and customization settings
@@ -22,17 +22,13 @@ Golang Mining Pool for DERO
 ##### Future Features
 * (FUTURE) PPLNS and potentially other pool schemes support
 * (FUTURE) Management functions/go files for modifying / reporting of payments etc.
+* (FUTURE) More feature sets within the frontend such as admin page, individual miner pages etc.
 
 #### Requirements
 * Coin daemon (find the coin's repo and build latest version from source)
     * [Derosuite](https://github.com/deroproject/derosuite/releases/latest)
 * [Golang](https://golang.org/dl/)
-    * All code built and tested with Go v1.13.6
-* Repos to get once golang is installed:
-	* go get github.com/deroproject/derosuite/...
-	* go get github.com/deroproject/graviton/...
-	* go get github.com/gorilla/mux/...
-	* go get git.dero.io/Nelbert442/dero-golang-pool/...
+    * All code built and tested with Go v1.13.6 on both Windows and Ubuntu 18.04
 
 **Do not run the pool as root** : create a new user without ssh access to avoid security issues :
 ```bash
@@ -45,8 +41,16 @@ sudo su - your-user
 
 #### 1) Downloading & Installing
 
+* Supporting repos to get:
 ```bash
-go get git.dero.io/Nelbert442/dero-golang-pool
+go get github.com/deroproject/derosuite/...
+go get github.com/deroproject/graviton/...
+go get github.com/gorilla/mux/...
+```
+
+* Get project repo:
+```bash
+go get github.com/Nelbert442/dero-golang-pool
 ```
 
 #### 2) Configuration
@@ -77,7 +81,7 @@ Explanation for each field:
     /*  Defines algorithm used by pool. References to this switch are in miner.go */
 	"algo": "astrobwt",
 
-	/* 	Defines coin name, used in redis stores etc. */
+	/* 	Defines coin name */
 	"coin": "DERO",
 
 	/* Defines the base of DERO, 12 decimal places */
@@ -96,7 +100,8 @@ Explanation for each field:
     /*  Defines how often the upstream (daemon) getblocktemplate is refreshed.
         DERO blockchain is fast and runs on 27 Seconds blocktime. Best practice is to update your mining job at-least every second. 
         Bitcoin pool also updates miner job every 10 seconds and BTC blocktime is 10 mins -Captain [03/08/2020] .
-        Example of 10 second updates for 10 minute blocktimes on BTC. ~10/600 * 27 = 0.45 */
+        Example of 10 second updates for 10 minute blocktimes on BTC. ~10/600 * 27 = 0.45
+	*/
 	"blockRefreshInterval": "450ms",
 
 	"hashrateExpiration": "3h",		// TTL for workers stats, usually should be equal to large hashrate window from API section. NOTE: Use "0s" for infinite expiration time
@@ -179,7 +184,7 @@ Explanation for each field:
 			}
 		],
 
-		"varDiff": {				// NOTE: varDiff is not currently doing anything, just staged config/structs in code in prep for it
+		"varDiff": {
 			"enabled": false,		// Set varDiff enabled to true, variable difficulty for non-fixed diff miners, or false, to default to above difficulty configurations or fixed difficulty
 			"minDiff": 100,			// Set minimum difficulty for varDiff
 			"maxDiff": 1000000,		// Set maximum difficulty for varDiff
@@ -263,9 +268,27 @@ Once `config.json` has "website"."enabled" set to true, it will listen by defaul
 
 website.go is the runner, which just starts the listenandserve on the port defined, then serves up content within /website/Pages , feel free to make modifications to folder structure, just be sure to update website.go
 
-![DERO Pool Home](https://git.dero.io/Nelbert442/dero-golang-pool/raw/commit/daeae751e0393b1360adb4f53c2cfa06f7786c32/images/home.PNG) 
-![DERO Pool Blocks](https://git.dero.io/Nelbert442/dero-golang-pool/raw/commit/daeae751e0393b1360adb4f53c2cfa06f7786c32/images/poolBlock.PNG)
-![DERO Pool Pay](https://git.dero.io/Nelbert442/dero-golang-pool/raw/commit/daeae751e0393b1360adb4f53c2cfa06f7786c32/images/poolpayment.PNG)
+![DERO Pool Home](https://github.com/Nelbert442/dero-golang-pool/tree/daeae751e0393b1360adb4f53c2cfa06f7786c32/images/home.PNG) 
+![DERO Pool Blocks](https://github.com/Nelbert442/dero-golang-pool/tree/daeae751e0393b1360adb4f53c2cfa06f7786c32/images/poolBlock.PNG)
+![DERO Pool Pay](https://github.com/Nelbert442/dero-golang-pool/tree/daeae751e0393b1360adb4f53c2cfa06f7786c32/images/poolpayment.PNG)
+
+#### 6) SSL for API and frontend
+
+Within `config.json`, there are SSL sections within both API and website to leverage in order to define your key/cert files and ports to run the website or api locally. The cert and key files are to be placed in the same directory as your built package. The cert file should include cert, chain and ca while the key file is your private key. Store these files locally and make sure to .gitignore them properly, by default there is *.key and *.cer , however different folks use different file types.
+
+#### 7) Backend database choices
+
+Due to the nature of this pool being developed with [DERO](https://github.com/deroproject/) in mind, I decided to follow-suite with configuring the pool to leverage the same newly-released [Graviton](https://github.com/deroproject/graviton) database as the backend for the pool. I'll go into some currently existing cons and workarounds I've implemented, however this pool could easily be re-configured for other DB types such as: redis, boltdb, badgerdb, Graviton etc. Redis was used in previous commit history, you can also see implementation of redis on other pools, see Credits section.
+
+Some workarounds I've implemented to get Graviton to be sustainable are as follows:
+
+* Graviton performs snapshots on each commit of data. This is meaning each time you write data to it, a new snapshot is made for version control history which can be re-referenced at any point in time and used to diff against current or two different snapshots / trees pretty much anytime you'd like.
+
+In early adaptations, I realized that within a short period of time I was at 100,000+ commits which ballooned the DB size quite drastically. This, in part, was due to my heavy commit nature I initially implemented as well as a few other pieces that have been optimized a bit during time. While the 'point' is to retain this historical backup of snapshots, I just didn't need that requirement for my implementation. In order to not just scrap it and go back to boltdb or redis, I continued on and decided I'd retain X number of commit history and a single backup, in the event I ever wanted to push the backups to some cloud/cold storage and retain for time.
+
+In order to do this, I define some gravitonMaxSnapshots that I check for upon every read/write of the DB (low ms check) until I reach the value (or exceed it) and then grab all the k/v pairs, perform a rename of the current pooldb directory to pooldb_bak, then provision a new pooldb store and put the k/v pairs into it and commit then continue on. During this time there is a g.migrating attribute (set to 0 (not migrating) or 1 (migrating)) which upon every read/write is checked against. If the db is migrating while some read/write action attempts to utilize it, the process will 'wait' for gravitonMigrateWait amount of time (say 100ms or so) and continuously loop through until the process is open. Since this happens at all reads and writes, there are no tested issues so far that have arose for processes to get stuck midway since the commits of processes occur at the tail end, rather than along the way.
+
+Over time it may seem that Graviton is not the right fit, however I did not let that keep me away as I liked the functionality of it, portability of the directories (can copy/paste live data without corruption), and other potential future featuresets. To each their own, anyone is welcome who uses this repo to implement whichever form of DB they'd like. I thought at one point keeping a history so you could easily switch between using redis or graviton or other, however that seemed a bit too ambitious for alpha stages and maybe something down the line :)
 
 Credits
 ---------
