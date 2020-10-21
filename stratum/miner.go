@@ -414,7 +414,7 @@ func (m *Miner) processShare(s *StratumServer, cs *Session, job *Job, t *BlockTe
 			info.Solo = m.IsSolo
 			info.Address = m.Address
 			info.BlockState = "candidate"
-			infoErr := Graviton_backend.WriteBlocks(info, info.BlockState) //s.gravitonDB.WriteBlocks(info, info.BlockState)
+			infoErr := Graviton_backend.WriteBlocks(info, info.BlockState)
 			if infoErr != nil {
 				log.Printf("[BLOCK] Graviton DB err: %v", infoErr)
 			}
@@ -433,10 +433,10 @@ func (m *Miner) processShare(s *StratumServer, cs *Session, job *Job, t *BlockTe
 			// Only update next round miner stats if a pool block is found, so can determine this by the miner who found the block's solo status
 			if !m.IsSolo {
 				log.Printf("[Miner] Updating miner stats in DB for current round...")
-				_ = Graviton_backend.WriteMinerStats(s.miners, s.hashrateExpiration) //s.gravitonDB.WriteMinerStats(s.miners, s.hashrateExpiration)
+				_ = Graviton_backend.WriteMinerStats(s.miners, s.hashrateExpiration)
 
 				log.Printf("[Miner] Updating miner stats for the next round...")
-				Graviton_backend.NextRound(int64(t.Height), s.hashrateExpiration) //s.gravitonDB.NextRound(int64(t.Height), s.hashrateExpiration)
+				Graviton_backend.NextRound(int64(t.Height), s.hashrateExpiration)
 			}
 
 			atomic.StoreInt64(&m.LastRoundShares, 0)
@@ -471,8 +471,6 @@ func (m *Miner) processShare(s *StratumServer, cs *Session, job *Job, t *BlockTe
 		cs.VarDiff.TimestampArr[sinceLast] += sinceLast
 		cs.VarDiff.LastTimeStamp = ts
 	}
-
-	//log.Printf("[Miner-processShare] roundShares: %v; lastRoundShares: %v; id: %v", atomic.LoadInt64(&m.RoundShares), atomic.LoadInt64(&m.LastRoundShares), m.Id)
 
 	s.miners.Set(m.Id, m)
 

@@ -1,3 +1,4 @@
+// Some struct integrations and ideas from: https://github.com/JKKGBE/open-zcash-pool which is a fork of https://github.com/sammy007/open-ethereum-pool
 package stratum
 
 import "encoding/json"

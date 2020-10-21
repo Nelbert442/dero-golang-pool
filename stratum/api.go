@@ -81,7 +81,7 @@ func NewApiServer(cfg *pool.APIConfig, s *StratumServer) *ApiServer {
 	hashrateWindow, _ := time.ParseDuration(cfg.HashrateWindow)
 	return &ApiServer{
 		config:         *cfg,
-		backend:        Graviton_backend, //s.gravitonDB,
+		backend:        Graviton_backend,
 		hashrateWindow: hashrateWindow,
 		miners:         make(map[string]*Entry),
 		stratum:        s,
@@ -146,15 +146,11 @@ func notFound(writer http.ResponseWriter, _ *http.Request) {
 }
 
 func (apiServer *ApiServer) collectStats() {
-	//start := time.Now()
 	stats := make(map[string]interface{})
 	var numCandidateBlocks, numImmatureBlocks, numMaturedBlocks int
 
-	// Build last block stats
-	//stats["lastblock"] = apiServer.backend.GetLastBlock()
-
+	// Build lastblock stats
 	v := apiServer.stratum.rpc()
-	//currentWork := apiServer.stratum.currentWork()
 	prevBlock, getHashERR := v.GetLastBlockHeader()
 
 	if getHashERR != nil {
@@ -164,12 +160,6 @@ func (apiServer *ApiServer) collectStats() {
 	} else {
 		lastBlock := prevBlock.BlockHeader
 		lastblockDB := &LastBlock{Difficulty: lastBlock.Difficulty, Height: lastBlock.Height, Timestamp: int64(lastBlock.Timestamp), Reward: int64(lastBlock.Reward), Hash: lastBlock.Hash}
-		/*
-			lastblockErr := Graviton_backend.WriteLastBlock(lastblockDB) //stratum.gravitonDB.WriteLastBlock(lastblockDB)
-			if lastblockErr != nil {
-				log.Printf("[Stratum] Graviton DB err: %v", lastblockErr)
-			}
-		*/
 		stats["lastblock"] = lastblockDB
 	}
 
@@ -218,7 +208,6 @@ func (apiServer *ApiServer) collectStats() {
 	stats["soloHashrate"] = soloHashrate
 	stats["totalSoloMiners"] = totalSoloMiners
 	apiServer.stats.Store(stats)
-	//log.Printf("Stats collection finished %s", time.Since(start))
 }
 
 func (apiServer *ApiServer) convertPaymentsResults(processedPayments *ProcessedPayments) ([]*ApiPayments, int64, int64) {
@@ -289,7 +278,6 @@ func (apiServer *ApiServer) convertBlocksResults(minedBlocks []*BlockDataGrav) [
 }
 
 func (apiServer *ApiServer) convertMinerResults(miners []*Miner) ([]*ApiMiner, int64, int64, int64, int64) {
-	//registeredMiners := apiServer.backend.GetMinerIDRegistrations()
 	apiMiners := make(map[string]*ApiMiner)
 	var minersArr []*ApiMiner
 	var poolHashrate int64
@@ -300,7 +288,6 @@ func (apiServer *ApiServer) convertMinerResults(miners []*Miner) ([]*ApiMiner, i
 	for _, currMiner := range miners {
 		reply := &ApiMiner{}
 		if miners != nil {
-			//currMiner, _ := miners.Get(value.Id)
 			if currMiner != nil {
 				var tempDuration time.Duration
 				now := util.MakeTimestamp() / 1000
@@ -431,14 +418,6 @@ func (apiServer *ApiServer) StatsIndex(writer http.ResponseWriter, _ *http.Reque
 		reply["totalPoolMiners"] = stats["totalPoolMiners"]
 		reply["soloHashrate"] = stats["soloHashrate"]
 		reply["totalSoloMiners"] = stats["totalSoloMiners"]
-		/*
-			temp := Graviton_backend.DBCPNum - 1
-			if temp != 0 {
-				reply["currDBFolder"] = Graviton_backend.DBFolder + strconv.FormatInt(temp, 10)
-			} else {
-				reply["currDBFolder"] = Graviton_backend.DBFolder
-			}
-		*/
 	}
 
 	err := json.NewEncoder(writer).Encode(reply)

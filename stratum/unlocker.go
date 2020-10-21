@@ -63,13 +63,6 @@ func (u *BlockUnlocker) StartBlockUnlocker(s *StratumServer) {
 }
 
 func (u *BlockUnlocker) unlockPendingBlocks(s *StratumServer) {
-	/*
-		if u.halt {
-			log.Println("[Unlocker] Unlocking suspended due to last critical error:", u.lastFail)
-			return
-		}
-	*/
-
 	// Graviton DB implementation - choose to sort candidate here for faster return within storage.go, could later have "candidate" as an input and sort within GetBlocksFound() func
 	blocksFound := Graviton_backend.GetBlocksFound("candidate")
 
@@ -95,8 +88,6 @@ func (u *BlockUnlocker) unlockPendingBlocks(s *StratumServer) {
 	// Graviton DB implementation
 	resultGrav, err := u.unlockCandidatesGrav(candidateBlocks, "candidates")
 	if err != nil {
-		//u.halt = true
-		//u.lastFail = err
 		log.Printf("[Unlocker] Failed to unlock blocks grav: %v", err)
 		return
 	}
@@ -106,8 +97,6 @@ func (u *BlockUnlocker) unlockPendingBlocks(s *StratumServer) {
 	if len(resultGrav.orphanedBlocks) > 0 {
 		err = Graviton_backend.WriteOrphanedBlocks(resultGrav.orphanedBlocks)
 		if err != nil {
-			//u.halt = true
-			//u.lastFail = err
 			log.Printf("[Unlocker] Failed to insert orphaned blocks into backend: %v", err)
 			return
 		} else {
@@ -119,8 +108,6 @@ func (u *BlockUnlocker) unlockPendingBlocks(s *StratumServer) {
 	for _, block := range resultGrav.maturedBlocks {
 		err = Graviton_backend.WriteImmatureBlock(block)
 		if err != nil {
-			//u.halt = true
-			//u.lastFail = err
 			log.Printf("[Unlocker] Failed to credit rewards for round %v: %v", block.RoundKey(), err)
 			return
 		}
@@ -130,17 +117,8 @@ func (u *BlockUnlocker) unlockPendingBlocks(s *StratumServer) {
 }
 
 func (u *BlockUnlocker) unlockAndCreditMiners(s *StratumServer) {
-	/*
-		if u.halt {
-			log.Println("[Unlocker] Unlocking suspended due to last critical error:", u.lastFail)
-			return
-		}
-	*/
-
 	miningInfo, err := u.rpc.GetInfo()
 	if err != nil {
-		//u.halt = true
-		//u.lastFail = err
 		log.Printf("[Unlocker] Unable to get current blockchain height from node: %v", err)
 		return
 	}
@@ -171,8 +149,6 @@ func (u *BlockUnlocker) unlockAndCreditMiners(s *StratumServer) {
 
 	result, err := u.unlockCandidatesGrav(immature, "immature")
 	if err != nil {
-		//u.halt = true
-		//u.lastFail = err
 		log.Printf("[Unlocker] Failed to unlock blocks: %v", err)
 		return
 	}
@@ -181,8 +157,6 @@ func (u *BlockUnlocker) unlockAndCreditMiners(s *StratumServer) {
 	if len(result.orphanedBlocks) > 0 {
 		err = Graviton_backend.WriteOrphanedBlocks(result.orphanedBlocks)
 		if err != nil {
-			//u.halt = true
-			//u.lastFail = err
 			log.Printf("[Unlocker] Failed to insert orphaned blocks into backend: %v", err)
 			return
 		} else {
@@ -197,16 +171,12 @@ func (u *BlockUnlocker) unlockAndCreditMiners(s *StratumServer) {
 	for _, block := range result.maturedBlocks {
 		revenue, minersProfit, poolProfit, roundRewards, err := u.calculateRewardsGrav(s, block)
 		if err != nil {
-			//u.halt = true
-			//u.lastFail = err
 			log.Printf("[Unlocker] Failed to calculate rewards for round %v: %v", block.RoundKey(), err)
 			return
 		}
 
 		err = Graviton_backend.WriteMaturedBlocks(block)
 		if err != nil {
-			//u.halt = true
-			//u.lastFail = err
 			log.Printf("[Unlocker] Failed to credit rewards for round %v: %v", block.RoundKey(), err)
 			return
 		}
@@ -220,7 +190,7 @@ func (u *BlockUnlocker) unlockAndCreditMiners(s *StratumServer) {
 			info.Address = login
 			info.Amount = uint64(amount)
 			info.Timestamp = util.MakeTimestamp() / 1000
-			infoErr := Graviton_backend.WritePendingPayments(info) //s.gravitonDB.WritePendingPayments(info)
+			infoErr := Graviton_backend.WritePendingPayments(info)
 			if infoErr != nil {
 				log.Printf("[Unlocker] Graviton DB err: %v", infoErr)
 			}
@@ -277,8 +247,6 @@ func (u *BlockUnlocker) unlockCandidatesGrav(candidates []*BlockDataGrav, blockT
 
 			err = u.handleBlockGrav(block, candidate, blockType)
 			if err != nil {
-				//u.halt = true
-				//u.lastFail = err
 				return nil, err
 			}
 			result.maturedBlocks = append(result.maturedBlocks, candidate)

@@ -80,39 +80,8 @@ func NewStratum(cfg *pool.Config) *StratumServer {
 	stratum.SetupCloseHandler()
 
 	// Startup/create new gravitondb (if it doesn't exist), write the configuration file (config.json) into storage for use / api surfacing later
-	//stratum.gravitonDB = Graviton_backend
 	Graviton_backend.NewGravDB(cfg.PoolHost, "pooldb", cfg.GravitonMigrateWait, cfg.GravitonMaxSnapshots) //stratum.gravitonDB.NewGravDB(cfg.PoolHost, "pooldb") // TODO: Add to params in config.json file
 	Graviton_backend.WriteConfig(cfg)                                                                     //stratum.gravitonDB.WriteConfig(cfg)
-
-	/* - testing just to output a val from db while development process is going
-	plConfig := stratum.gravitonDB.GetConfig(cfg.Coin)
-	if plConfig != nil {
-		log.Printf("Config: %v", plConfig)
-	}
-
-	blocks := stratum.gravitonDB.GetBlocksFound()
-	for _, value := range blocks.MinedBlocks {
-		log.Printf("Blocks found: %v", value)
-	}
-
-	paymentsProcessed := stratum.gravitonDB.GetProcessedPayments()
-	for _, value := range paymentsProcessed.MinerPayments {
-		log.Printf("Payments processed: %v", value)
-	}
-
-	paymentsPending := stratum.gravitonDB.GetPendingPayments()
-	for _, value := range paymentsPending {
-		log.Printf("Payments pending: %v", value)
-	}
-
-	blocksFound := stratum.gravitonDB.GetBlocksFound("matured")
-	for _, value := range blocksFound.MinedBlocks {
-		log.Printf("Matured blocks: %v", value)
-	}
-
-	minerStats := stratum.gravitonDB.GetMinerIDRegistrations()
-	log.Printf("Miner: %v", minerStats)
-	*/
 
 	// Set stratum.upstreams length based on cfg.Upstream only if they are set enabled: true. We use arr to simulate this and filter out cfg.Upstream objects
 	var arr []pool.Upstream
@@ -214,27 +183,7 @@ func NewStratum(cfg *pool.Config) *StratumServer {
 		for {
 			select {
 			case <-infoTimer.C:
-				//currentWork := stratum.currentWork()
 				poll := func(v *rpc.RPCClient) {
-					// Need to make sure that this isn't too heavy of action, to call GetLastBlockHeader here. Otherwise, need to store it in another fashion
-					//var diff big.Int
-					//diff.SetUint64(currentWork.Difficulty)
-
-					/*
-						prevBlock, getHashERR := v.GetLastBlockHeader()
-
-						if getHashERR != nil {
-							log.Printf("[Stratum] Error while retrieving block %s from node: %v", currentWork.Prev_Hash, getHashERR)
-						} else {
-							lastBlock := prevBlock.BlockHeader
-							lastblockDB := &LastBlock{Difficulty: lastBlock.Difficulty, Height: lastBlock.Height, Timestamp: int64(lastBlock.Timestamp), Reward: int64(lastBlock.Reward), Hash: lastBlock.Hash}
-							lastblockErr := Graviton_backend.WriteLastBlock(lastblockDB) //stratum.gravitonDB.WriteLastBlock(lastblockDB)
-							if lastblockErr != nil {
-								log.Printf("[Stratum] Graviton DB err: %v", lastblockErr)
-							}
-						}
-					*/
-
 					_, err := v.UpdateInfo()
 					if err != nil {
 						log.Printf("[Stratum] Unable to update info on upstream %s: %v", v.Name, err)

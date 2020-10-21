@@ -1,4 +1,4 @@
-// Many payments integration functions and ideas from: https://github.com/JKKGBE/open-zcash-pool which is a fork of https://github.com/sammy007/open-ethereum-pool
+// Some payments integration functions and ideas from: https://github.com/JKKGBE/open-zcash-pool which is a fork of https://github.com/sammy007/open-ethereum-pool
 package stratum
 
 import (
@@ -89,8 +89,6 @@ func (u *PayoutsProcessor) process(s *StratumServer) {
 	var paymentIDPayeeList []rpc.Destinations
 	var payIDList []string
 	var payPending []*PaymentPending
-	//paymentsToRemove := make(map[string][]int)
-	//paymentsToRemove := make(map[string]int)
 
 	walletURL := fmt.Sprintf("http://%s:%v/json_rpc", u.config.WalletHost, u.config.WalletPort)
 	mustPay := 0
@@ -107,9 +105,6 @@ func (u *PayoutsProcessor) process(s *StratumServer) {
 		if !u.reachedThreshold(amount) {
 			continue
 		}
-
-		// Add index of payPending to array of paymentsToRemove which will be used later to cleanup DB
-		//paymentsToRemove[login] = i
 
 		// Check if we have enough funds
 		poolBalanceObj, err := u.rpc.GetBalance(walletURL)
@@ -255,30 +250,12 @@ func (u *PayoutsProcessor) process(s *StratumServer) {
 			login := payee.Address + s.config.Stratum.PaymentID.AddressSeparator + currPayout.Payment_ID
 			amount := payee.Amount
 
-			// Remove pending payout from graviton db
-			//log.Printf("[Payments] Before Payment Pruning: %v", payPending)
-			//f := paymentsToRemove[login] - p
-			//log.Printf("[Payments] Removing payPending: %v", payPending[f])
-			//payPending = removePendingPayments(payPending, f)
-
 			for j, f := range payPending {
 				if login == f.Address {
-					//log.Printf("[Payments] Removing payPending: %v", payPending[j])
 					payPending = removePendingPayments(payPending, j)
 					break
 				}
 			}
-			/*for j, f := range paymentsToRemove[login] {
-				// This keeps the array val in check while processing payments.
-				// Example:
-				// login 1: f = 0
-				// login 2: f = 1
-				// login 1 gets pruned, payPending length is now 1, need to reduce login 2 f = 0 instead of 1, else out of range index, so 1 - 1 and so on..
-				if f <= j {
-					f = j - f
-				}
-				payPending = removePendingPayments(payPending, f)
-			}*/
 
 			prunedPaymentsPending := &PendingPayments{PendingPayout: payPending}
 
@@ -297,7 +274,7 @@ func (u *PayoutsProcessor) process(s *StratumServer) {
 			info.Mixin = u.config.Mixin
 			info.Amount = amount
 			info.Timestamp = util.MakeTimestamp() / 1000
-			infoErr := Graviton_backend.WriteProcessedPayments(info) //s.gravitonDB.WriteProcessedPayments(info)
+			infoErr := Graviton_backend.WriteProcessedPayments(info)
 			if infoErr != nil {
 				log.Printf("[Payments] Graviton DB err: %v", infoErr)
 				break
@@ -305,7 +282,6 @@ func (u *PayoutsProcessor) process(s *StratumServer) {
 
 			minersPaid++
 			totalAmount.Add(totalAmount, big.NewInt(int64(amount)))
-			//log.Printf("[Payments] Paid %v DERO to %v, PaymentID: %v, TxHash: %v, Fee: %v, Mixin: %v", int64(amount), login, currPayout.Payment_ID, txHash[0], txFee[0], u.config.Mixin)
 		}
 		currPayout.Destinations = nil
 
@@ -342,34 +318,12 @@ func (u *PayoutsProcessor) process(s *StratumServer) {
 						login := payoutList[lastPos+k].Address
 						amount := payoutList[lastPos+k].Amount
 
-						// Remove pending payout from graviton db
-						//log.Printf("[Payments] Before Payment Pruning: %v", payPending)
-						//f := paymentsToRemove[login] - k
-						//log.Printf("[Payments] Removing payPending: %v", payPending[f])
-						//payPending = removePendingPayments(payPending, f)
-
 						for j, f := range payPending {
 							if login == f.Address {
-								//log.Printf("[Payments] Removing payPending: %v", payPending[j])
 								payPending = removePendingPayments(payPending, j)
 								break
 							}
 						}
-						/*
-							for j, f := range paymentsToRemove[login] {
-								// This keeps the array val in check while processing payments.
-								// Example:
-								// login 1: f = 0
-								// login 2: f = 1
-								// login 1 gets pruned, payPending length is now 1, need to reduce login 2 f = 0 instead of 1, else out of range index, so 1 - 1 and so on..
-								log.Printf("f: %v; j: %v", f, j)
-								if f <= j {
-									f = j - f
-								}
-								log.Printf("f: %v; j: %v", f, j)
-								payPending = removePendingPayments(payPending, f)
-							}
-						*/
 
 						prunedPaymentsPending := &PendingPayments{PendingPayout: payPending}
 
@@ -388,7 +342,7 @@ func (u *PayoutsProcessor) process(s *StratumServer) {
 						info.Mixin = u.config.Mixin
 						info.Amount = amount
 						info.Timestamp = util.MakeTimestamp() / 1000
-						infoErr := Graviton_backend.WriteProcessedPayments(info) //s.gravitonDB.WriteProcessedPayments(info)
+						infoErr := Graviton_backend.WriteProcessedPayments(info)
 						if infoErr != nil {
 							log.Printf("[Payments] Graviton DB err: %v", infoErr)
 							break
@@ -396,19 +350,12 @@ func (u *PayoutsProcessor) process(s *StratumServer) {
 
 						minersPaid++
 						totalAmount.Add(totalAmount, big.NewInt(int64(amount)))
-						//log.Printf("[Payments] Paid %v DERO to %v, TxHash: %v, Fee: %v, Mixin: %v", int64(amount), login, txHash[0], txFee[0], u.config.Mixin)
 					}
 				} else {
 					log.Printf("[Payments] Processing payoutList[i]: %v", payoutList[i])
 					// Debit miner's balance and update stats
 					login := value.Address
 					amount := value.Amount
-
-					// Remove pending payout from graviton db
-					//log.Printf("[Payments] Before Payment Pruning: %v", payPending)
-					//f := paymentsToRemove[login]
-					//log.Printf("[Payments] Removing payPending: %v", payPending[f])
-					//payPending = removePendingPayments(payPending, f)
 
 					for j, f := range payPending {
 						if login == f.Address {
@@ -417,20 +364,6 @@ func (u *PayoutsProcessor) process(s *StratumServer) {
 							break
 						}
 					}
-
-					/*
-						for j, f := range paymentsToRemove[login] {
-							// This keeps the array val in check while processing payments.
-							// Example:
-							// login 1: f = 0
-							// login 2: f = 1
-							// login 1 gets pruned, payPending length is now 1, need to reduce login 2 f = 0 instead of 1, else out of range index, so 1 - 1 and so on..
-							if f <= j {
-								f = j - f
-							}
-							payPending = removePendingPayments(payPending, f)
-						}
-					*/
 
 					prunedPaymentsPending := &PendingPayments{PendingPayout: payPending}
 
@@ -449,7 +382,7 @@ func (u *PayoutsProcessor) process(s *StratumServer) {
 					info.Mixin = u.config.Mixin
 					info.Amount = amount
 					info.Timestamp = util.MakeTimestamp() / 1000
-					infoErr := Graviton_backend.WriteProcessedPayments(info) //s.gravitonDB.WriteProcessedPayments(info)
+					infoErr := Graviton_backend.WriteProcessedPayments(info)
 					if infoErr != nil {
 						log.Printf("[Payments] Graviton DB err: %v", infoErr)
 						break
@@ -457,7 +390,6 @@ func (u *PayoutsProcessor) process(s *StratumServer) {
 
 					minersPaid++
 					totalAmount.Add(totalAmount, big.NewInt(int64(amount)))
-					//log.Printf("[Payments] Paid %v DERO to %v, TxHash: %v, Fee: %v, Mixin: %v", int64(amount), login, txHash[0], txFee[0], u.config.Mixin)
 				}
 				// Empty currpayout destinations array
 				currPayout.Destinations = nil
