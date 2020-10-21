@@ -283,13 +283,13 @@ Due to the nature of this pool being developed with [DERO](https://github.com/de
 Some workarounds I've implemented to get Graviton to be sustainable are as follows:
 
 * Graviton performs snapshots on each commit of data. This is meaning each time you write data to it, a new snapshot is made for version control history which can be re-referenced at any point in time and used to diff against current or two different snapshots / trees pretty much anytime you'd like.
-```
+*
 In early adaptations, I realized that within a short period of time I was at 100,000+ commits which ballooned the DB size quite drastically. This, in part, was due to my heavy commit nature I initially implemented as well as a few other pieces that have been optimized a bit during time. While the 'point' is to retain this historical backup of snapshots, I just didn't need that requirement for my implementation. In order to not just scrap it and go back to boltdb or redis, I continued on and decided I'd retain X number of commit history and a single backup, in the event I ever wanted to push the backups to some cloud/cold storage and retain for time.
 
 In order to do this, I define some gravitonMaxSnapshots that I check for upon every read/write of the DB (low ms check) until I reach the value (or exceed it) and then grab all the k/v pairs, perform a rename of the current pooldb directory to pooldb_bak, then provision a new pooldb store and put the k/v pairs into it and commit then continue on. During this time there is a g.migrating attribute (set to 0 (not migrating) or 1 (migrating)) which upon every read/write is checked against. If the db is migrating while some read/write action attempts to utilize it, the process will 'wait' for gravitonMigrateWait amount of time (say 100ms or so) and continuously loop through until the process is open. Since this happens at all reads and writes, there are no tested issues so far that have arose for processes to get stuck midway since the commits of processes occur at the tail end, rather than along the way.
 
 Over time it may seem that Graviton is not the right fit, however I did not let that keep me away as I liked the functionality of it, portability of the directories (can copy/paste live data without corruption), and other potential future featuresets. To each their own, anyone is welcome who uses this repo to implement whichever form of DB they'd like. I thought at one point keeping a history so you could easily switch between using redis or graviton or other, however that seemed a bit too ambitious for alpha stages and maybe something down the line :)
-```
+*
 
 Credits
 ---------
