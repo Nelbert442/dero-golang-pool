@@ -103,6 +103,19 @@ Explanation for each field:
 
 	"storeMinerStatsInterval": "5s",	// How often to run WriteMinerStats() to sync MinersMap and DB of all current miners. [Do not put this value in milliseconds, leave at least >= 1s, 2 is better]
 
+	/*
+		Defines how many snapshots (commits) are made to the live DB before migrating to a new DB. This value directly impacts the size of the DB growth over time.
+		Pool has been tested to be working well into the 100k+ commit range, however DB size expanded well beyond 25-40GB when getting in the upper ranges thus the implementation of a migration
+		When this value is hit, the pooldb directory will be renamed to pooldb_bak and a new pooldb directory will be provisioned. You have the pooldb_bak directory for any query or offloading to cold storage if required. This value is variable depending on the pool owner's comfort level and storage availability.
+	*/
+	"gravitonMaxSnapshots": 5000,
+
+	/*
+		Defines the length of time a process (read or write) will wait for the database migration to finish. In theory processes would not overlap, however as size grows and number of commits grows (since processed linearly), the migration time can increase past some preferred times and overlap with other actions. This protects those actions from pointing to an incorrect memory location for the DB as well as allows for the processes to complete efficiently and pause prior to starting anything extensive until the DB migration is completed.
+		This value can be made as little or large as you'd like, preferably no larger than 250ms or so, since it'll just loop until it can't run, but probably shouldn't be lower than 25ms or so, so as not to spam processes (however shouldn't cause issues other than just larger than normal logs stating waiting on DB)
+	*/
+	"gravitonMigrateWait": "100ms",
+
 	"upstreamCheckInterval": "5s",  // How often to poll upstream (daemon) for successful connections
 
 	/*

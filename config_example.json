@@ -17,6 +17,9 @@
 	"hashrateExpiration": "3h",
 	"storeMinerStatsInterval": "5s",
 
+	"gravitonMaxSnapshots": 5000,
+	"gravitonMigrateWait": "100ms",
+
 	"upstreamCheckInterval": "5s",
 
 	"upstream": [
