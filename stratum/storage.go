@@ -1131,7 +1131,6 @@ func (g *GravitonStore) WriteMinerStats(miners MinersMap, hashrateExpiration tim
 	}
 
 	if Commit {
-		log.Printf("SS Version: %v", ss.GetVersion())
 		graviton.Commit(tree) // commit the tree
 	}
 
