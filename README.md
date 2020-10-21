@@ -26,13 +26,13 @@ Golang Mining Pool for DERO
 
 ## Table of Contents
 1. [Requirements](#requirements) 
-1. [Downloading & Installing](#1-downloading--installing) 
-1. [Configuration](#2-configuration)
-1. [Build/Start the pool](#3-buildstart-the-pool)
-1. [Host the api](#4-host-the-api)
-1. [Host the frontend](#5-host-the-frontend)
-1. [SSL for API and frontend](#6-ssl-for-api-and-frontend)
-1. [Backend database choices](#7-backend-database-choices)
+1. [Downloading & Installing](#downloading--installing) 
+1. [Configuration](#configuration)
+1. [Build/Start the pool](#buildstart-the-pool)
+1. [Host the api](#host-the-api)
+1. [Host the frontend](#host-the-frontend)
+1. [SSL for API and frontend](#ssl-for-api-and-frontend)
+1. [Backend database choices](#backend-database-choices)
 1. [Credits](#credits)
 
 ### Requirements
