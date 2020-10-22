@@ -26,11 +26,9 @@
 	</table>
 </div>
 
-<!--
 <p class="text-center">
 	<button type="button" class="btn btn-default" id="loadMoreBlocks">Load More Blocks</button>
 </p>
--->
 
 <script>
     currentPage = {
@@ -59,10 +57,12 @@
     $('#loadMoreBlocks').click(function(){
         if (xhrGetBlocks) xhrGetBlocks.abort();
         xhrGetBlocks = $.ajax({
-            url: api + '/stats',
+            url: api + '/blocks',
+            /*
             data: {
                 height: $('#blocks_rows').children().last().data('height')
             },
+            */
             dataType: 'json',
             cache: 'false',
             success: function(data){

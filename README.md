@@ -290,7 +290,7 @@ Within `config.json`, there are SSL sections within both API and website to leve
 
 ### Backend database choices
 
-Due to the nature of this pool being developed with [DERO](https://github.com/deroproject/) in mind, I decided to follow-suite with configuring the pool to leverage the same newly-released [Graviton](https://github.com/deroproject/graviton) database as the backend for the pool. I'll go into some currently existing cons and workarounds I've implemented, however this pool could easily be re-configured for other DB types such as: redis, boltdb, badgerdb, Graviton etc. Redis was used in previous commit history, you can also see implementation of redis on other pools, see Credits section.
+Due to the nature of this pool being developed with [DERO](https://github.com/deroproject/) in mind, I decided to follow-suit with configuring the pool to leverage the same newly-released [Graviton](https://github.com/deroproject/graviton) database as the backend for the pool. I'll go into some currently existing cons and workarounds I've implemented, however this pool could easily be re-configured for other DB types such as: redis, boltdb, badgerdb, Graviton etc. Redis was used in previous commit history, you can also see implementation of redis on other pools, see Credits section.
 
 Some workarounds I've implemented to get Graviton to be sustainable are as follows:
 

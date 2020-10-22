@@ -94,11 +94,13 @@
 				lastStats = data;
 				updateIndex();
 				currentPage.update();
-			}).always(function () {
+			});
+			/*.always(function () {
 				setInterval(function(){ 
 					fetchLiveStats();
 				}, 5000);
 			});
+			*/
 		}
 	
 		function routePage(loadedCallback) {
@@ -177,6 +179,9 @@
 				lastStats = data;
 				updateIndex();
 				routePage(fetchLiveStats);
+				setInterval(function(){ 
+					fetchLiveStats();
+				}, 7500);
 			});
 		});
 		</script>

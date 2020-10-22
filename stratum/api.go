@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"log"
 	"net/http"
+	"sort"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -119,6 +120,9 @@ func (apiServer *ApiServer) listen() {
 	log.Printf("[API] Starting API on %v", apiServer.config.Listen)
 	router := mux.NewRouter()
 	router.HandleFunc("/api/stats", apiServer.StatsIndex)
+	router.HandleFunc("/api/blocks", apiServer.BlocksIndex)
+	router.HandleFunc("/api/payments", apiServer.PaymentsIndex)
+	router.HandleFunc("/api/miners", apiServer.MinersIndex)
 	//router.HandleFunc("/api/accounts/{login:dE[0-9a-zA-Z]{96}}", apiServer.AccountIndex)
 	router.NotFoundHandler = http.HandlerFunc(notFound)
 	err := http.ListenAndServe(apiServer.config.Listen, router)
@@ -131,6 +135,9 @@ func (apiServer *ApiServer) listenSSL() {
 	log.Printf("[API] Starting SSL API on %v", apiServer.config.SSLListen)
 	routerSSL := mux.NewRouter()
 	routerSSL.HandleFunc("/api/stats", apiServer.StatsIndex)
+	routerSSL.HandleFunc("/api/blocks", apiServer.BlocksIndex)
+	routerSSL.HandleFunc("/api/payments", apiServer.PaymentsIndex)
+	routerSSL.HandleFunc("/api/miners", apiServer.MinersIndex)
 	routerSSL.NotFoundHandler = http.HandlerFunc(notFound)
 	err := http.ListenAndServeTLS(apiServer.config.SSLListen, apiServer.config.CertFile, apiServer.config.KeyFile, routerSSL)
 	if err != nil {
@@ -167,7 +174,12 @@ func (apiServer *ApiServer) collectStats() {
 	processedPayments := apiServer.backend.GetProcessedPayments()
 	if processedPayments != nil {
 		apiPayments, totalPayments, totalMinersPaid := apiServer.convertPaymentsResults(processedPayments)
-		stats["payments"] = apiPayments
+		if int64(len(apiPayments)) > apiServer.config.Payments {
+			stats["paymentsSmall"] = apiPayments[0:apiServer.config.Payments] // Only return the last x number of payments, defined by payments within config.json
+		} else {
+			stats["paymentsSmall"] = apiPayments
+		}
+		stats["payments"] = apiPayments // Retain full list for other use cases in load more options etc.
 		stats["totalPayments"] = totalPayments
 		stats["totalMinersPaid"] = totalMinersPaid
 	}
@@ -176,21 +188,36 @@ func (apiServer *ApiServer) collectStats() {
 	candidateBlocks := apiServer.backend.GetBlocksFound("candidate")
 	if candidateBlocks != nil {
 		apiCandidates := apiServer.convertBlocksResults(candidateBlocks.MinedBlocks)
-		stats["candidates"] = apiCandidates
+		if int64(len(apiCandidates)) > apiServer.config.Blocks {
+			stats["candidatesSmall"] = apiCandidates[0:apiServer.config.Blocks] // Only return the last x number of blocks, defined by blocks within config.json
+		} else {
+			stats["candidatesSmall"] = apiCandidates
+		}
+		stats["candidates"] = apiCandidates // Retain full list for other use cases in load more options etc.
 		numCandidateBlocks = len(candidateBlocks.MinedBlocks)
 	}
 
 	immatureBlocks := apiServer.backend.GetBlocksFound("immature")
 	if immatureBlocks != nil {
 		apiImmature := apiServer.convertBlocksResults(immatureBlocks.MinedBlocks)
-		stats["immature"] = apiImmature
+		if int64(len(apiImmature)) > apiServer.config.Blocks {
+			stats["immatureSmall"] = apiImmature[0:apiServer.config.Blocks] // Only return the last x number of blocks, defined by blocks within config.json
+		} else {
+			stats["immatureSmall"] = apiImmature
+		}
+		stats["immature"] = apiImmature // Retain full list for other use cases in load more options etc.
 		numImmatureBlocks = len(immatureBlocks.MinedBlocks)
 	}
 
 	maturedBlocks := apiServer.backend.GetBlocksFound("matured")
 	if maturedBlocks != nil {
 		apiMatured := apiServer.convertBlocksResults(maturedBlocks.MinedBlocks)
-		stats["matured"] = apiMatured
+		if int64(len(apiMatured)) > apiServer.config.Blocks {
+			stats["maturedSmall"] = apiMatured[0:apiServer.config.Blocks] // Only return the last x number of blocks, defined by blocks within config.json
+		} else {
+			stats["maturedSmall"] = apiMatured
+		}
+		stats["matured"] = apiMatured // Retain full list for other use cases in load more options etc.
 		numMaturedBlocks = len(maturedBlocks.MinedBlocks)
 	}
 
@@ -257,6 +284,11 @@ func (apiServer *ApiServer) convertPaymentsResults(processedPayments *ProcessedP
 		paymentsArr = append(paymentsArr, apiPayments[p])
 	}
 
+	// Sort payments so most recent is index 0 [if preferred reverse, just swap > with <]
+	sort.SliceStable(paymentsArr, func(i, j int) bool {
+		return paymentsArr[i].Timestamp > paymentsArr[j].Timestamp
+	})
+
 	return paymentsArr, totalPayments, int64(totalMinersPaid)
 }
 
@@ -273,6 +305,11 @@ func (apiServer *ApiServer) convertBlocksResults(minedBlocks []*BlockDataGrav) [
 	for b := range apiBlocks {
 		blocksArr = append(blocksArr, apiBlocks[b])
 	}
+
+	// Sort payments so most recent is index 0 [if preferred reverse, just swap > with <]
+	sort.SliceStable(blocksArr, func(i, j int) bool {
+		return blocksArr[i].Timestamp > blocksArr[j].Timestamp
+	})
 
 	return blocksArr
 }
@@ -403,9 +440,40 @@ func (apiServer *ApiServer) StatsIndex(writer http.ResponseWriter, _ *http.Reque
 		reply["now"] = util.MakeTimestamp() / 1000
 		reply["lastblock"] = stats["lastblock"]
 		reply["config"] = apiServer.GetConfigIndex()
-		reply["payments"] = stats["payments"]
+		reply["payments"] = stats["paymentsSmall"]
 		reply["totalPayments"] = stats["totalPayments"]
 		reply["totalMinersPaid"] = stats["totalMinersPaid"]
+		reply["candidates"] = stats["candidatesSmall"]
+		reply["immature"] = stats["immatureSmall"]
+		reply["matured"] = stats["maturedSmall"]
+		reply["candidatesTotal"] = stats["candidatesTotal"]
+		reply["immatureTotal"] = stats["immatureTotal"]
+		reply["maturedTotal"] = stats["maturedTotal"]
+		reply["blocksTotal"] = stats["blocksTotal"]
+		reply["miners"] = stats["miners"]
+		reply["poolHashrate"] = stats["poolHashrate"]
+		reply["totalPoolMiners"] = stats["totalPoolMiners"]
+		reply["soloHashrate"] = stats["soloHashrate"]
+		reply["totalSoloMiners"] = stats["totalSoloMiners"]
+	}
+
+	err := json.NewEncoder(writer).Encode(reply)
+	if err != nil {
+		log.Println("[API] Error serializing API response: ", err)
+	}
+}
+
+func (apiServer *ApiServer) BlocksIndex(writer http.ResponseWriter, _ *http.Request) {
+	writer.Header().Set("Content-Type", "application/json; charset=UTF-8")
+	writer.Header().Set("Access-Control-Allow-Origin", "*")
+	writer.Header().Set("Cache-Control", "no-cache")
+	writer.WriteHeader(http.StatusOK)
+
+	reply := make(map[string]interface{})
+
+	stats := apiServer.getStats()
+	if stats != nil {
+		reply["now"] = util.MakeTimestamp() / 1000
 		reply["candidates"] = stats["candidates"]
 		reply["immature"] = stats["immature"]
 		reply["matured"] = stats["matured"]
@@ -413,6 +481,45 @@ func (apiServer *ApiServer) StatsIndex(writer http.ResponseWriter, _ *http.Reque
 		reply["immatureTotal"] = stats["immatureTotal"]
 		reply["maturedTotal"] = stats["maturedTotal"]
 		reply["blocksTotal"] = stats["blocksTotal"]
+	}
+
+	err := json.NewEncoder(writer).Encode(reply)
+	if err != nil {
+		log.Println("[API] Error serializing API response: ", err)
+	}
+}
+
+func (apiServer *ApiServer) PaymentsIndex(writer http.ResponseWriter, _ *http.Request) {
+	writer.Header().Set("Content-Type", "application/json; charset=UTF-8")
+	writer.Header().Set("Access-Control-Allow-Origin", "*")
+	writer.Header().Set("Cache-Control", "no-cache")
+	writer.WriteHeader(http.StatusOK)
+
+	reply := make(map[string]interface{})
+
+	stats := apiServer.getStats()
+	if stats != nil {
+		reply["payments"] = stats["payments"]
+		reply["totalPayments"] = stats["totalPayments"]
+		reply["totalMinersPaid"] = stats["totalMinersPaid"]
+	}
+
+	err := json.NewEncoder(writer).Encode(reply)
+	if err != nil {
+		log.Println("[API] Error serializing API response: ", err)
+	}
+}
+
+func (apiServer *ApiServer) MinersIndex(writer http.ResponseWriter, _ *http.Request) {
+	writer.Header().Set("Content-Type", "application/json; charset=UTF-8")
+	writer.Header().Set("Access-Control-Allow-Origin", "*")
+	writer.Header().Set("Cache-Control", "no-cache")
+	writer.WriteHeader(http.StatusOK)
+
+	reply := make(map[string]interface{})
+
+	stats := apiServer.getStats()
+	if stats != nil {
 		reply["miners"] = stats["miners"]
 		reply["poolHashrate"] = stats["poolHashrate"]
 		reply["totalPoolMiners"] = stats["totalPoolMiners"]

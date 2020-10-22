@@ -25,11 +25,9 @@
 	</table>
 </div>
 
-<!--
 <p class="text-center">
 	<button type="button" class="btn btn-default" id="loadMorePayments">Load More Payments</button>
 </p>
--->
 
 <script>
     currentPage = {
@@ -63,10 +61,12 @@
     $('#loadMorePayments').click(function(){
         if (xhrGetPayments) xhrGetPayments.abort();
         xhrGetPayments = $.ajax({
-            url: api + '/stats',
-            data: {
+            url: api + '/payments',
+			/*
+			data: {
                 time: $('#payments_rows').children().last().data('time')
             },
+			*/
             dataType: 'json',
             cache: 'false',
             success: function(data){
