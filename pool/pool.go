@@ -39,6 +39,7 @@ type Stratum struct {
 	PaymentID   PaymentID     `json:"paymentId"`
 	FixedDiff   FixedDiff     `json:"fixedDiff"`
 	WorkerID    WorkerID      `json:"workerID"`
+	SoloMining  SoloMining    `json:"soloMining"`
 	Timeout     string        `json:"timeout"`
 	MaxFails    int64         `json:"maxFails"`
 	HealthCheck bool          `json:"healthCheck"`
@@ -58,12 +59,18 @@ type WorkerID struct {
 	AddressSeparator string `json:"addressSeparator"`
 }
 
+type SoloMining struct {
+	Enabled          bool   `json:"enabled"`
+	AddressSeparator string `json:"addressSeparator"`
+}
+
 type Port struct {
 	Difficulty int64  `json:"diff"`
 	MinDiff    int64  `json:"minDiff"`
 	Host       string `json:"host"`
 	Port       int    `json:"port"`
 	MaxConn    int    `json:"maxConn"`
+	Desc       string `json:"desc"`
 }
 
 type VarDiffConfig struct {

@@ -41,16 +41,17 @@
 
 	"stratum": {
 		"paymentId": {
-			"enabled": true,
 			"addressSeparator": "+"
 		},
 		"fixedDiff": {
-			"enabled": true,
 			"addressSeparator": "."
 		},
 		"workerID": {
-			"enabled": true,
 			"addressSeparator": "@"
+		},
+		"soloMining": {
+			"enabled": true,
+			"addressSeparator": "~"
 		},
 
 		"timeout": "15m",
@@ -63,21 +64,24 @@
 				"port": 1111,
 				"diff": 1000,
 				"minDiff": 500,
-				"maxConn": 32768
+				"maxConn": 32768,
+				"desc": "Low end hardware"
 			},
 			{
 				"host": "0.0.0.0",
 				"port": 3333,
 				"diff": 2500,
 				"minDiff": 500,
-				"maxConn": 32768
+				"maxConn": 32768,
+				"desc": "Mid range hardware"
 			},
 			{
 				"host": "0.0.0.0",
 				"port": 5555,
 				"diff": 5000,
 				"minDiff": 500,
-				"maxConn": 32768
+				"maxConn": 32768,
+				"desc": "High end hardware"
 			}
 		],
 

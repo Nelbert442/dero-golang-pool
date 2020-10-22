@@ -49,12 +49,12 @@ func (s *StratumServer) handleLoginRPC(cs *Session, params *LoginParams) (*JobRe
 	}
 
 	// If solo is used, then add solo: to front of id for logging
-	if isSolo {
+	if isSolo && s.config.Stratum.SoloMining.Enabled {
 		if id != "" {
 			// If id is not "" (default value upon var), then it must have a paymentid
-			id = "solo~" + id
+			id = "solo" + s.config.Stratum.SoloMining.AddressSeparator + id
 		} else {
-			id = "solo~" + address
+			id = "solo" + s.config.Stratum.SoloMining.AddressSeparator + address
 		}
 	}
 
@@ -256,7 +256,8 @@ func (s *StratumServer) splitLoginString(loginWorkerPair string) (addr, wid, pid
 	currSubstr := ""       // Substring starts empty
 
 	// Check for solo:
-	if strings.Index(loginWorkerPair, "solo~") != -1 {
+	soloPair := "solo" + s.config.Stratum.SoloMining.AddressSeparator
+	if strings.Index(loginWorkerPair, soloPair) != -1 {
 		isSolo = true
 		loginWorkerPair = loginWorkerPair[5:len(loginWorkerPair)] // shave off 5 since solo: is 5 chars, but isSolo will return true to be used to append solo: afterwards [retains addr result properly]
 		log.Printf("%s", loginWorkerPair)

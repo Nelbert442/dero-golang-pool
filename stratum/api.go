@@ -412,6 +412,7 @@ func (apiServer *ApiServer) GetConfigIndex() map[string]interface{} {
 	stats["payIDAddressSeparator"] = apiServer.stratum.config.Stratum.PaymentID.AddressSeparator
 	stats["workIDAddressSeparator"] = apiServer.stratum.config.Stratum.WorkerID.AddressSeparator
 	stats["fixedDiffAddressSeparator"] = apiServer.stratum.config.Stratum.FixedDiff.AddressSeparator
+	stats["soloIDSeparator"] = apiServer.stratum.config.Stratum.SoloMining.AddressSeparator
 	stats["ports"] = apiServer.stratum.config.Stratum.Ports
 	stats["unlockDepth"] = apiServer.stratum.config.UnlockerConfig.Depth
 	unlockTime, _ := time.ParseDuration(apiServer.stratum.config.UnlockerConfig.Interval)

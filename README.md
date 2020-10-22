@@ -167,6 +167,10 @@ Explanation for each field:
 		"workerID": {
 			"addressSeparator": "@"		// Defines separator used from miner login to parse workerID
 		},
+		"soloMining": {
+			"enabled": true,			// Defines whether or not solo mining is enabled. By setting this to false, even if a miner connects with the appropriate solo~ connection, their ID will not include solo
+			"addressSeparator": "~"		// Defines separator used from miner login to parse soloMining
+		},
 
 		"timeout": "15m",           // See SetDeadline - https://golang.org/pkg/net/
 		"healthCheck": true,		// Reply error to miner instead of job if redis isn't available (https://github.com/sammy007/monero-stratum)
@@ -174,25 +178,28 @@ Explanation for each field:
 
 		"listen": [
 			{
-				"host": "0.0.0.0",  // Bind address
-				"port": 1111,       // Port for mining apps to connect to
-				"diff": 1000,       // Difficulty miners are set to on this port. TODO: varDiff and set diff to be starting diff
-				"minDiff": 500,		// Sets minimum difficulty that one can use for fixed (potentially for varDiff [future]) on a per-port basis
-				"maxConn": 32768    // Maximum connections on this port
+				"host": "0.0.0.0",  		// Bind address
+				"port": 1111,       		// Port for mining apps to connect to
+				"diff": 1000,       		// Difficulty miners are set to on this port. TODO: varDiff and set diff to be starting diff
+				"minDiff": 500,				// Sets minimum difficulty that one can use for fixed (potentially for varDiff [future]) on a per-port basis
+				"maxConn": 32768,    		// Maximum connections on this port
+				"desc": "Low end hardware"	// Description of port configuration
 			},
 			{
 				"host": "0.0.0.0",
 				"port": 3333,
-				"diff": 3000,
+				"diff": 2500,
 				"minDiff": 500,
-				"maxConn": 32768
+				"maxConn": 32768,
+				"desc": "Mid range hardware"
 			},
 			{
 				"host": "0.0.0.0",
 				"port": 5555,
 				"diff": 5000,
 				"minDiff": 500,
-				"maxConn": 32768
+				"maxConn": 32768,
+				"desc": "High end hardware"
 			}
 		],
 
