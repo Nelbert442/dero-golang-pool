@@ -294,6 +294,8 @@ Once `config.json` has "website"."enabled" set to true, it will listen by defaul
 website.go is the runner, which just starts the listenandserve on the port defined, then serves up content within /website/Pages , feel free to make modifications to folder structure, just be sure to update website.go
 
 ![DERO Pool Home](images/home.PNG?raw=true "DERO Pool Home") 
+![DERO Pool Getting Started](images/gettingstarted.PNG?raw=true "DERO Pool Getting Started")
+![DERO Pool Worker Stats](images/workerstats.PNG?raw=true "DERO Pool Worker Stats")
 ![DERO Pool Blocks](images/poolBlock.PNG?raw=true "DERO Pool Blocks")
 ![DERO Pool Pay](images/poolpayment.PNG?raw=true "DERO Pool Pay")
 
