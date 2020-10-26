@@ -229,7 +229,7 @@ func (u *BlockUnlocker) unlockAndCreditMiners(s *StratumServer) {
 			minersProfit.FloatString(8),
 			poolProfit.FloatString(8),
 		)
-		UnlockerInfoLogger.Printf("[Unlocker] MATURED %v: revenue %v, minersProfit %v, poolProfit %v", block.RoundKey(), revenue.FloatString(8), minersProfit.FloatString(8), poolProfit.FloatString(8))
+
 		entries := []string{logEntry}
 		for login, reward := range roundRewards {
 			entries = append(entries, fmt.Sprintf("\tREWARD %v: %v: %v", block.RoundKey(), login, reward))
