@@ -5,7 +5,7 @@ import (
 	"net/http"
 	"os"
 
-	"git.dero.io/Nelbert442/dero-golang-pool/pool"
+	"github.com/Nelbert442/dero-golang-pool/pool"
 )
 
 var WebsiteInfoLogger = logFileOutWebsite("INFO")

@@ -10,9 +10,9 @@ import (
 	"strings"
 	"time"
 
-	"git.dero.io/Nelbert442/dero-golang-pool/pool"
-	"git.dero.io/Nelbert442/dero-golang-pool/rpc"
-	"git.dero.io/Nelbert442/dero-golang-pool/util"
+	"github.com/Nelbert442/dero-golang-pool/pool"
+	"github.com/Nelbert442/dero-golang-pool/rpc"
+	"github.com/Nelbert442/dero-golang-pool/util"
 	"github.com/deroproject/derosuite/config"
 )
 

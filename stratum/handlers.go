@@ -9,7 +9,7 @@ import (
 	"strings"
 	"sync/atomic"
 
-	"git.dero.io/Nelbert442/dero-golang-pool/util"
+	"github.com/Nelbert442/dero-golang-pool/util"
 )
 
 const (

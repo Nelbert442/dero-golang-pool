@@ -11,8 +11,8 @@ import (
 	"sync/atomic"
 	"time"
 
-	"git.dero.io/Nelbert442/dero-golang-pool/pool"
-	"git.dero.io/Nelbert442/dero-golang-pool/util"
+	"github.com/Nelbert442/dero-golang-pool/pool"
+	"github.com/Nelbert442/dero-golang-pool/util"
 
 	"github.com/gorilla/mux"
 )

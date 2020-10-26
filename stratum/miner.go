@@ -13,8 +13,8 @@ import (
 	"sync/atomic"
 	"time"
 
-	"git.dero.io/Nelbert442/dero-golang-pool/rpc"
-	"git.dero.io/Nelbert442/dero-golang-pool/util"
+	"github.com/Nelbert442/dero-golang-pool/rpc"
+	"github.com/Nelbert442/dero-golang-pool/util"
 )
 
 type Job struct {

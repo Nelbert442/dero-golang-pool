@@ -9,9 +9,9 @@ import (
 	"runtime"
 	"time"
 
-	"git.dero.io/Nelbert442/dero-golang-pool/pool"
-	"git.dero.io/Nelbert442/dero-golang-pool/stratum"
-	"git.dero.io/Nelbert442/dero-golang-pool/website"
+	"github.com/Nelbert442/dero-golang-pool/pool"
+	"github.com/Nelbert442/dero-golang-pool/stratum"
+	"github.com/Nelbert442/dero-golang-pool/website"
 )
 
 var cfg pool.Config

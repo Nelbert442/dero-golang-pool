@@ -11,7 +11,7 @@ import (
 	"strings"
 	"time"
 
-	"git.dero.io/Nelbert442/dero-golang-pool/pool"
+	"github.com/Nelbert442/dero-golang-pool/pool"
 	"github.com/deroproject/graviton"
 )
 
