@@ -129,7 +129,7 @@ func (apiServer *ApiServer) listen() {
 	router.HandleFunc("/api/blocks", apiServer.BlocksIndex)
 	router.HandleFunc("/api/payments", apiServer.PaymentsIndex)
 	router.HandleFunc("/api/miners", apiServer.MinersIndex)
-	//router.HandleFunc("/api/accounts/{login:dE[0-9a-zA-Z]{96}}", apiServer.AccountIndex)
+	router.HandleFunc("/api/accounts", apiServer.AccountIndex)
 	router.NotFoundHandler = http.HandlerFunc(notFound)
 	err := http.ListenAndServe(apiServer.config.Listen, router)
 	if err != nil {
@@ -146,6 +146,7 @@ func (apiServer *ApiServer) listenSSL() {
 	routerSSL.HandleFunc("/api/blocks", apiServer.BlocksIndex)
 	routerSSL.HandleFunc("/api/payments", apiServer.PaymentsIndex)
 	routerSSL.HandleFunc("/api/miners", apiServer.MinersIndex)
+	routerSSL.HandleFunc("/api/accounts", apiServer.AccountIndex)
 	routerSSL.NotFoundHandler = http.HandlerFunc(notFound)
 	err := http.ListenAndServeTLS(apiServer.config.SSLListen, apiServer.config.CertFile, apiServer.config.KeyFile, routerSSL)
 	if err != nil {
@@ -546,6 +547,102 @@ func (apiServer *ApiServer) MinersIndex(writer http.ResponseWriter, _ *http.Requ
 		log.Println("[API] Error serializing API response: ", err)
 		APIErrorLogger.Printf("[API] Error serializing API response: ", err)
 	}
+}
+
+func (apiServer *ApiServer) AccountIndex(writer http.ResponseWriter, r *http.Request) {
+	writer.Header().Set("Content-Type", "application/json; charset=UTF-8")
+	writer.Header().Set("Access-Control-Allow-Origin", "*")
+	writer.Header().Set("Cache-Control", "no-cache")
+	writer.WriteHeader(http.StatusOK)
+
+	keys, ok := r.URL.Query()["address"]
+
+	if !ok || len(keys[0]) < 1 {
+		log.Printf("URL Param 'address' is missing.")
+		return
+	}
+
+	address := keys[0]
+
+	reply := make(map[string]interface{})
+
+	var mExist bool
+	minerRegistrations := Graviton_backend.GetMinerIDRegistrations()
+	for _, v := range minerRegistrations {
+		if v.Address == address {
+			mExist = true
+			break
+		}
+	}
+
+	if mExist {
+		reply["address"] = address
+		addrStats := apiServer.getAddressStats(address)
+
+		reply["miners"] = addrStats["miners"]
+		reply["poolHashrate"] = addrStats["poolHashrate"]
+		reply["totalPoolMiners"] = addrStats["totalPoolMiners"]
+		reply["soloHashrate"] = addrStats["soloHashrate"]
+		reply["totalSoloMiners"] = addrStats["totalSoloMiners"]
+		reply["payments"] = addrStats["payments"]
+		reply["totalPayments"] = addrStats["totalPayments"]
+	} else {
+		log.Printf("Address stats lookup failed. No address found for: %v", address)
+	}
+
+	/*
+		stats := apiServer.getStats()
+		if stats != nil {
+			reply["payments"] = stats["payments"]
+			reply["totalPayments"] = stats["totalPayments"]
+			reply["totalMinersPaid"] = stats["totalMinersPaid"]
+		}
+	*/
+
+	err := json.NewEncoder(writer).Encode(reply)
+	if err != nil {
+		log.Println("[API] Error serializing API response: ", err)
+		APIErrorLogger.Printf("[API] Error serializing API response: ", err)
+	}
+}
+
+func (apiServer *ApiServer) getAddressStats(address string) map[string]interface{} {
+	addressStats := make(map[string]interface{})
+
+	// Get miners associated by address
+	var addrMinerSlice []*Miner
+
+	minerStats := apiServer.backend.GetAllMinerStats()
+	for _, miner := range minerStats {
+		if miner.Address == address {
+			addrMinerSlice = append(addrMinerSlice, miner)
+		}
+	}
+
+	apiMiners, poolHashrate, totalPoolMiners, soloHashrate, totalSoloMiners := apiServer.convertMinerResults(addrMinerSlice)
+	addressStats["miners"] = apiMiners
+	addressStats["poolHashrate"] = poolHashrate
+	addressStats["totalPoolMiners"] = totalPoolMiners
+	addressStats["soloHashrate"] = soloHashrate
+	addressStats["totalSoloMiners"] = totalSoloMiners
+
+	// Get payments associated by address
+	var addrPaymentSlice []*MinerPayments
+
+	processedPayments := apiServer.backend.GetProcessedPayments()
+	for _, payment := range processedPayments.MinerPayments {
+		if payment.Login == address {
+			addrPaymentSlice = append(addrPaymentSlice, payment)
+		}
+	}
+
+	addrProcessedPayments := &ProcessedPayments{MinerPayments: addrPaymentSlice}
+
+	apiPayments, totalPayments, _ := apiServer.convertPaymentsResults(addrProcessedPayments)
+	addressStats["payments"] = apiPayments
+	addressStats["totalPayments"] = totalPayments
+
+	return addressStats
 }
 
 func (apiServer *ApiServer) getStats() map[string]interface{} {
