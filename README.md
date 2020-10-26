@@ -33,6 +33,7 @@ DERO Golang Pool is currently in alpha stages and feedback/fixes are always welc
 1. [Host the frontend](#host-the-frontend)
 1. [SSL for API and frontend](#ssl-for-api-and-frontend)
 1. [Backend database choices](#backend-database-choices)
+1. [Donations](#donations)
 1. [Credits](#credits)
 
 ### Requirements
@@ -316,6 +317,14 @@ In early adaptations, I realized that within a short period of time I was at 100
 In order to do this, I define some gravitonMaxSnapshots that I check for upon every read/write of the DB (low ms check) until I reach the value (or exceed it) and then grab all the k/v pairs, perform a rename of the current pooldb directory to pooldb_bak, then provision a new pooldb store and put the k/v pairs into it and commit then continue on. During this time there is a g.migrating attribute (set to 0 (not migrating) or 1 (migrating)) which upon every read/write is checked against. If the db is migrating while some read/write action attempts to utilize it, the process will 'wait' for gravitonMigrateWait amount of time (say 100ms or so) and continuously loop through until the process is open. Since this happens at all reads and writes, there are no tested issues so far that have arose for processes to get stuck midway since the commits of processes occur at the tail end, rather than along the way.
 
 Over time it may seem that Graviton is not the right fit, however I did not let that keep me away as I liked the functionality of it, portability of the directories (can copy/paste live data without corruption), and other potential future featuresets. To each their own, anyone is welcome who uses this repo to implement whichever form of DB they'd like. I thought at one point keeping a history so you could easily switch between using redis or graviton or other, however that seemed a bit too ambitious for alpha stages and maybe something down the line :)
+
+### Donations
+
+I have made it a long-standing tradition since I first started hosting mining pools for DERO (testnet and mainnet alike) that I would host them for free at a 0% fee operation as often/long as I personally can sustain it. We are a few years down the line, and I truly enjoy every minute of working on these pools and this release is the first time I can say that I know the ins & outs of the pool, rather than just utilizing another pool codebase and modifying it a bit to just work. With some assistance in [Credits](#credits) below for some feature sets and ideas, the groundwork was laid and heavy re-write/modification and formation took place into what this pool software is today. I hope that you can enjoy it as much as I have, and here's to advancements in technology wherever possible. Your interest is much appreciated and feedback is always welcome.
+
+```
+dERopdjpGmr2DEwQJdRrKc8M6obca9NQu2EaC2fNe3RNHonYcCfqmjGF7NBEHoB8dpLXWhnjdW7dugFTVhofuKTb4sfzmyBSAj
+```
 
 Credits
 ---------
