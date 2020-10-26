@@ -185,32 +185,34 @@
         var $paymentsRows = $('#paymentsReport_rows');
 
         var paymentsResults = addrStats.payments
-        for (var i = 0; i < paymentsResults.length; i++){
-            var payment = parsePayment(paymentsResults[i]);
-            var paymentJson = JSON.stringify(payment);
-            var existingRow = document.getElementById('paymentRow' + payment.time);
+        if (paymentsResults != null) {
+            for (var i = 0; i < paymentsResults.length; i++){
+                var payment = parsePayment(paymentsResults[i]);
+                var paymentJson = JSON.stringify(payment);
+                var existingRow = document.getElementById('paymentRow' + payment.time);
 
-            if (existingRow && existingRow.getAttribute('data-json') !== paymentJson){
-                $(existingRow).replaceWith(getPaymentRowElement(payment, paymentJson));
-            }
-            else if (!existingRow){
-
-                var paymentElement = getPaymentRowElement(payment, paymentJson);
-
-                var inserted = false;
-                var rows = $paymentsRows.children().get();
-                
-                for (var f = 0; f < rows.length; f++) {
-                    var pTime = parseInt(rows[f].getAttribute('data-time'));
-                    if (pTime < payment.time){
-                        inserted = true;
-                        $(rows[f]).before(paymentElement);
-                        break;
-                    }
+                if (existingRow && existingRow.getAttribute('data-json') !== paymentJson){
+                    $(existingRow).replaceWith(getPaymentRowElement(payment, paymentJson));
                 }
-                
-                if (!inserted)
-                    $paymentsRows.append(paymentElement);
+                else if (!existingRow){
+
+                    var paymentElement = getPaymentRowElement(payment, paymentJson);
+
+                    var inserted = false;
+                    var rows = $paymentsRows.children().get();
+                    
+                    for (var f = 0; f < rows.length; f++) {
+                        var pTime = parseInt(rows[f].getAttribute('data-time'));
+                        if (pTime < payment.time){
+                            inserted = true;
+                            $(rows[f]).before(paymentElement);
+                            break;
+                        }
+                    }
+                    
+                    if (!inserted)
+                        $paymentsRows.append(paymentElement);
+                }
             }
         }
 
@@ -218,31 +220,33 @@
         var $workerRows = $('#workersReport_rows');
 
         var workerResults = addrStats.miners
-        for (var j = 0; j < workerResults.length; j++){
-            var worker = parseWorker(workerResults[j]);
-            var workerJson = JSON.stringify(worker);
-            var existingRow = document.getElementById('workerRow' + worker.lastShare)
+        if (workerResults != null) {
+            for (var j = 0; j < workerResults.length; j++){
+                var worker = parseWorker(workerResults[j]);
+                var workerJson = JSON.stringify(worker);
+                var existingRow = document.getElementById('workerRow' + worker.lastShare)
 
-            if (existingRow && existingRow.getAttribute('data-json') !== workerJson){
-                $(existingRow).replaceWith(getWorkerRowElement(worker, workerJson))
-            }
-            else if (!existingRow){
-                var workerElement = getWorkerRowElement(worker, workerJson)
-
-                var inserted = false;
-                var rows = $workerRows.children().get();
-
-                for (var u = 0; u < rows.length; u++) {
-                    var wTime = parseInt(rows[u].getAttribute('data-lastShare'));
-                    if (wTime < worker.lastShare){
-                        inserted = true;
-                        $(rows[u]).replaceWith(workerElement);
-                        break;
-                    }
+                if (existingRow && existingRow.getAttribute('data-json') !== workerJson){
+                    $(existingRow).replaceWith(getWorkerRowElement(worker, workerJson))
                 }
+                else if (!existingRow){
+                    var workerElement = getWorkerRowElement(worker, workerJson)
 
-                if (!inserted)
-                    $workerRows.append(workerElement)
+                    var inserted = false;
+                    var rows = $workerRows.children().get();
+
+                    for (var u = 0; u < rows.length; u++) {
+                        var wTime = parseInt(rows[u].getAttribute('data-lastShare'));
+                        if (wTime < worker.lastShare){
+                            inserted = true;
+                            $(rows[u]).replaceWith(workerElement);
+                            break;
+                        }
+                    }
+
+                    if (!inserted)
+                        $workerRows.append(workerElement)
+                }
             }
         }
     }
