@@ -1,5 +1,5 @@
 # DERO Golang Pool
-Golang Mining Pool for DERO
+DERO Golang Pool is currently in alpha stages and feedback/fixes are always welcome in regards to this pool software. While many pools leverage Redis or other database flavors, I chose to follow-suit with DERO and leverage the newly released Graviton database, which was built and supported by the DERO development team. See [Backend database choices](#backend-database-choices) for more details regarding this choice. Please read through the README and code, I'd be more than happy to assist with fixing things via issues and other means, please feel free to reach out to me. My current 'live' pool is [use1pool.nelbert442.com](https://use1pool.nelbert442.com) and will be updated in the near future to be leveraging this code base.
 
 ## Features
 * Developed in Golang
@@ -21,8 +21,8 @@ Golang Mining Pool for DERO
 
 ### Future Features
 * (FUTURE) PPLNS and potentially other pool schemes support
-* (FUTURE) Management functions/go files for modifying / reporting of payments etc.
-* (FUTURE) More feature sets within the frontend such as admin page, individual miner pages etc.
+* (FUTURE) Management functions/go files for modifying/reporting of payments etc.
+* (FUTURE) More feature sets within the frontend such as admin page, charts etc.
 
 ## Table of Contents
 1. [Requirements](#requirements) 
