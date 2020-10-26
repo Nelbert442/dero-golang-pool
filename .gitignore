@@ -4,3 +4,5 @@ config.json
 /pooldb_bak
 *.key
 *.cer
+*.log
+/logs

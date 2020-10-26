@@ -106,6 +106,8 @@ type TreeKV struct {
 }
 
 var Graviton_backend *GravitonStore = &GravitonStore{}
+var StorageInfoLogger = logFileOutStorage("INFO")
+var StorageErrorLogger = logFileOutStorage("ERROR")
 
 func (g *GravitonStore) NewGravDB(poolhost, dbFolder, dbmigratewait string, dbmaxsnapshot uint64) {
 	current_path, err := os.Getwd()
@@ -126,6 +128,7 @@ func (g *GravitonStore) NewGravDB(poolhost, dbFolder, dbmigratewait string, dbma
 	g.DBTree = poolhost
 
 	log.Printf("[Graviton] Initializing graviton store at path: %v", filepath.Join(current_path, dbFolder))
+	StorageInfoLogger.Printf("[Graviton] Initializing graviton store at path: %v", filepath.Join(current_path, dbFolder))
 }
 
 // Swaps the store pointer from existing to new after copying latest snapshot to new DB - fast as cursor + disk writes allow [possible other alternatives such as mem store for some of these interwoven, testing needed]
@@ -136,8 +139,10 @@ func (g *GravitonStore) SwapGravDB(poolhost, dbFolder string) {
 	var bakFolder string = dbFolder + "_bak"
 	var bak2Folder string = dbFolder + "_bak2"
 	log.Printf("Renaming directory %v to %v", bakFolder, bak2Folder)
+	StorageInfoLogger.Printf("Renaming directory %v to %v", bakFolder, bak2Folder)
 	os.Rename(bakFolder, bak2Folder)
 	log.Printf("Removing directory %v", bak2Folder)
+	StorageInfoLogger.Printf("Removing directory %v", bak2Folder)
 	go os.RemoveAll(bak2Folder)
 
 	// Get existing store values, defer close of original, and get store values for new DB to write to
@@ -148,6 +153,7 @@ func (g *GravitonStore) SwapGravDB(poolhost, dbFolder string) {
 
 	c := tree.Cursor()
 	log.Printf("Getting k/v pairs")
+	StorageInfoLogger.Printf("Getting k/v pairs")
 	// Duplicate the LATEST (snapshot 0) to the new DB, this starts the DB over again, but still retaining X number of old DBs for version in future use cases. Here we get the vals before swapping to new db in mem
 	var treeKV []*TreeKV // Just k & v which are of type []byte
 	for k, v, err := c.First(); err == nil; k, v, err = c.Next() {
@@ -155,15 +161,18 @@ func (g *GravitonStore) SwapGravDB(poolhost, dbFolder string) {
 		treeKV = append(treeKV, temp)
 	}
 	log.Printf("Closing store")
+	StorageInfoLogger.Printf("Closing store")
 	store.Close()
 
 	// Backup last set of g.DBMaxSnapshot snapshots, can offload elsewhere or make this process as X many times as you want to backup.
 	var oldFolder string
 	oldFolder = g.DBPath
 	log.Printf("Renaming directory %v to %v", oldFolder, bakFolder)
+	StorageInfoLogger.Printf("Renaming directory %v to %v", oldFolder, bakFolder)
 	os.Rename(oldFolder, bakFolder)
 
 	log.Printf("Creating new disk store")
+	StorageInfoLogger.Printf("Creating new disk store")
 	g.DB, _ = graviton.NewDiskStore(g.DBPath)
 
 	// Take vals from previous DB store that were put into treeKV struct (array of), and commit to new DB after putting all k/v pairs back
@@ -172,19 +181,24 @@ func (g *GravitonStore) SwapGravDB(poolhost, dbFolder string) {
 	tree, _ = ss.GetTree(g.DBTree)
 
 	log.Printf("Putting k/v pairs into tree...")
+	StorageInfoLogger.Printf("Putting k/v pairs into tree...")
 	for _, val := range treeKV {
 		tree.Put(val.k, val.v)
 	}
 	log.Printf("Committing k/v pairs to tree")
+	StorageInfoLogger.Printf("Committing k/v pairs to tree")
 	graviton.Commit(tree)
 	log.Printf("Migration to new DB is done.")
+	StorageInfoLogger.Printf("Migration to new DB is done.")
 	g.migrating = 0
 }
 
 func (g *GravitonStore) WriteBlocks(info *BlockDataGrav, blockType string) error {
 	log.Printf("[Graviton] Inputting info: %v", info)
+	StorageInfoLogger.Printf("[Graviton] Inputting info: %v", info)
 	confBytes, err := json.Marshal(info)
 	if err != nil {
+		StorageErrorLogger.Printf("[Graviton] could not marshal minedblocks info: %v", err)
 		return fmt.Errorf("[Graviton] could not marshal minedblocks info: %v", err)
 	}
 
@@ -193,6 +207,7 @@ func (g *GravitonStore) WriteBlocks(info *BlockDataGrav, blockType string) error
 		err = g.WriteBlocksFoundByHeightArr(info.Height, info.Solo)
 		if err != nil {
 			log.Printf("[Graviton] Error writing blocksfoundbyheightarr: %v", err)
+			StorageErrorLogger.Printf("[Graviton] Error writing blocksfoundbyheightarr: %v", err)
 		}
 	}
 
@@ -202,6 +217,7 @@ func (g *GravitonStore) WriteBlocks(info *BlockDataGrav, blockType string) error
 	// Swap DB at g.DBMaxSnapshot+ commits. Check for g.migrating, if so sleep for g.DBMigrateWait ms
 	for g.migrating == 1 {
 		log.Printf("[WriteBlocks] G is migrating... sleeping for %v...", g.DBMigrateWait)
+		StorageInfoLogger.Printf("[WriteBlocks] G is migrating... sleeping for %v...", g.DBMigrateWait)
 		time.Sleep(g.DBMigrateWait)
 		store = g.DB
 		ss, _ = store.LoadSnapshot(0) // load most recent snapshot
@@ -234,13 +250,16 @@ func (g *GravitonStore) WriteBlocks(info *BlockDataGrav, blockType string) error
 		} else {
 			// Retrieve value and convert to BlocksFoundByHeight, so that you can manipulate and update db
 			log.Printf("Appending block. Stored []byte maturedblocks slice size: %v", len(currMaturedBlocks))
+			StorageInfoLogger.Printf("Appending block. Stored []byte maturedblocks slice size: %v", len(currMaturedBlocks))
 			_ = json.Unmarshal(currMaturedBlocks, &maturedBlocks)
 
 			maturedBlocks.MinedBlocks = append(maturedBlocks.MinedBlocks, info)
 			log.Printf("Appending block. MaturedBlock slice size: %v", len(maturedBlocks.MinedBlocks))
+			StorageInfoLogger.Printf("Appending block. MaturedBlock slice size: %v", len(maturedBlocks.MinedBlocks))
 		}
 		newMaturedBlocks, err = json.Marshal(maturedBlocks)
 		if err != nil {
+			StorageErrorLogger.Printf("[Graviton] could not marshal maturedBlocks info: %v", err)
 			return fmt.Errorf("[Graviton] could not marshal maturedBlocks info: %v", err)
 		}
 
@@ -254,6 +273,7 @@ func (g *GravitonStore) WriteBlocks(info *BlockDataGrav, blockType string) error
 		key := "block:" + "candidate" + ":" + strconv.FormatInt(info.Height, 10)
 
 		log.Printf("[Graviton] Removing info: %v", key)
+		StorageInfoLogger.Printf("[Graviton] Removing info: %v", key)
 		err := tree.Delete([]byte(key))
 		if err != nil {
 			return err
@@ -262,6 +282,7 @@ func (g *GravitonStore) WriteBlocks(info *BlockDataGrav, blockType string) error
 		key := "block:" + "candidate" + ":" + strconv.FormatInt(info.Height, 10)
 
 		log.Printf("[Graviton] Removing info: %v", key)
+		StorageInfoLogger.Printf("[Graviton] Removing info: %v", key)
 		err := tree.Delete([]byte(key))
 		if err != nil {
 			return err
@@ -270,6 +291,7 @@ func (g *GravitonStore) WriteBlocks(info *BlockDataGrav, blockType string) error
 		key := "block:" + "immature" + ":" + strconv.FormatInt(info.Height, 10)
 
 		log.Printf("[Graviton] Removing info: %v", key)
+		StorageInfoLogger.Printf("[Graviton] Removing info: %v", key)
 		err := tree.Delete([]byte(key))
 		if err != nil {
 			return err
@@ -289,6 +311,7 @@ func (g *GravitonStore) WriteBlocksFoundByHeightArr(height int64, isSolo bool) e
 	// Swap DB at g.DBMaxSnapshot+ commits. Check for g.migrating, if so sleep for g.DBMigrateWait ms
 	for g.migrating == 1 {
 		log.Printf("[WriteBlocksFoundByHeightArr] G is migrating... sleeping for %v...", g.DBMigrateWait)
+		StorageInfoLogger.Printf("[WriteBlocksFoundByHeightArr] G is migrating... sleeping for %v...", g.DBMigrateWait)
 		time.Sleep(g.DBMigrateWait)
 		store = g.DB
 		ss, _ = store.LoadSnapshot(0) // load most recent snapshot
@@ -319,6 +342,7 @@ func (g *GravitonStore) WriteBlocksFoundByHeightArr(height int64, isSolo bool) e
 	}
 	newFoundByHeight, err = json.Marshal(foundByHeight)
 	if err != nil {
+		StorageErrorLogger.Printf("[Graviton] could not marshal foundByHeight info: %v", err)
 		return fmt.Errorf("[Graviton] could not marshal foundByHeight info: %v", err)
 	}
 
@@ -335,6 +359,7 @@ func (g *GravitonStore) GetBlocksFoundByHeightArr() *BlocksFoundByHeight {
 	// Swap DB at g.DBMaxSnapshot+ commits. Check for g.migrating, if so sleep for g.DBMigrateWait ms
 	for g.migrating == 1 {
 		log.Printf("[GetBlocksFoundByHeightArr] G is migrating... sleeping for %v...", g.DBMigrateWait)
+		StorageInfoLogger.Printf("[GetBlocksFoundByHeightArr] G is migrating... sleeping for %v...", g.DBMigrateWait)
 		time.Sleep(g.DBMigrateWait)
 		store = g.DB
 		ss, _ = store.LoadSnapshot(0) // load most recent snapshot
@@ -366,6 +391,7 @@ func (g *GravitonStore) GetBlocksFound(blocktype string) *BlocksFound {
 	// Swap DB at g.DBMaxSnapshot+ commits. Check for g.migrating, if so sleep for g.DBMigrateWait ms
 	for g.migrating == 1 {
 		log.Printf("[GetBlocksFound] G is migrating... sleeping for %v...", g.DBMigrateWait)
+		StorageInfoLogger.Printf("[GetBlocksFound] G is migrating... sleeping for %v...", g.DBMigrateWait)
 		time.Sleep(g.DBMigrateWait)
 		store = g.DB
 		ss, _ = store.LoadSnapshot(0) // load most recent snapshot
@@ -458,6 +484,7 @@ func (g *GravitonStore) WriteImmatureBlock(block *BlockDataGrav) error {
 	err := g.WriteBlocks(immatureBlock, "immature")
 	if err != nil {
 		log.Printf("[Graviton] Error when adding immature block store at height %v: %v", immatureBlock.Height, err)
+		StorageErrorLogger.Printf("[Graviton] Error when adding immature block store at height %v: %v", immatureBlock.Height, err)
 	}
 
 	return nil
@@ -478,6 +505,7 @@ func (g *GravitonStore) WriteMaturedBlocks(block *BlockDataGrav) error {
 	err := g.WriteBlocks(maturedBlock, "matured")
 	if err != nil {
 		log.Printf("[Graviton] Error when adding matured block store at height %v: %v", maturedBlock.Height, err)
+		StorageErrorLogger.Printf("[Graviton] Error when adding matured block store at height %v: %v", maturedBlock.Height, err)
 	}
 
 	return nil
@@ -491,6 +519,7 @@ func (g *GravitonStore) WriteOrphanedBlocks(orphanedBlocks []*BlockDataGrav) err
 		err := g.WriteBlocks(value, "orphaned")
 		if err != nil {
 			log.Printf("[Graviton] Error when adding orphaned block store at height %v: %v", value.Height, err)
+			StorageErrorLogger.Printf("[Graviton] Error when adding orphaned block store at height %v: %v", value.Height, err)
 			break
 		}
 	}
@@ -506,6 +535,7 @@ func (g *GravitonStore) RemoveKey(key string) error {
 	// Swap DB at g.DBMaxSnapshot+ commits. Check for g.migrating, if so sleep for g.DBMigrateWait ms
 	for g.migrating == 1 {
 		log.Printf("[RemoveKey] G is migrating... sleeping for %v...", g.DBMigrateWait)
+		StorageInfoLogger.Printf("[RemoveKey] G is migrating... sleeping for %v...", g.DBMigrateWait)
 		time.Sleep(g.DBMigrateWait)
 		store = g.DB
 		ss, _ = store.LoadSnapshot(0) // load most recent snapshot
@@ -520,8 +550,10 @@ func (g *GravitonStore) RemoveKey(key string) error {
 	tree, _ := ss.GetTree(g.DBTree) // use or create tree named by poolhost in config
 
 	log.Printf("[Graviton] Removing info: %v", key)
+	StorageInfoLogger.Printf("[Graviton] Removing info: %v", key)
 	err := tree.Delete([]byte(key))
 	if err != nil {
+		StorageErrorLogger.Printf("%v", err)
 		return err
 	}
 	graviton.Commit(tree)
@@ -536,6 +568,7 @@ func (g *GravitonStore) WriteImmaturePayments(info *PaymentPending) error {
 	// Swap DB at g.DBMaxSnapshot+ commits. Check for g.migrating, if so sleep for g.DBMigrateWait ms
 	for g.migrating == 1 {
 		log.Printf("[WriteImmaturePayments] G is migrating... sleeping for %v...", g.DBMigrateWait)
+		StorageInfoLogger.Printf("[WriteImmaturePayments] G is migrating... sleeping for %v...", g.DBMigrateWait)
 		time.Sleep(g.DBMigrateWait)
 		store = g.DB
 		ss, _ = store.LoadSnapshot(0) // load most recent snapshot
@@ -568,6 +601,7 @@ func (g *GravitonStore) WriteImmaturePayments(info *PaymentPending) error {
 	}
 	newPaymentsPending, err = json.Marshal(paymentsPending)
 	if err != nil {
+		StorageErrorLogger.Printf("[Graviton] could not marshal paymentsPending info: %v", err)
 		return fmt.Errorf("[Graviton] could not marshal paymentsPending info: %v", err)
 	}
 
@@ -590,6 +624,7 @@ func (g *GravitonStore) WritePendingPayments(info *PaymentPending) error {
 	// Swap DB at g.DBMaxSnapshot+ commits. Check for g.migrating, if so sleep for g.DBMigrateWait ms
 	for g.migrating == 1 {
 		log.Printf("[WritePendingPayments] G is migrating... sleeping for %v...", g.DBMigrateWait)
+		StorageInfoLogger.Printf("[WritePendingPayments] G is migrating... sleeping for %v...", g.DBMigrateWait)
 		time.Sleep(g.DBMigrateWait)
 		store = g.DB
 		ss, _ = store.LoadSnapshot(0) // load most recent snapshot
@@ -623,6 +658,7 @@ func (g *GravitonStore) WritePendingPayments(info *PaymentPending) error {
 		for p, currPayment := range paymentsPending.PendingPayout {
 			if info.Address == currPayment.Address {
 				log.Printf("[Graviton] Updating value for %v from %v to %v", info.Address, paymentsPending.PendingPayout[p].Amount, (paymentsPending.PendingPayout[p].Amount + info.Amount))
+				StorageInfoLogger.Printf("[Graviton] Updating value for %v from %v to %v", info.Address, paymentsPending.PendingPayout[p].Amount, (paymentsPending.PendingPayout[p].Amount + info.Amount))
 				paymentsPending.PendingPayout[p].Amount += info.Amount
 				updateExisting = true
 			}
@@ -631,11 +667,13 @@ func (g *GravitonStore) WritePendingPayments(info *PaymentPending) error {
 		// If an existing payment was not upated since the addresses didn't match, append the new payment
 		if !updateExisting {
 			log.Printf("[Graviton] Appending new payment: %v", info)
+			StorageInfoLogger.Printf("[Graviton] Appending new payment: %v", info)
 			paymentsPending.PendingPayout = append(paymentsPending.PendingPayout, info)
 		}
 	}
 	newPaymentsPending, err = json.Marshal(paymentsPending)
 	if err != nil {
+		StorageErrorLogger.Printf("[Graviton] could not marshal paymentsPending info: %v", err)
 		return fmt.Errorf("[Graviton] could not marshal paymentsPending info: %v", err)
 	}
 
@@ -658,6 +696,7 @@ func (g *GravitonStore) GetPendingPayments() []*PaymentPending {
 	// Swap DB at g.DBMaxSnapshot+ commits. Check for g.migrating, if so sleep for g.DBMigrateWait ms
 	for g.migrating == 1 {
 		log.Printf("[GetPendingPayments] G is migrating... sleeping for %v...", g.DBMigrateWait)
+		StorageInfoLogger.Printf("[GetPendingPayments] G is migrating... sleeping for %v...", g.DBMigrateWait)
 		time.Sleep(g.DBMigrateWait)
 		store = g.DB
 		ss, _ = store.LoadSnapshot(0) // load most recent snapshot
@@ -686,6 +725,7 @@ func (g *GravitonStore) GetPendingPayments() []*PaymentPending {
 func (g *GravitonStore) OverwritePendingPayments(info *PendingPayments) error {
 	confBytes, err := json.Marshal(info)
 	if err != nil {
+		StorageErrorLogger.Printf("[Graviton] could not marshal pendingpayments info: %v", err)
 		return fmt.Errorf("[Graviton] could not marshal pendingpayments info: %v", err)
 	}
 
@@ -695,6 +735,7 @@ func (g *GravitonStore) OverwritePendingPayments(info *PendingPayments) error {
 	// Swap DB at g.DBMaxSnapshot+ commits. Check for g.migrating, if so sleep for g.DBMigrateWait ms
 	for g.migrating == 1 {
 		log.Printf("[OverwritePendingPayments] G is migrating... sleeping for %v...", g.DBMigrateWait)
+		StorageInfoLogger.Printf("[OverwritePendingPayments] G is migrating... sleeping for %v...", g.DBMigrateWait)
 		time.Sleep(g.DBMigrateWait)
 		store = g.DB
 		ss, _ = store.LoadSnapshot(0) // load most recent snapshot
@@ -722,6 +763,7 @@ func (g *GravitonStore) WriteProcessedPayments(info *MinerPayments) error {
 	// Swap DB at g.DBMaxSnapshot+ commits. Check for g.migrating, if so sleep for g.DBMigrateWait ms
 	for g.migrating == 1 {
 		log.Printf("[WriteProcessedPayments] G is migrating... sleeping for %v...", g.DBMigrateWait)
+		StorageInfoLogger.Printf("[WriteProcessedPayments] G is migrating... sleeping for %v...", g.DBMigrateWait)
 		time.Sleep(g.DBMigrateWait)
 		store = g.DB
 		ss, _ = store.LoadSnapshot(0) // load most recent snapshot
@@ -749,13 +791,16 @@ func (g *GravitonStore) WriteProcessedPayments(info *MinerPayments) error {
 	} else {
 		// Retrieve value and convert to BlocksFoundByHeight, so that you can manipulate and update db
 		log.Printf("Appending payment processed. Stored []byte minerpayments slice size: %v", len(currPaymentsProcessed))
+		StorageInfoLogger.Printf("Appending payment processed. Stored []byte minerpayments slice size: %v", len(currPaymentsProcessed))
 		_ = json.Unmarshal(currPaymentsProcessed, &paymentsProcessed)
 
 		paymentsProcessed.MinerPayments = append(paymentsProcessed.MinerPayments, info)
 		log.Printf("Appending payment processed. MinerPayments slice size: %v", len(paymentsProcessed.MinerPayments))
+		StorageInfoLogger.Printf("Appending payment processed. MinerPayments slice size: %v", len(paymentsProcessed.MinerPayments))
 	}
 	newPaymentsProcessed, err = json.Marshal(paymentsProcessed)
 	if err != nil {
+		StorageErrorLogger.Printf("[Graviton] could not marshal paymentsProcessed info: %v", err)
 		return fmt.Errorf("[Graviton] could not marshal paymentsProcessed info: %v", err)
 	}
 
@@ -773,6 +818,7 @@ func (g *GravitonStore) GetProcessedPayments() *ProcessedPayments {
 	// Swap DB at g.DBMaxSnapshot+ commits. Check for g.migrating, if so sleep for g.DBMigrateWait ms
 	for g.migrating == 1 {
 		log.Printf("[GetProcessedPayments] G is migrating... sleeping for %v...", g.DBMigrateWait)
+		StorageInfoLogger.Printf("[GetProcessedPayments] G is migrating... sleeping for %v...", g.DBMigrateWait)
 		time.Sleep(g.DBMigrateWait)
 		store = g.DB
 		ss, _ = store.LoadSnapshot(0) // load most recent snapshot
@@ -836,6 +882,7 @@ func (blockDataGrav *BlockDataGrav) RoundKey() string {
 func (g *GravitonStore) WriteConfig(config *pool.Config) error {
 	confBytes, err := json.Marshal(config)
 	if err != nil {
+		StorageErrorLogger.Printf("[Graviton] could not marshal pool.Config info: %v", err)
 		return fmt.Errorf("[Graviton] could not marshal pool.Config info: %v", err)
 	}
 
@@ -845,6 +892,7 @@ func (g *GravitonStore) WriteConfig(config *pool.Config) error {
 	// Swap DB at g.DBMaxSnapshot+ commits. Check for g.migrating, if so sleep for g.DBMigrateWait ms
 	for g.migrating == 1 {
 		log.Printf("[WriteConfig] G is migrating... sleeping for %v...", g.DBMigrateWait)
+		StorageInfoLogger.Printf("[WriteConfig] G is migrating... sleeping for %v...", g.DBMigrateWait)
 		time.Sleep(g.DBMigrateWait)
 		store = g.DB
 		ss, _ = store.LoadSnapshot(0) // load most recent snapshot
@@ -871,6 +919,7 @@ func (g *GravitonStore) GetConfig(coin string) *pool.Config {
 	// Swap DB at g.DBMaxSnapshot+ commits. Check for g.migrating, if so sleep for g.DBMigrateWait ms
 	for g.migrating == 1 {
 		log.Printf("[GetConfig] G is migrating... sleeping for %v...", g.DBMigrateWait)
+		StorageInfoLogger.Printf("[GetConfig] G is migrating... sleeping for %v...", g.DBMigrateWait)
 		time.Sleep(g.DBMigrateWait)
 		store = g.DB
 		ss, _ = store.LoadSnapshot(0) // load most recent snapshot
@@ -897,12 +946,14 @@ func (g *GravitonStore) GetConfig(coin string) *pool.Config {
 
 func (g *GravitonStore) WriteMinerIDRegistration(miner *Miner) error {
 	log.Printf("[Graviton] Registering miner: %v", miner.Id)
+	StorageInfoLogger.Printf("[Graviton] Registering miner: %v", miner.Id)
 	store := g.DB
 	ss, _ := store.LoadSnapshot(0) // load most recent snapshot
 
 	// Swap DB at g.DBMaxSnapshot+ commits. Check for g.migrating, if so sleep for g.DBMigrateWait ms
 	for g.migrating == 1 {
 		log.Printf("[WriteMinerIDRegistration] G is migrating... sleeping for %v...", g.DBMigrateWait)
+		StorageInfoLogger.Printf("[WriteMinerIDRegistration] G is migrating... sleeping for %v...", g.DBMigrateWait)
 		time.Sleep(g.DBMigrateWait)
 		store = g.DB
 		ss, _ = store.LoadSnapshot(0) // load most recent snapshot
@@ -933,6 +984,7 @@ func (g *GravitonStore) WriteMinerIDRegistration(miner *Miner) error {
 		for _, value := range minerIDs.Miners {
 			if value.Id == miner.Id {
 				log.Printf("[Graviton] Miner already registered: %v", miner.Id)
+				StorageInfoLogger.Printf("[Graviton] Miner already registered: %v", miner.Id)
 				return nil
 			}
 		}
@@ -943,6 +995,7 @@ func (g *GravitonStore) WriteMinerIDRegistration(miner *Miner) error {
 	// Since we know the miner is not already registered [would have returned out above if it were], we can store into miner stats to prep stats for later
 	confMiner, err := json.Marshal(miner)
 	if err != nil {
+		StorageErrorLogger.Printf("[Graviton] could not marshal miner info: %v", err)
 		return fmt.Errorf("[Graviton] could not marshal miner info: %v", err)
 	}
 	mk := "miners:stats:" + miner.Id
@@ -950,6 +1003,7 @@ func (g *GravitonStore) WriteMinerIDRegistration(miner *Miner) error {
 
 	newMinerIDs, err = json.Marshal(minerIDs)
 	if err != nil {
+		StorageErrorLogger.Printf("[Graviton] could not marshal minerIDs info: %v", err)
 		return fmt.Errorf("[Graviton] could not marshal minerIDs info: %v", err)
 	}
 
@@ -966,6 +1020,7 @@ func (g *GravitonStore) GetMinerIDRegistrations() []*Miner {
 	// Swap DB at g.DBMaxSnapshot+ commits. Check for g.migrating, if so sleep for g.DBMigrateWait ms
 	for g.migrating == 1 {
 		log.Printf("[GetMinerIDRegistrations] G is migrating... sleeping for %v...", g.DBMigrateWait)
+		StorageInfoLogger.Printf("[GetMinerIDRegistrations] G is migrating... sleeping for %v...", g.DBMigrateWait)
 		time.Sleep(g.DBMigrateWait)
 		store = g.DB
 		ss, _ = store.LoadSnapshot(0) // load most recent snapshot
@@ -1078,6 +1133,7 @@ func (g *GravitonStore) WriteMinerStats(miners MinersMap, hashrateExpiration tim
 	// Swap DB at g.DBMaxSnapshot+ commits. Check for g.migrating, if so sleep for g.DBMigrateWait ms
 	for g.migrating == 1 {
 		log.Printf("[WriteMinerStats] G is migrating... sleeping for %v...", g.DBMigrateWait)
+		StorageInfoLogger.Printf("[WriteMinerStats] G is migrating... sleeping for %v...", g.DBMigrateWait)
 		time.Sleep(g.DBMigrateWait)
 		store = g.DB
 		ss, _ = store.LoadSnapshot(0) // load most recent snapshot
@@ -1105,6 +1161,7 @@ func (g *GravitonStore) WriteMinerStats(miners MinersMap, hashrateExpiration tim
 				confBytes, err = json.Marshal(updatedMiner)
 				updatedMiner.Unlock()
 				if err != nil {
+					StorageErrorLogger.Printf("[Graviton] could not marshal miner stats: %v", err)
 					return fmt.Errorf("[Graviton] could not marshal miner stats: %v", err)
 				}
 
@@ -1121,6 +1178,7 @@ func (g *GravitonStore) WriteMinerStats(miners MinersMap, hashrateExpiration tim
 			if currMiner != nil {
 				confBytes, err = json.Marshal(currMiner)
 				if err != nil {
+					StorageErrorLogger.Printf("[Graviton] could not marshal miner stats: %v", err)
 					return fmt.Errorf("[Graviton] could not marshal miner stats: %v", err)
 				}
 
@@ -1144,6 +1202,7 @@ func (g *GravitonStore) WriteMinerStatsByID(miner *Miner, hashrateExpiration tim
 
 	confBytes, err := json.Marshal(updatedMiner)
 	if err != nil {
+		StorageErrorLogger.Printf("[Graviton] could not marshal pool.Config info: %v", err)
 		return fmt.Errorf("[Graviton] could not marshal pool.Config info: %v", err)
 	}
 
@@ -1153,6 +1212,7 @@ func (g *GravitonStore) WriteMinerStatsByID(miner *Miner, hashrateExpiration tim
 	// Swap DB at g.DBMaxSnapshot+ commits. Check for g.migrating, if so sleep for g.DBMigrateWait ms
 	for g.migrating == 1 {
 		log.Printf("[WriteMinerStatsByID] G is migrating... sleeping for %v...", g.DBMigrateWait)
+		StorageInfoLogger.Printf("[WriteMinerStatsByID] G is migrating... sleeping for %v...", g.DBMigrateWait)
 		time.Sleep(g.DBMigrateWait)
 		store = g.DB
 		ss, _ = store.LoadSnapshot(0) // load most recent snapshot
@@ -1182,6 +1242,7 @@ func (g *GravitonStore) GetAllMinerStats() []*Miner {
 	// Swap DB at g.DBMaxSnapshot+ commits. Check for g.migrating, if so sleep for g.DBMigrateWait ms
 	for g.migrating == 1 {
 		log.Printf("[GetAllMinerStats] G is migrating... sleeping for %v...", g.DBMigrateWait)
+		StorageInfoLogger.Printf("[GetAllMinerStats] G is migrating... sleeping for %v...", g.DBMigrateWait)
 		time.Sleep(g.DBMigrateWait)
 		store = g.DB
 		ss, _ = store.LoadSnapshot(0) // load most recent snapshot
@@ -1221,6 +1282,7 @@ func (g *GravitonStore) GetMinerStatsByID(minerID string) *Miner {
 	// Swap DB at g.DBMaxSnapshot+ commits. Check for g.migrating, if so sleep for g.DBMigrateWait ms
 	for g.migrating == 1 {
 		log.Printf("[GetMinerStatsByID] G is migrating... sleeping for %v...", g.DBMigrateWait)
+		StorageInfoLogger.Printf("[GetMinerStatsByID] G is migrating... sleeping for %v...", g.DBMigrateWait)
 		time.Sleep(g.DBMigrateWait)
 		store = g.DB
 		ss, _ = store.LoadSnapshot(0) // load most recent snapshot
@@ -1254,6 +1316,7 @@ func (g *GravitonStore) GetRoundShares(roundHeight int64) (map[string]int64, int
 	// Swap DB at g.DBMaxSnapshot+ commits. Check for g.migrating, if so sleep for g.DBMigrateWait ms
 	for g.migrating == 1 {
 		log.Printf("[GetRoundShares] G is migrating... sleeping for %v...", g.DBMigrateWait)
+		StorageInfoLogger.Printf("[GetRoundShares] G is migrating... sleeping for %v...", g.DBMigrateWait)
 		time.Sleep(g.DBMigrateWait)
 		store = g.DB
 		ss, _ = store.LoadSnapshot(0) // load most recent snapshot
@@ -1286,6 +1349,7 @@ func (g *GravitonStore) GetRoundShares(roundHeight int64) (map[string]int64, int
 func (g *GravitonStore) WriteRoundShares(roundHeight int64, roundShares map[string]int64) error {
 	confBytes, err := json.Marshal(roundShares)
 	if err != nil {
+		StorageErrorLogger.Printf("[Graviton] could not marshal roundShares info: %v", err)
 		return fmt.Errorf("[Graviton] could not marshal roundShares info: %v", err)
 	}
 
@@ -1295,6 +1359,7 @@ func (g *GravitonStore) WriteRoundShares(roundHeight int64, roundShares map[stri
 	// Swap DB at g.DBMaxSnapshot+ commits. Check for g.migrating, if so sleep for g.DBMigrateWait ms
 	for g.migrating == 1 {
 		log.Printf("[WriteRoundShares] G is migrating... sleeping for %v...", g.DBMigrateWait)
+		StorageInfoLogger.Printf("[WriteRoundShares] G is migrating... sleeping for %v...", g.DBMigrateWait)
 		time.Sleep(g.DBMigrateWait)
 		store = g.DB
 		ss, _ = store.LoadSnapshot(0) // load most recent snapshot
@@ -1309,6 +1374,7 @@ func (g *GravitonStore) WriteRoundShares(roundHeight int64, roundShares map[stri
 	tree, _ := ss.GetTree(g.DBTree) // use or create tree named by poolhost in config
 	key := "miners:round:" + strconv.FormatInt(roundHeight, 10)
 	log.Printf("[Graviton-WriteRoundShares] Storing %v with values: %v", key, roundShares)
+	StorageInfoLogger.Printf("[Graviton-WriteRoundShares] Storing %v with values: %v", key, roundShares)
 	tree.Put([]byte(key), []byte(confBytes)) // insert a value
 	graviton.Commit(tree)                    // commit the tree
 
@@ -1335,6 +1401,7 @@ func (g *GravitonStore) NextRound(roundHeight int64, hashrateExpiration time.Dur
 
 				if err != nil {
 					log.Printf("[Graviton-NextRound] Error when writing miner stats (%v) to DB for next round: %v", currMiner.Id, err)
+					StorageErrorLogger.Printf("[Graviton-NextRound] Error when writing miner stats (%v) to DB for next round: %v", currMiner.Id, err)
 				}
 			}
 		}
@@ -1344,4 +1411,22 @@ func (g *GravitonStore) NextRound(roundHeight int64, hashrateExpiration time.Dur
 	g.WriteRoundShares(roundHeight, roundShares)
 
 	return nil
+}
+
+func logFileOutStorage(lType string) *log.Logger {
+	var logFileName string
+	if lType == "ERROR" {
+		logFileName = "logs/storageError.log"
+	} else {
+		logFileName = "logs/storage.log"
+	}
+	os.Mkdir("logs", 0600)
+	f, err := os.OpenFile(logFileName, os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0600)
+	if err != nil {
+		panic(err)
+	}
+
+	logType := lType + ": "
+	l := log.New(f, logType, log.LstdFlags|log.Lmicroseconds)
+	return l
 }

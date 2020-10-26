@@ -3,6 +3,7 @@ package stratum
 import (
 	"encoding/hex"
 	"log"
+	"os"
 	"regexp"
 	"strconv"
 	"strings"
@@ -19,6 +20,8 @@ const (
 )
 
 var noncePattern *regexp.Regexp
+var HandlersInfoLogger = logFileOutHandlers("INFO")
+var HandlersErrorLogger = logFileOutHandlers("ERROR")
 
 func init() {
 	noncePattern, _ = regexp.Compile("^[0-9a-f]{8}$")
@@ -37,10 +40,12 @@ func (s *StratumServer) handleLoginRPC(cs *Session, params *LoginParams) (*JobRe
 
 			if err != nil {
 				log.Printf("[Handlers] Invalid paymentID %s used for login by %s - %s", paymentid, cs.ip, params.Login)
+				HandlersErrorLogger.Printf("[Handlers] Invalid paymentID %s used for login by %s - %s", paymentid, cs.ip, params.Login)
 				return nil, &ErrorReply{Code: -1, Message: "Invalid paymentID used for login"}
 			}
 		} else {
 			log.Printf("[Handlers] Invalid paymentID %s used for login by %s - %s", paymentid, cs.ip, params.Login)
+			HandlersErrorLogger.Printf("[Handlers] Invalid paymentID %s used for login by %s - %s", paymentid, cs.ip, params.Login)
 			return nil, &ErrorReply{Code: -1, Message: "Invalid paymentID used for login"}
 		}
 
@@ -76,6 +81,7 @@ func (s *StratumServer) handleLoginRPC(cs *Session, params *LoginParams) (*JobRe
 
 	if !util.ValidateAddress(address, s.config.Address) {
 		log.Printf("[Handlers] Invalid address %s used for login by %s", address, cs.ip)
+		HandlersErrorLogger.Printf("[Handlers] Invalid address %s used for login by %s", address, cs.ip)
 		return nil, &ErrorReply{Code: -1, Message: "Invalid address used for login"}
 	}
 
@@ -87,6 +93,7 @@ func (s *StratumServer) handleLoginRPC(cs *Session, params *LoginParams) (*JobRe
 	miner, ok := s.miners.Get(id)
 	if !ok {
 		log.Printf("[Handlers] Registering new miner: %s@%s, Address: %s, PaymentID: %s, fixedDiff: %v, isSolo: %v", id, cs.ip, address, paymentid, fixDiff, isSolo)
+		HandlersInfoLogger.Printf("[Handlers] Registering new miner: %s@%s, Address: %s, PaymentID: %s, fixedDiff: %v, isSolo: %v", id, cs.ip, address, paymentid, fixDiff, isSolo)
 		miner = NewMiner(id, address, paymentid, fixDiff, workID, isSolo, cs.ip)
 		s.registerMiner(miner)
 		Graviton_backend.WriteMinerIDRegistration(miner)
@@ -96,6 +103,7 @@ func (s *StratumServer) handleLoginRPC(cs *Session, params *LoginParams) (*JobRe
 	}
 
 	log.Printf("[Handlers] Miner connected %s@%s, Address: %s, PaymentID: %s, fixedDiff: %v, isSolo: %v", id, cs.ip, address, paymentid, fixDiff, isSolo)
+	HandlersInfoLogger.Printf("[Handlers] Miner connected %s@%s, Address: %s, PaymentID: %s, fixedDiff: %v, isSolo: %v", id, cs.ip, address, paymentid, fixDiff, isSolo)
 
 	s.registerSession(cs)
 	miner.heartbeat()
@@ -160,6 +168,7 @@ func (s *StratumServer) handleSubmitRPC(cs *Session, params *SubmitParams) (*Sta
 	t := s.currentBlockTemplate()
 	if job.height != t.Height {
 		log.Printf("[Handlers] Stale share for height %d from %s@%s", job.height, miner.Id, cs.ip)
+		HandlersErrorLogger.Printf("[Handlers] Stale share for height %d from %s@%s", job.height, miner.Id, cs.ip)
 		atomic.AddInt64(&miner.StaleShares, 1)
 		return nil, &ErrorReply{Code: -1, Message: "Block expired"}
 	}
@@ -173,6 +182,7 @@ func (s *StratumServer) handleSubmitRPC(cs *Session, params *SubmitParams) (*Sta
 
 func (s *StratumServer) handleUnknownRPC(req *JSONRpcReq) *ErrorReply {
 	log.Printf("[Handlers] Unknown RPC method: %v", req)
+	HandlersErrorLogger.Printf("[Handlers] Unknown RPC method: %v", req)
 	return &ErrorReply{Code: -1, Message: "Invalid method"}
 }
 
@@ -185,6 +195,7 @@ func (s *StratumServer) broadcastNewJobs() {
 	defer s.sessionsMu.RUnlock()
 	count := len(s.sessions)
 	log.Printf("[Handlers] Broadcasting new jobs to %d miners", count)
+	HandlersInfoLogger.Printf("[Handlers] Broadcasting new jobs to %d miners", count)
 	bcast := make(chan int, 1024*16)
 	n := 0
 
@@ -198,6 +209,7 @@ func (s *StratumServer) broadcastNewJobs() {
 			<-bcast
 			if err != nil {
 				log.Printf("[Handlers] Job transmit error to %s: %v", cs.ip, err)
+				HandlersErrorLogger.Printf("[Handlers] Job transmit error to %s: %v", cs.ip, err)
 				s.removeSession(cs)
 			} else {
 				s.setDeadline(cs.conn)
@@ -228,11 +240,13 @@ func (s *StratumServer) updateFixedDiffJobs() {
 				if preJob != newDiff {
 					reply := cs.getJob(t, s, newDiff)
 					log.Printf("[Handlers] Retargetting difficulty from %v to %v for %v", preJob, newDiff, cs.ip)
+					HandlersInfoLogger.Printf("[Handlers] Retargetting difficulty from %v to %v for %v", preJob, newDiff, cs.ip)
 					cs.difficulty = newDiff
 					err := cs.pushMessage("job", &reply)
 					<-bcast
 					if err != nil {
 						log.Printf("[Handlers] Job transmit error to %s: %v", cs.ip, err)
+						HandlersErrorLogger.Printf("[Handlers] Job transmit error to %s: %v", cs.ip, err)
 						s.removeSession(cs)
 					} else {
 						s.setDeadline(cs.conn)
@@ -304,4 +318,22 @@ func (s *StratumServer) splitLoginString(loginWorkerPair string) (addr, wid, pid
 		}
 	}
 	return
+}
+
+func logFileOutHandlers(lType string) *log.Logger {
+	var logFileName string
+	if lType == "ERROR" {
+		logFileName = "logs/handlersError.log"
+	} else {
+		logFileName = "logs/handlers.log"
+	}
+	os.Mkdir("logs", 0600)
+	f, err := os.OpenFile(logFileName, os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0600)
+	if err != nil {
+		panic(err)
+	}
+
+	logType := lType + ": "
+	l := log.New(f, logType, log.LstdFlags|log.Lmicroseconds)
+	return l
 }

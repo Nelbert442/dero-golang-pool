@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"log"
 	"math/big"
+	"os"
 	"strconv"
 	"sync"
 	"sync/atomic"
@@ -48,6 +49,9 @@ type Miner struct {
 	WorkID    string
 	Ip        string
 }
+
+var MinerInfoLogger = logFileOutMiner("INFO")
+var MinerErrorLogger = logFileOutMiner("ERROR")
 
 func (job *Job) submit(nonce string) bool {
 	job.Lock()
@@ -333,9 +337,11 @@ func (m *Miner) processShare(s *StratumServer, cs *Session, job *Job, t *BlockTe
 			if !success {
 				minerOutput := "Bad hash. If you see often [> 1/100 shares on avg], check input on miner software"
 				log.Printf("[Miner] Bad hash from miner %v@%v", m.Id, cs.ip)
+				MinerErrorLogger.Printf("[Miner] Bad hash from miner %v@%v", m.Id, cs.ip)
 
 				if shareType == "Trusted" {
 					log.Printf("[Miner] Miner is no longer submitting trusted shares: %v@%v", m.Id, cs.ip)
+					MinerErrorLogger.Printf("[Miner] Miner is no longer submitting trusted shares: %v@%v", m.Id, cs.ip)
 					shareType = "Valid"
 				}
 
@@ -350,6 +356,7 @@ func (m *Miner) processShare(s *StratumServer, cs *Session, job *Job, t *BlockTe
 			// Handle when no algo is defined or unhandled algo is defined, let miner know issues (properly gets sent back in job detail rejection message)
 			minerOutput := "Rejected share, no pool algo defined. Contact pool owner."
 			log.Printf("[Miner] Rejected share, no pool algo defined (%s). Contact pool owner - from %v@%v", s.algo, m.Id, cs.ip)
+			MinerErrorLogger.Printf("[Miner] Rejected share, no pool algo defined (%s). Contact pool owner - from %v@%v", s.algo, m.Id, cs.ip)
 			return false, minerOutput
 		}
 	}
@@ -358,6 +365,7 @@ func (m *Miner) processShare(s *StratumServer, cs *Session, job *Job, t *BlockTe
 	if !ok {
 		minerOutput := "Bad hash"
 		log.Printf("[Miner] Bad hash from miner %v@%v", m.Id, cs.ip)
+		MinerErrorLogger.Printf("[Miner] Bad hash from miner %v@%v", m.Id, cs.ip)
 		atomic.AddInt64(&m.InvalidShares, 1)
 		return false, minerOutput
 	}
@@ -379,9 +387,11 @@ func (m *Miner) processShare(s *StratumServer, cs *Session, job *Job, t *BlockTe
 			atomic.AddInt64(&m.Rejects, 1)
 			atomic.AddInt64(&r.Rejects, 1)
 			log.Printf("[BLOCK] Block rejected at height %d: %v", t.Height, err)
+			MinerErrorLogger.Printf("[BLOCK] Block rejected at height %d: %v", t.Height, err)
 			return false, "Bad hash"
 		} else {
 			log.Printf("[BLOCK] Block accepted. Hash: %s, Status: %s", blockSubmitReply.BLID, blockSubmitReply.Status)
+			MinerInfoLogger.Printf("[BLOCK] Block accepted. Hash: %s, Status: %s", blockSubmitReply.BLID, blockSubmitReply.Status)
 
 			now := util.MakeTimestamp() / 1000
 
@@ -391,8 +401,10 @@ func (m *Miner) processShare(s *StratumServer, cs *Session, job *Job, t *BlockTe
 
 			if m.IsSolo {
 				log.Printf("[BLOCK] SOLO Block found at height %d, diff: %v, blid: %s, by miner: %v@%v", t.Height, t.Difficulty, blockSubmitReply.BLID, m.Id, cs.ip)
+				MinerInfoLogger.Printf("[BLOCK] SOLO Block found at height %d, diff: %v, blid: %s, by miner: %v@%v", t.Height, t.Difficulty, blockSubmitReply.BLID, m.Id, cs.ip)
 			} else {
 				log.Printf("[BLOCK] POOL Block found at height %d, diff: %v, blid: %s, by miner: %v@%v", t.Height, t.Difficulty, blockSubmitReply.BLID, m.Id, cs.ip)
+				MinerInfoLogger.Printf("[BLOCK] POOL Block found at height %d, diff: %v, blid: %s, by miner: %v@%v", t.Height, t.Difficulty, blockSubmitReply.BLID, m.Id, cs.ip)
 			}
 
 			// Immediately refresh current BT and send new jobs
@@ -417,6 +429,7 @@ func (m *Miner) processShare(s *StratumServer, cs *Session, job *Job, t *BlockTe
 			infoErr := Graviton_backend.WriteBlocks(info, info.BlockState)
 			if infoErr != nil {
 				log.Printf("[BLOCK] Graviton DB err: %v", infoErr)
+				MinerErrorLogger.Printf("[BLOCK] Graviton DB err: %v", infoErr)
 			}
 
 			m.Lock()
@@ -433,9 +446,11 @@ func (m *Miner) processShare(s *StratumServer, cs *Session, job *Job, t *BlockTe
 			// Only update next round miner stats if a pool block is found, so can determine this by the miner who found the block's solo status
 			if !m.IsSolo {
 				log.Printf("[Miner] Updating miner stats in DB for current round...")
+				MinerInfoLogger.Printf("[Miner] Updating miner stats in DB for current round...")
 				_ = Graviton_backend.WriteMinerStats(s.miners, s.hashrateExpiration)
 
 				log.Printf("[Miner] Updating miner stats for the next round...")
+				MinerInfoLogger.Printf("[Miner] Updating miner stats for the next round...")
 				Graviton_backend.NextRound(int64(t.Height), s.hashrateExpiration)
 			}
 
@@ -444,6 +459,7 @@ func (m *Miner) processShare(s *StratumServer, cs *Session, job *Job, t *BlockTe
 	} else if hashDiff.Cmp(&setDiff) < 0 {
 		minerOutput := "Low difficulty share"
 		log.Printf("[Miner] Rejected low difficulty share of %v from %v@%v", hashDiff, m.Id, cs.ip)
+		MinerErrorLogger.Printf("[Miner] Rejected low difficulty share of %v from %v@%v", hashDiff, m.Id, cs.ip)
 		atomic.AddInt64(&m.InvalidShares, 1)
 		return false, minerOutput
 	}
@@ -459,6 +475,7 @@ func (m *Miner) processShare(s *StratumServer, cs *Session, job *Job, t *BlockTe
 	atomic.AddInt64(&m.ValidShares, 1)
 
 	log.Printf("[Miner] %s share at difficulty %v/%v from %v@%v", shareType, cs.difficulty, hashDiff, params.Id, cs.ip)
+	MinerInfoLogger.Printf("[Miner] %s share at difficulty %v/%v from %v@%v", shareType, cs.difficulty, hashDiff, params.Id, cs.ip)
 
 	ts := time.Now().Unix()
 	// Omit the first round to setup the vars if they aren't setup, otherwise commit to timestamparr
@@ -475,4 +492,22 @@ func (m *Miner) processShare(s *StratumServer, cs *Session, job *Job, t *BlockTe
 	s.miners.Set(m.Id, m)
 
 	return true, ""
+}
+
+func logFileOutMiner(lType string) *log.Logger {
+	var logFileName string
+	if lType == "ERROR" {
+		logFileName = "logs/minerError.log"
+	} else {
+		logFileName = "logs/miner.log"
+	}
+	os.Mkdir("logs", 0600)
+	f, err := os.OpenFile(logFileName, os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0600)
+	if err != nil {
+		panic(err)
+	}
+
+	logType := lType + ": "
+	l := log.New(f, logType, log.LstdFlags|log.Lmicroseconds)
+	return l
 }

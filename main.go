@@ -16,10 +16,14 @@ import (
 
 var cfg pool.Config
 
+var MainInfoLogger = logFileOutMain("INFO")
+var MainErrorLogger = logFileOutMain("ERROR")
+
 func startStratum() {
 	if cfg.Threads > 0 {
 		runtime.GOMAXPROCS(cfg.Threads)
 		log.Printf("[Main] Running with %v threads", cfg.Threads)
+		MainInfoLogger.Printf("[Main] Running with %v threads", cfg.Threads)
 	} else {
 		n := runtime.NumCPU()
 		runtime.GOMAXPROCS(n)
@@ -62,16 +66,37 @@ func readConfig(cfg *pool.Config) {
 	}
 	configFileName, _ = filepath.Abs(configFileName)
 	log.Printf("[Main] Loading config: %v", configFileName)
+	MainInfoLogger.Printf("[Main] Loading config: %v", configFileName)
 
 	configFile, err := os.Open(configFileName)
 	if err != nil {
+		MainErrorLogger.Printf("[Main] File error: %v", err.Error())
 		log.Fatal("[Main] File error: ", err.Error())
 	}
 	defer configFile.Close()
 	jsonParser := json.NewDecoder(configFile)
 	if err = jsonParser.Decode(&cfg); err != nil {
+		MainErrorLogger.Printf("[Main] Config error: %v", err.Error())
 		log.Fatal("[Main] Config error: ", err.Error())
 	}
+}
+
+func logFileOutMain(lType string) *log.Logger {
+	var logFileName string
+	if lType == "ERROR" {
+		logFileName = "logs/mainError.log"
+	} else {
+		logFileName = "logs/main.log"
+	}
+	os.Mkdir("logs", 0600)
+	f, err := os.OpenFile(logFileName, os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0600)
+	if err != nil {
+		panic(err)
+	}
+
+	logType := lType + ": "
+	l := log.New(f, logType, log.LstdFlags|log.Lmicroseconds)
+	return l
 }
 
 func main() {

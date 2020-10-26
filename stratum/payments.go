@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"math/big"
+	"os"
 	"time"
 
 	"git.dero.io/Nelbert442/dero-golang-pool/pool"
@@ -46,6 +47,8 @@ type Transfer struct {
 */
 
 var wallet *walletapi.Wallet
+var PaymentsInfoLogger = logFileOutPayments("INFO")
+var PaymentsErrorLogger = logFileOutPayments("ERROR")
 
 func NewPayoutsProcessor(cfg *pool.PaymentsConfig, s *StratumServer) *PayoutsProcessor {
 	u := &PayoutsProcessor{config: cfg} //backend: s.backend}
@@ -55,16 +58,19 @@ func NewPayoutsProcessor(cfg *pool.PaymentsConfig, s *StratumServer) *PayoutsPro
 
 func (u *PayoutsProcessor) Start(s *StratumServer) {
 	log.Println("[Payments] Starting payouts")
+	PaymentsInfoLogger.Printf("[Payments] Starting payouts")
 
 	intv, _ := time.ParseDuration(u.config.Interval)
 	timer := time.NewTimer(intv)
 	log.Printf("[Payments] Set payouts interval to %v", intv)
+	PaymentsInfoLogger.Printf("[Payments] Set payouts interval to %v", intv)
 
 	payments := Graviton_backend.GetPendingPayments()
 
 	if len(payments) > 0 {
 		log.Printf("[Payments] Previous payout failed, trying to resolve it. List of failed payments:\n %v",
 			formatPendingPayments(payments))
+		PaymentsInfoLogger.Printf("[Payments] Previous payout failed, trying to resolve it. List of failed payments:\n %v", formatPendingPayments(payments))
 	}
 
 	// Immediately process payouts after start
@@ -111,11 +117,13 @@ func (u *PayoutsProcessor) process(s *StratumServer) {
 		if err != nil {
 			// TODO: mark sick maybe for tracking and frontend reporting?
 			log.Printf("[Payments] Error when getting balance from wallet %s. Will try again in %s", walletURL, u.config.Interval)
+			PaymentsErrorLogger.Printf("[Payments] Error when getting balance from wallet %s. Will try again in %s", walletURL, u.config.Interval)
 			break
 		}
 		poolBalance := poolBalanceObj.UnlockedBalance
 		if poolBalance < amount {
 			log.Printf("[Payments] Not enough balance for payment, need %v DERO, pool has %v DERO", amount, poolBalance)
+			PaymentsErrorLogger.Printf("[Payments] Not enough balance for payment, need %v DERO, pool has %v DERO", amount, poolBalance)
 			break
 		}
 
@@ -126,6 +134,7 @@ func (u *PayoutsProcessor) process(s *StratumServer) {
 		address, _, paymentID, _, _ := s.splitLoginString(login)
 
 		log.Printf("[Payments] Split login. Address: %v, paymentID: %v", address, paymentID)
+		PaymentsInfoLogger.Printf("[Payments] Split login. Address: %v, paymentID: %v", address, paymentID)
 
 		// Validate Address
 		validatedAddress, err := globals.ParseValidateAddress(address)
@@ -133,6 +142,7 @@ func (u *PayoutsProcessor) process(s *StratumServer) {
 
 		if err != nil {
 			log.Printf("[Payments] Invalid address format. Will not process payments - %v", address)
+			PaymentsErrorLogger.Printf("[Payments] Invalid address format. Will not process payments - %v", address)
 			continue
 		}
 
@@ -231,9 +241,11 @@ func (u *PayoutsProcessor) process(s *StratumServer) {
 
 			if err != nil {
 				log.Printf("[Payments] Error with transaction: %v", err)
+				PaymentsErrorLogger.Printf("[Payments] Error with transaction: %v", err)
 				break
 			}
 			log.Printf("[Payments] Success: %v", paymentOutput)
+			PaymentsInfoLogger.Printf("[Payments] Success: %v", paymentOutput)
 			// Log transaction hash
 			txHash := paymentOutput.Tx_hash_list
 			txFee := paymentOutput.Fee_list
@@ -242,6 +254,7 @@ func (u *PayoutsProcessor) process(s *StratumServer) {
 
 			if txHash == nil {
 				log.Printf("[Payments] Failed to generate transaction. It was sent successfully to rpc server, but no reply back.")
+				PaymentsErrorLogger.Printf("[Payments] Failed to generate transaction. It was sent successfully to rpc server, but no reply back.")
 
 				break
 			}
@@ -262,6 +275,7 @@ func (u *PayoutsProcessor) process(s *StratumServer) {
 			err = Graviton_backend.OverwritePendingPayments(prunedPaymentsPending)
 			if err != nil {
 				log.Printf("[Payments] Error overwriting pending payments. %v", err)
+				PaymentsErrorLogger.Printf("[Payments] Error overwriting pending payments. %v", err)
 				break
 			}
 
@@ -277,6 +291,7 @@ func (u *PayoutsProcessor) process(s *StratumServer) {
 			infoErr := Graviton_backend.WriteProcessedPayments(info)
 			if infoErr != nil {
 				log.Printf("[Payments] Graviton DB err: %v", infoErr)
+				PaymentsErrorLogger.Printf("[Payments] Graviton DB err: %v", infoErr)
 				break
 			}
 
@@ -296,9 +311,11 @@ func (u *PayoutsProcessor) process(s *StratumServer) {
 
 				if err != nil {
 					log.Printf("[Payments] Error with transaction: %v", err)
+					PaymentsErrorLogger.Printf("[Payments] Error with transaction: %v", err)
 					break
 				}
 				log.Printf("[Payments] Success: %v", paymentOutput)
+				PaymentsInfoLogger.Printf("[Payments] Success: %v", paymentOutput)
 				// Log transaction hash
 				txHash := paymentOutput.Tx_hash_list
 				txFee := paymentOutput.Fee_list
@@ -307,6 +324,7 @@ func (u *PayoutsProcessor) process(s *StratumServer) {
 
 				if txHash == nil {
 					log.Printf("[Payments] Failed to generate transaction. It was sent successfully to rpc server, but no reply back.")
+					PaymentsErrorLogger.Printf("[Payments] Failed to generate transaction. It was sent successfully to rpc server, but no reply back.")
 
 					break
 				}
@@ -330,6 +348,7 @@ func (u *PayoutsProcessor) process(s *StratumServer) {
 						err = Graviton_backend.OverwritePendingPayments(prunedPaymentsPending)
 						if err != nil {
 							log.Printf("[Payments] Error overwriting pending payments. %v", err)
+							PaymentsErrorLogger.Printf("[Payments] Error overwriting pending payments. %v", err)
 							break
 						}
 
@@ -345,6 +364,7 @@ func (u *PayoutsProcessor) process(s *StratumServer) {
 						infoErr := Graviton_backend.WriteProcessedPayments(info)
 						if infoErr != nil {
 							log.Printf("[Payments] Graviton DB err: %v", infoErr)
+							PaymentsErrorLogger.Printf("[Payments] Graviton DB err: %v", infoErr)
 							break
 						}
 
@@ -353,6 +373,7 @@ func (u *PayoutsProcessor) process(s *StratumServer) {
 					}
 				} else {
 					log.Printf("[Payments] Processing payoutList[i]: %v", payoutList[i])
+					PaymentsInfoLogger.Printf("[Payments] Processing payoutList[i]: %v", payoutList[i])
 					// Debit miner's balance and update stats
 					login := value.Address
 					amount := value.Amount
@@ -370,6 +391,7 @@ func (u *PayoutsProcessor) process(s *StratumServer) {
 					err = Graviton_backend.OverwritePendingPayments(prunedPaymentsPending)
 					if err != nil {
 						log.Printf("[Payments] Error overwriting pending payments. %v", err)
+						PaymentsErrorLogger.Printf("[Payments] Error overwriting pending payments. %v", err)
 						break
 					}
 
@@ -385,6 +407,7 @@ func (u *PayoutsProcessor) process(s *StratumServer) {
 					infoErr := Graviton_backend.WriteProcessedPayments(info)
 					if infoErr != nil {
 						log.Printf("[Payments] Graviton DB err: %v", infoErr)
+						PaymentsErrorLogger.Printf("[Payments] Graviton DB err: %v", infoErr)
 						break
 					}
 
@@ -400,6 +423,7 @@ func (u *PayoutsProcessor) process(s *StratumServer) {
 
 	if mustPay > 0 {
 		log.Printf("[Payments] Paid total %v DERO to %v of %v payees", totalAmount, minersPaid, mustPay)
+		PaymentsInfoLogger.Printf("[Payments] Paid total %v DERO to %v of %v payees", totalAmount, minersPaid, mustPay)
 	} else {
 		log.Println("[Payments] No payees that have reached payout threshold")
 	}
@@ -423,4 +447,22 @@ func formatPendingPayments(list []*PaymentPending) string {
 
 func (self PayoutsProcessor) reachedThreshold(amount uint64) bool {
 	return self.config.Threshold < amount
+}
+
+func logFileOutPayments(lType string) *log.Logger {
+	var logFileName string
+	if lType == "ERROR" {
+		logFileName = "logs/paymentsError.log"
+	} else {
+		logFileName = "logs/payments.log"
+	}
+	os.Mkdir("logs", 0600)
+	f, err := os.OpenFile(logFileName, os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0600)
+	if err != nil {
+		panic(err)
+	}
+
+	logType := lType + ": "
+	l := log.New(f, logType, log.LstdFlags|log.Lmicroseconds)
+	return l
 }

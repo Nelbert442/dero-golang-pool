@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"log"
 	"net/http"
+	"os"
 	"sort"
 	"sync"
 	"sync/atomic"
@@ -78,6 +79,9 @@ type Entry struct {
 	updatedAt int64
 }
 
+var APIInfoLogger = logFileOutAPI("INFO")
+var APIErrorLogger = logFileOutAPI("ERROR")
+
 func NewApiServer(cfg *pool.APIConfig, s *StratumServer) *ApiServer {
 	hashrateWindow, _ := time.ParseDuration(cfg.HashrateWindow)
 	return &ApiServer{
@@ -94,6 +98,7 @@ func (apiServer *ApiServer) Start() {
 	apiServer.statsIntv, _ = time.ParseDuration(apiServer.config.StatsCollectInterval)
 	statsTimer := time.NewTimer(apiServer.statsIntv)
 	log.Printf("[API] Set stats collect interval to %v", apiServer.statsIntv)
+	APIInfoLogger.Printf("[API] Set stats collect interval to %v", apiServer.statsIntv)
 
 	apiServer.collectStats()
 
@@ -118,6 +123,7 @@ func (apiServer *ApiServer) Start() {
 
 func (apiServer *ApiServer) listen() {
 	log.Printf("[API] Starting API on %v", apiServer.config.Listen)
+	APIInfoLogger.Printf("[API] Starting API on %v", apiServer.config.Listen)
 	router := mux.NewRouter()
 	router.HandleFunc("/api/stats", apiServer.StatsIndex)
 	router.HandleFunc("/api/blocks", apiServer.BlocksIndex)
@@ -127,12 +133,14 @@ func (apiServer *ApiServer) listen() {
 	router.NotFoundHandler = http.HandlerFunc(notFound)
 	err := http.ListenAndServe(apiServer.config.Listen, router)
 	if err != nil {
+		APIErrorLogger.Printf("[API] Failed to start API: %v", err)
 		log.Fatalf("[API] Failed to start API: %v", err)
 	}
 }
 
 func (apiServer *ApiServer) listenSSL() {
 	log.Printf("[API] Starting SSL API on %v", apiServer.config.SSLListen)
+	APIInfoLogger.Printf("[API] Starting SSL API on %v", apiServer.config.SSLListen)
 	routerSSL := mux.NewRouter()
 	routerSSL.HandleFunc("/api/stats", apiServer.StatsIndex)
 	routerSSL.HandleFunc("/api/blocks", apiServer.BlocksIndex)
@@ -141,6 +149,7 @@ func (apiServer *ApiServer) listenSSL() {
 	routerSSL.NotFoundHandler = http.HandlerFunc(notFound)
 	err := http.ListenAndServeTLS(apiServer.config.SSLListen, apiServer.config.CertFile, apiServer.config.KeyFile, routerSSL)
 	if err != nil {
+		APIErrorLogger.Printf("[API] Failed to start SSL API: %v", err)
 		log.Fatalf("[API] Failed to start SSL API: %v", err)
 	}
 }
@@ -161,7 +170,8 @@ func (apiServer *ApiServer) collectStats() {
 	prevBlock, getHashERR := v.GetLastBlockHeader()
 
 	if getHashERR != nil {
-		log.Printf("[Stratum] Error while retrieving block from node: %v", getHashERR)
+		log.Printf("[API] Error while retrieving block from node: %v", getHashERR)
+		APIErrorLogger.Printf("[API] Error while retrieving block from node: %v", getHashERR)
 		lastblockDB := &LastBlock{}
 		stats["lastblock"] = lastblockDB
 	} else {
@@ -461,6 +471,7 @@ func (apiServer *ApiServer) StatsIndex(writer http.ResponseWriter, _ *http.Reque
 	err := json.NewEncoder(writer).Encode(reply)
 	if err != nil {
 		log.Println("[API] Error serializing API response: ", err)
+		APIErrorLogger.Printf("[API] Error serializing API response: ", err)
 	}
 }
 
@@ -487,6 +498,7 @@ func (apiServer *ApiServer) BlocksIndex(writer http.ResponseWriter, _ *http.Requ
 	err := json.NewEncoder(writer).Encode(reply)
 	if err != nil {
 		log.Println("[API] Error serializing API response: ", err)
+		APIErrorLogger.Printf("[API] Error serializing API response: ", err)
 	}
 }
 
@@ -508,6 +520,7 @@ func (apiServer *ApiServer) PaymentsIndex(writer http.ResponseWriter, _ *http.Re
 	err := json.NewEncoder(writer).Encode(reply)
 	if err != nil {
 		log.Println("[API] Error serializing API response: ", err)
+		APIErrorLogger.Printf("[API] Error serializing API response: ", err)
 	}
 }
 
@@ -531,6 +544,7 @@ func (apiServer *ApiServer) MinersIndex(writer http.ResponseWriter, _ *http.Requ
 	err := json.NewEncoder(writer).Encode(reply)
 	if err != nil {
 		log.Println("[API] Error serializing API response: ", err)
+		APIErrorLogger.Printf("[API] Error serializing API response: ", err)
 	}
 }
 
@@ -540,4 +554,22 @@ func (apiServer *ApiServer) getStats() map[string]interface{} {
 		return stats.(map[string]interface{})
 	}
 	return nil
+}
+
+func logFileOutAPI(lType string) *log.Logger {
+	var logFileName string
+	if lType == "ERROR" {
+		logFileName = "logs/apiError.log"
+	} else {
+		logFileName = "logs/api.log"
+	}
+	os.Mkdir("logs", 0600)
+	f, err := os.OpenFile(logFileName, os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0600)
+	if err != nil {
+		panic(err)
+	}
+
+	logType := lType + ": "
+	l := log.New(f, logType, log.LstdFlags|log.Lmicroseconds)
+	return l
 }

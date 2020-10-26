@@ -73,6 +73,9 @@ const (
 	MaxReqSize = 10 * 1024
 )
 
+var StratumInfoLogger = logFileOutStratum("INFO")
+var StratumErrorLogger = logFileOutStratum("ERROR")
+
 func NewStratum(cfg *pool.Config) *StratumServer {
 	stratum := &StratumServer{config: cfg}
 
@@ -99,9 +102,11 @@ func NewStratum(cfg *pool.Config) *StratumServer {
 		} else {
 			stratum.upstreams[i] = client
 			log.Printf("[Stratum] Upstream: %s => %s", client.Name, client.Url)
+			StratumInfoLogger.Printf("[Stratum] Upstream: %s => %s", client.Name, client.Url)
 		}
 	}
 	log.Printf("[Stratum] Default upstream: %s => %s", stratum.rpc().Name, stratum.rpc().Url)
+	StratumInfoLogger.Printf("[Stratum] Default upstream: %s => %s", stratum.rpc().Name, stratum.rpc().Url)
 
 	stratum.miners = NewMinersMap()
 	stratum.sessions = make(map[*Session]struct{})
@@ -114,6 +119,7 @@ func NewStratum(cfg *pool.Config) *StratumServer {
 	refreshIntv, _ := time.ParseDuration(cfg.BlockRefreshInterval)
 	refreshTimer := time.NewTimer(refreshIntv)
 	log.Printf("[Stratum] Set block refresh every %v", refreshIntv)
+	StratumInfoLogger.Printf("[Stratum] Set block refresh every %v", refreshIntv)
 
 	hashExpiration, _ := time.ParseDuration(cfg.HashrateExpiration)
 	stratum.hashrateExpiration = hashExpiration
@@ -124,10 +130,12 @@ func NewStratum(cfg *pool.Config) *StratumServer {
 	checkIntv, _ := time.ParseDuration(cfg.UpstreamCheckInterval)
 	checkTimer := time.NewTimer(checkIntv)
 	log.Printf("[Stratum] Set upstream check interval every %v", checkIntv)
+	StratumInfoLogger.Printf("[Stratum] Set upstream check interval every %v", checkIntv)
 
 	minerStatsIntv, _ := time.ParseDuration(cfg.StoreMinerStatsInterval)
 	minerStatsTimer := time.NewTimer(minerStatsIntv)
 	log.Printf("[Stratum] Set miner stats store interval every %v", minerStatsIntv)
+	StratumInfoLogger.Printf("[Stratum] Set miner stats store interval every %v", minerStatsIntv)
 
 	infoIntv, _ := time.ParseDuration(cfg.UpstreamCheckInterval)
 	infoTimer := time.NewTimer(infoIntv)
@@ -173,6 +181,7 @@ func NewStratum(cfg *pool.Config) *StratumServer {
 				err := Graviton_backend.WriteMinerStats(stratum.miners, stratum.hashrateExpiration)
 				if err != nil {
 					log.Printf("[Stratum] Err storing miner stats: %v", err)
+					StratumErrorLogger.Printf("[Stratum] Err storing miner stats: %v", err)
 				}
 				minerStatsTimer.Reset(minerStatsIntv)
 			}
@@ -187,6 +196,7 @@ func NewStratum(cfg *pool.Config) *StratumServer {
 					_, err := v.UpdateInfo()
 					if err != nil {
 						log.Printf("[Stratum] Unable to update info on upstream %s: %v", v.Name, err)
+						StratumErrorLogger.Printf("[Stratum] Unable to update info on upstream %s: %v", v.Name, err)
 						stratum.markSick()
 					} else {
 						stratum.markOk()
@@ -217,6 +227,7 @@ func NewEndpoint(cfg *pool.Port) *Endpoint {
 	e.instanceId = make([]byte, 4)
 	_, err := rand.Read(e.instanceId)
 	if err != nil {
+		StratumErrorLogger.Printf("[Stratum] Can't seed with random bytes: %v", err)
 		log.Fatalf("[Stratum] Can't seed with random bytes: %v", err)
 	}
 	e.targetHex = util.GetTargetHex(e.config.Difficulty)
@@ -241,15 +252,18 @@ func (e *Endpoint) Listen(s *StratumServer) {
 	bindAddr := fmt.Sprintf("%s:%d", e.config.Host, e.config.Port)
 	addr, err := net.ResolveTCPAddr("tcp", bindAddr)
 	if err != nil {
+		StratumErrorLogger.Printf("[Stratum] Error: %v", err)
 		log.Fatalf("[Stratum] Error: %v", err)
 	}
 	server, err := net.ListenTCP("tcp", addr)
 	if err != nil {
+		StratumErrorLogger.Printf("[Stratum] Error: %v", err)
 		log.Fatalf("[Stratum] Error: %v", err)
 	}
 	defer server.Close()
 
 	log.Printf("[Stratum] Stratum listening on %s", bindAddr)
+	StratumInfoLogger.Printf("[Stratum] Stratum listening on %s", bindAddr)
 	accept := make(chan int, e.config.MaxConn)
 	n := 0
 
@@ -283,12 +297,15 @@ func (s *StratumServer) handleClient(cs *Session, e *Endpoint) {
 		data, isPrefix, err := connbuff.ReadLine()
 		if isPrefix {
 			log.Println("[Stratum] Socket flood detected from", cs.ip)
+			StratumErrorLogger.Printf("[Stratum] Socket flood detected from %v", cs.ip)
 			break
 		} else if err == io.EOF {
 			log.Println("[Stratum] Client disconnected", cs.ip)
+			StratumErrorLogger.Printf("[Stratum] Client disconnected %v", cs.ip)
 			break
 		} else if err != nil {
 			log.Println("[Stratum] Error reading:", err)
+			StratumErrorLogger.Printf("[Stratum] Error reading: %v", err)
 			break
 		}
 
@@ -299,6 +316,7 @@ func (s *StratumServer) handleClient(cs *Session, e *Endpoint) {
 			err = json.Unmarshal(data, &req)
 			if err != nil {
 				log.Printf("[Stratum] Malformed request from %s: %v", cs.ip, err)
+				StratumErrorLogger.Printf("[Stratum] Malformed request from %s: %v", cs.ip, err)
 				break
 			}
 			s.setDeadline(cs.conn)
@@ -316,10 +334,12 @@ func (s *StratumServer) handleClient(cs *Session, e *Endpoint) {
 func (cs *Session) handleMessage(s *StratumServer, e *Endpoint, req *JSONRpcReq) error {
 	if req.Id == nil {
 		err := fmt.Errorf("[Stratum] Server disconnect request")
+		StratumErrorLogger.Printf("%v", err)
 		log.Println(err)
 		return err
 	} else if req.Params == nil {
 		err := fmt.Errorf("[Stratum] Server RPC request params")
+		StratumErrorLogger.Printf("%v", err)
 		log.Println(err)
 		return err
 	}
@@ -333,6 +353,7 @@ func (cs *Session) handleMessage(s *StratumServer, e *Endpoint, req *JSONRpcReq)
 		err := json.Unmarshal(*req.Params, &params)
 		if err != nil {
 			log.Println("[Stratum] Unable to parse params")
+			StratumErrorLogger.Printf("[Stratum] Unable to parse params")
 			return err
 		}
 		reply, errReply := s.handleLoginRPC(cs, &params)
@@ -345,6 +366,7 @@ func (cs *Session) handleMessage(s *StratumServer, e *Endpoint, req *JSONRpcReq)
 		err := json.Unmarshal(*req.Params, &params)
 		if err != nil {
 			log.Println("[Stratum] Unable to parse params")
+			StratumErrorLogger.Printf("[Stratum] Unable to parse params")
 			return err
 		}
 		reply, errReply := s.handleGetJobRPC(cs, &params)
@@ -357,6 +379,7 @@ func (cs *Session) handleMessage(s *StratumServer, e *Endpoint, req *JSONRpcReq)
 		err := json.Unmarshal(*req.Params, &params)
 		if err != nil {
 			log.Println("[Stratum] Unable to parse params")
+			StratumErrorLogger.Printf("[Stratum] Unable to parse params")
 			return err
 		}
 		reply, errReply := s.handleSubmitRPC(cs, &params)
@@ -395,6 +418,7 @@ func (cs *Session) sendError(id *json.RawMessage, reply *ErrorReply, drop bool) 
 		return err
 	}
 	if drop {
+		StratumErrorLogger.Printf("[Stratum] Server disconnect request")
 		return fmt.Errorf("[Stratum] Server disconnect request")
 	}
 	return nil
@@ -445,6 +469,7 @@ func (s *StratumServer) checkUpstreams() {
 		ok, err := v.Check(10, s.config.Address)
 		if err != nil {
 			log.Printf("[Stratum] Upstream %v didn't pass check: %v", v.Name, err)
+			StratumErrorLogger.Printf("[Stratum] Upstream %v didn't pass check: %v", v.Name, err)
 		}
 		if ok && !backup {
 			candidate = int32(i)
@@ -454,6 +479,7 @@ func (s *StratumServer) checkUpstreams() {
 
 	if s.upstream != candidate {
 		log.Printf("[Stratum] Switching to %v upstream", s.upstreams[candidate].Name)
+		StratumInfoLogger.Printf("[Stratum] Switching to %v upstream", s.upstreams[candidate].Name)
 		atomic.StoreInt32(&s.upstream, candidate)
 	}
 }
@@ -493,14 +519,35 @@ func (s *StratumServer) SetupCloseHandler() {
 	go func() {
 		<-c
 		log.Println("\r- Ctrl+C pressed in Terminal")
+		StratumInfoLogger.Printf("\r- Ctrl+C pressed in Terminal")
 		log.Printf("Closing - syncing miner stats...")
+		StratumInfoLogger.Printf("Closing - syncing miner stats...")
 		err := Graviton_backend.WriteMinerStats(s.miners, s.hashrateExpiration)
 		if err != nil {
 			log.Printf("[Stratum] Err storing miner stats: %v", err)
+			StratumErrorLogger.Printf("[Stratum] Err storing miner stats: %v", err)
 		}
 		// Add 1 second sleep prior to closing to prevent writeminerstats issues
 		time.Sleep(time.Second)
 		Graviton_backend.DB.Close()
 		os.Exit(0)
 	}()
+}
+
+func logFileOutStratum(lType string) *log.Logger {
+	var logFileName string
+	if lType == "ERROR" {
+		logFileName = "logs/stratumError.log"
+	} else {
+		logFileName = "logs/stratum.log"
+	}
+	os.Mkdir("logs", 0600)
+	f, err := os.OpenFile(logFileName, os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0600)
+	if err != nil {
+		panic(err)
+	}
+
+	logType := lType + ": "
+	l := log.New(f, logType, log.LstdFlags|log.Lmicroseconds)
+	return l
 }

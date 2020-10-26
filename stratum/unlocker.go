@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"math/big"
+	"os"
 	"strconv"
 	"strings"
 	"time"
@@ -29,6 +30,9 @@ type UnlockResultGrav struct {
 	blocks         int
 }
 
+var UnlockerInfoLogger = logFileOutUnlocker("INFO")
+var UnlockerErrorLogger = logFileOutUnlocker("ERROR")
+
 // Get constant blocks required to mature from derosuite
 const MINER_TX_AMOUNT_UNLOCK = config.MINER_TX_AMOUNT_UNLOCK
 
@@ -41,9 +45,11 @@ func NewBlockUnlocker(cfg *pool.UnlockerConfig, s *StratumServer) *BlockUnlocker
 
 func (u *BlockUnlocker) StartBlockUnlocker(s *StratumServer) {
 	log.Println("[Unlocker] Starting block unlocker")
+	UnlockerInfoLogger.Printf("[Unlocker] Starting block unlocker")
 	interval, _ := time.ParseDuration(u.config.Interval)
 	timer := time.NewTimer(interval)
 	log.Printf("[Unlocker] Set block unlock interval to %v", interval)
+	UnlockerInfoLogger.Printf("[Unlocker] Set block unlock interval to %v", interval)
 
 	// Immediately unlock after start
 	u.unlockPendingBlocks(s)
@@ -89,18 +95,22 @@ func (u *BlockUnlocker) unlockPendingBlocks(s *StratumServer) {
 	resultGrav, err := u.unlockCandidatesGrav(candidateBlocks, "candidates")
 	if err != nil {
 		log.Printf("[Unlocker] Failed to unlock blocks grav: %v", err)
+		UnlockerErrorLogger.Printf("[Unlocker] Failed to unlock blocks grav: %v", err)
 		return
 	}
 
 	log.Printf("[Unlocker] Immature %v blocks, %v orphans", resultGrav.blocks, resultGrav.orphans)
+	UnlockerInfoLogger.Printf("[Unlocker] Immature %v blocks, %v orphans", resultGrav.blocks, resultGrav.orphans)
 
 	if len(resultGrav.orphanedBlocks) > 0 {
 		err = Graviton_backend.WriteOrphanedBlocks(resultGrav.orphanedBlocks)
 		if err != nil {
 			log.Printf("[Unlocker] Failed to insert orphaned blocks into backend: %v", err)
+			UnlockerErrorLogger.Printf("[Unlocker] Failed to insert orphaned blocks into backend: %v", err)
 			return
 		} else {
 			log.Printf("[Unlocker] Inserted %v orphaned blocks to backend", resultGrav.orphans)
+			UnlockerInfoLogger.Printf("[Unlocker] Inserted %v orphaned blocks to backend", resultGrav.orphans)
 		}
 	}
 
@@ -109,10 +119,12 @@ func (u *BlockUnlocker) unlockPendingBlocks(s *StratumServer) {
 		err = Graviton_backend.WriteImmatureBlock(block)
 		if err != nil {
 			log.Printf("[Unlocker] Failed to credit rewards for round %v: %v", block.RoundKey(), err)
+			UnlockerErrorLogger.Printf("[Unlocker] Failed to credit rewards for round %v: %v", block.RoundKey(), err)
 			return
 		}
 
 		log.Printf("[Unlocker] IMMATURE %v", block.RoundKey())
+		UnlockerInfoLogger.Printf("[Unlocker] IMMATURE %v", block.RoundKey())
 	}
 }
 
@@ -120,6 +132,7 @@ func (u *BlockUnlocker) unlockAndCreditMiners(s *StratumServer) {
 	miningInfo, err := u.rpc.GetInfo()
 	if err != nil {
 		log.Printf("[Unlocker] Unable to get current blockchain height from node: %v", err)
+		UnlockerErrorLogger.Printf("[Unlocker] Unable to get current blockchain height from node: %v", err)
 		return
 	}
 	currentHeight := miningInfo.Height
@@ -150,17 +163,21 @@ func (u *BlockUnlocker) unlockAndCreditMiners(s *StratumServer) {
 	result, err := u.unlockCandidatesGrav(immature, "immature")
 	if err != nil {
 		log.Printf("[Unlocker] Failed to unlock blocks: %v", err)
+		UnlockerErrorLogger.Printf("[Unlocker] Failed to unlock blocks: %v", err)
 		return
 	}
 	log.Printf("[Unlocker] Unlocked %v blocks, %v orphans", result.blocks, result.orphans)
+	UnlockerInfoLogger.Printf("[Unlocker] Unlocked %v blocks, %v orphans", result.blocks, result.orphans)
 
 	if len(result.orphanedBlocks) > 0 {
 		err = Graviton_backend.WriteOrphanedBlocks(result.orphanedBlocks)
 		if err != nil {
 			log.Printf("[Unlocker] Failed to insert orphaned blocks into backend: %v", err)
+			UnlockerErrorLogger.Printf("[Unlocker] Failed to insert orphaned blocks into backend: %v", err)
 			return
 		} else {
 			log.Printf("[Unlocker] Inserted %v orphaned blocks to backend", result.orphans)
+			UnlockerInfoLogger.Printf("[Unlocker] Inserted %v orphaned blocks to backend", result.orphans)
 		}
 	}
 
@@ -172,12 +189,14 @@ func (u *BlockUnlocker) unlockAndCreditMiners(s *StratumServer) {
 		revenue, minersProfit, poolProfit, roundRewards, err := u.calculateRewardsGrav(s, block)
 		if err != nil {
 			log.Printf("[Unlocker] Failed to calculate rewards for round %v: %v", block.RoundKey(), err)
+			UnlockerErrorLogger.Printf("[Unlocker] Failed to calculate rewards for round %v: %v", block.RoundKey(), err)
 			return
 		}
 
 		err = Graviton_backend.WriteMaturedBlocks(block)
 		if err != nil {
 			log.Printf("[Unlocker] Failed to credit rewards for round %v: %v", block.RoundKey(), err)
+			UnlockerErrorLogger.Printf("[Unlocker] Failed to credit rewards for round %v: %v", block.RoundKey(), err)
 			return
 		}
 
@@ -193,6 +212,7 @@ func (u *BlockUnlocker) unlockAndCreditMiners(s *StratumServer) {
 			infoErr := Graviton_backend.WritePendingPayments(info)
 			if infoErr != nil {
 				log.Printf("[Unlocker] Graviton DB err: %v", infoErr)
+				UnlockerErrorLogger.Printf("[Unlocker] Graviton DB err: %v", infoErr)
 			}
 		}
 		// To be used later, total taken from db func, will be used for "pool" balance/payment stats
@@ -209,11 +229,13 @@ func (u *BlockUnlocker) unlockAndCreditMiners(s *StratumServer) {
 			minersProfit.FloatString(8),
 			poolProfit.FloatString(8),
 		)
+		UnlockerInfoLogger.Printf("[Unlocker] MATURED %v: revenue %v, minersProfit %v, poolProfit %v", block.RoundKey(), revenue.FloatString(8), minersProfit.FloatString(8), poolProfit.FloatString(8))
 		entries := []string{logEntry}
 		for login, reward := range roundRewards {
 			entries = append(entries, fmt.Sprintf("\tREWARD %v: %v: %v", block.RoundKey(), login, reward))
 		}
 		log.Println(strings.Join(entries, "\n"))
+		UnlockerInfoLogger.Printf(strings.Join(entries, "\n"))
 	}
 
 	log.Printf(
@@ -222,6 +244,7 @@ func (u *BlockUnlocker) unlockAndCreditMiners(s *StratumServer) {
 		totalMinersProfit.FloatString(8),
 		totalPoolProfit.FloatString(8),
 	)
+	UnlockerInfoLogger.Printf("[Unlocker] MATURE SESSION: totalRevenue %v, totalMinersProfit %v, totalPoolProfit %v", totalRevenue.FloatString(8), totalMinersProfit.FloatString(8), totalPoolProfit.FloatString(8))
 }
 
 func (u *BlockUnlocker) unlockCandidatesGrav(candidates []*BlockDataGrav, blockType string) (*UnlockResultGrav, error) {
@@ -235,10 +258,12 @@ func (u *BlockUnlocker) unlockCandidatesGrav(candidates []*BlockDataGrav, blockT
 		block, err := u.rpc.GetBlockByHash(hash)
 		if err != nil {
 			log.Printf("[Unlocker] Error while retrieving block %s from node: %v", hash, err)
+			UnlockerErrorLogger.Printf("[Unlocker] Error while retrieving block %s from node: %v", hash, err)
 			return nil, err
 		}
 		if block == nil {
 			return nil, fmt.Errorf("[Unlocker] Error while retrieving block %s from node, wrong node hash", hash)
+			UnlockerErrorLogger.Printf("[Unlocker] Error while retrieving block %s from node, wrong node hash", hash)
 		}
 
 		if matchCandidateGrav(block, candidate) {
@@ -251,6 +276,7 @@ func (u *BlockUnlocker) unlockCandidatesGrav(candidates []*BlockDataGrav, blockT
 			}
 			result.maturedBlocks = append(result.maturedBlocks, candidate)
 			log.Printf("[Unlocker] Mature block %v with %v tx, hash: %v", candidate.Height, block.BlockHeader.Txcount, candidate.Hash)
+			UnlockerInfoLogger.Printf("[Unlocker] Mature block %v with %v tx, hash: %v", candidate.Height, block.BlockHeader.Txcount, candidate.Hash)
 			break
 		}
 
@@ -265,6 +291,7 @@ func (u *BlockUnlocker) unlockCandidatesGrav(candidates []*BlockDataGrav, blockT
 			candidate.Orphan = true
 			result.orphanedBlocks = append(result.orphanedBlocks, candidate)
 			log.Printf("[Unlocker] Orphaned block %v:%v", candidate.RoundHeight, candidate.Nonce)
+			UnlockerInfoLogger.Printf("[Unlocker] Orphaned block %v:%v", candidate.RoundHeight, candidate.Nonce)
 		}
 	}
 	return result, nil
@@ -287,9 +314,11 @@ func (u *BlockUnlocker) handleBlockGrav(block *rpc.GetBlockHashReply, candidate 
 func (u *BlockUnlocker) calculateRewardsGrav(s *StratumServer, block *BlockDataGrav) (*big.Rat, *big.Rat, *big.Rat, map[string]int64, error) {
 	// Write miner stats - force a write to ensure latest stats are in db
 	log.Printf("[Unlocker] Storing miner stats")
+	UnlockerInfoLogger.Printf("[Unlocker] Storing miner stats")
 	err := Graviton_backend.WriteMinerStats(s.miners, s.hashrateExpiration)
 	if err != nil {
 		log.Printf("[Unlocker] Err storing miner stats: %v", err)
+		UnlockerErrorLogger.Printf("[Unlocker] Err storing miner stats: %v", err)
 	}
 	revenue := new(big.Rat).SetUint64(block.Reward)
 	minersProfit, poolProfit := chargeFee(revenue, u.config.PoolFee)
@@ -304,6 +333,7 @@ func (u *BlockUnlocker) calculateRewardsGrav(s *StratumServer, block *BlockDataG
 	} else {
 		shares, totalroundshares, err = Graviton_backend.GetRoundShares(block.RoundHeight)
 		log.Printf("[Unlocker-calculateRewardsGrav] [round shares] shares: %v, totalroundshares: %v", shares, totalroundshares)
+		UnlockerInfoLogger.Printf("[Unlocker-calculateRewardsGrav] [round shares] shares: %v, totalroundshares: %v", shares, totalroundshares)
 		if err != nil {
 			return nil, nil, nil, nil, err
 		}
@@ -314,6 +344,7 @@ func (u *BlockUnlocker) calculateRewardsGrav(s *StratumServer, block *BlockDataG
 	if len(rewards) == 0 {
 		rewards[block.Address] += int64(block.Reward)
 		log.Printf("[Unlocker] No shares stored for this round, rewarding block amount (%v) to miner (%v) who found block.", block.Reward, block.Address)
+		UnlockerInfoLogger.Printf("[Unlocker] No shares stored for this round, rewarding block amount (%v) to miner (%v) who found block.", block.Reward, block.Address)
 	}
 
 	if block.ExtraReward != nil {
@@ -352,4 +383,22 @@ func chargeFee(value *big.Rat, fee float64) (*big.Rat, *big.Rat) {
 	feePercent := new(big.Rat).SetFloat64(fee / 100)
 	feeValue := new(big.Rat).Mul(value, feePercent)
 	return new(big.Rat).Sub(value, feeValue), feeValue
+}
+
+func logFileOutUnlocker(lType string) *log.Logger {
+	var logFileName string
+	if lType == "ERROR" {
+		logFileName = "logs/unlockerError.log"
+	} else {
+		logFileName = "logs/unlocker.log"
+	}
+	os.Mkdir("logs", 0600)
+	f, err := os.OpenFile(logFileName, os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0600)
+	if err != nil {
+		panic(err)
+	}
+
+	logType := lType + ": "
+	l := log.New(f, logType, log.LstdFlags|log.Lmicroseconds)
+	return l
 }

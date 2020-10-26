@@ -4,6 +4,7 @@ import (
 	"encoding/hex"
 	"log"
 	"math/big"
+	"os"
 	"strings"
 	"time"
 	"unicode/utf8"
@@ -15,6 +16,9 @@ import (
 )
 
 var Diff1 = StringToBig("0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF")
+
+var UtilInfoLogger = logFileOutUtil("INFO")
+var UtilErrorLogger = logFileOutUtil("ERROR")
 
 func StringToBig(h string) *big.Int {
 	n := new(big.Int)
@@ -60,6 +64,7 @@ func ValidateAddress(addy string, poolAddy string) bool {
 
 	if string(addyRune[0:3]) != poolAddyNetwork {
 		log.Printf("[Util] Invalid address, pool address and supplied address don't match testnet(dETo)/mainnet(dERo). Pool Address is in %s", poolAddyNetwork)
+		UtilErrorLogger.Printf("[Util] Invalid address, pool address and supplied address don't match testnet(dETo)/mainnet(dERo). Pool Address is in %s", poolAddyNetwork)
 		return false
 	}
 
@@ -67,6 +72,7 @@ func ValidateAddress(addy string, poolAddy string) bool {
 	_, err := address.NewAddress(strings.TrimSpace(addy))
 	if err != nil {
 		log.Printf("[Util] Address validation failed for '%s': %s", addy, err)
+		UtilErrorLogger.Printf("[Util] Address validation failed for '%s': %s", addy, err)
 		return false
 	}
 
@@ -96,4 +102,22 @@ func AstroBWTHash(shareBuff []byte, diff big.Int) (bool, bool) {
 	checkPowHashBig := blockchain.CheckPowHashBig(powhash, &diff)
 
 	return checkPowHashBig, success
+}
+
+func logFileOutUtil(lType string) *log.Logger {
+	var logFileName string
+	if lType == "ERROR" {
+		logFileName = "logs/utilError.log"
+	} else {
+		logFileName = "logs/util.log"
+	}
+	os.Mkdir("logs", 0600)
+	f, err := os.OpenFile(logFileName, os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0600)
+	if err != nil {
+		panic(err)
+	}
+
+	logType := lType + ": "
+	l := log.New(f, logType, log.LstdFlags|log.Lmicroseconds)
+	return l
 }
