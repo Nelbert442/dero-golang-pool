@@ -613,9 +613,11 @@ func (apiServer *ApiServer) getAddressStats(address string) map[string]interface
 	var addrMinerSlice []*Miner
 
 	minerStats := apiServer.backend.GetAllMinerStats()
-	for _, miner := range minerStats {
-		if miner.Address == address {
-			addrMinerSlice = append(addrMinerSlice, miner)
+	if minerStats != nil {
+		for _, miner := range minerStats {
+			if miner.Address == address {
+				addrMinerSlice = append(addrMinerSlice, miner)
+			}
 		}
 	}
 
@@ -630,9 +632,11 @@ func (apiServer *ApiServer) getAddressStats(address string) map[string]interface
 	var addrPaymentSlice []*MinerPayments
 
 	processedPayments := apiServer.backend.GetProcessedPayments()
-	for _, payment := range processedPayments.MinerPayments {
-		if payment.Login == address {
-			addrPaymentSlice = append(addrPaymentSlice, payment)
+	if processedPayments != nil {
+		for _, payment := range processedPayments.MinerPayments {
+			if payment.Login == address {
+				addrPaymentSlice = append(addrPaymentSlice, payment)
+			}
 		}
 	}
 

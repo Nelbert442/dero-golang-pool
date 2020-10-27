@@ -136,14 +136,23 @@ func (u *PayoutsProcessor) process(s *StratumServer) {
 		log.Printf("[Payments] Split login. Address: %v, paymentID: %v", address, paymentID)
 		PaymentsInfoLogger.Printf("[Payments] Split login. Address: %v, paymentID: %v", address, paymentID)
 
-		// Validate Address
-		validatedAddress, err := globals.ParseValidateAddress(address)
-		_ = validatedAddress
+		// Validate Address - DERO will validate against native DERO validation functions, rest will validate against util [against pool address for comparison, similar to login]
+		switch s.config.Coin {
+		case "DERO":
+			validatedAddress, err := globals.ParseValidateAddress(address)
+			_ = validatedAddress
 
-		if err != nil {
-			log.Printf("[Payments] Invalid address format. Will not process payments - %v", address)
-			PaymentsErrorLogger.Printf("[Payments] Invalid address format. Will not process payments - %v", address)
-			continue
+			if err != nil {
+				log.Printf("[Payments] Invalid address format. Will not process payments - %v", address)
+				PaymentsErrorLogger.Printf("[Payments] Invalid address format. Will not process payments - %v", address)
+				continue
+			}
+		default:
+			if !util.ValidateAddressNonDERO(address, s.config.Address) {
+				log.Printf("[Payments] Invalid address format. Will not process payments - %v", address)
+				PaymentsErrorLogger.Printf("[Payments] Invalid address format. Will not process payments - %v", address)
+				continue
+			}
 		}
 
 		currAddr := rpc.Destinations{

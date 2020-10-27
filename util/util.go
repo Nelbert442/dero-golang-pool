@@ -52,6 +52,26 @@ func GetHashDifficulty(hashBytes []byte) (*big.Int, bool) {
 	return diff.Div(Diff1, diff), true
 }
 
+func ValidateAddressNonDERO(addy string, poolAddy string) bool {
+	prefix, _ := utf8.DecodeRuneInString(addy)
+	poolPrefix, _ := utf8.DecodeRuneInString(poolAddy)
+	if prefix != poolPrefix {
+		return false
+	}
+	addyRune := []rune(addy)
+	poolAddyRune := []rune(poolAddy)
+	// Validating only first 2 since usually they match in other coins. Could // TODO in future to properly handle or just skip this portion alltogether
+	poolAddyNetwork := string(poolAddyRune[0:2])
+
+	if string(addyRune[0:2]) != poolAddyNetwork {
+		log.Printf("[Util] Invalid address, pool address and supplied address don't match.")
+		UtilErrorLogger.Printf("[Util] Invalid address, pool address and supplied address don't match.")
+		return false
+	}
+
+	return true
+}
+
 func ValidateAddress(addy string, poolAddy string) bool {
 	prefix, _ := utf8.DecodeRuneInString(addy)
 	poolPrefix, _ := utf8.DecodeRuneInString(poolAddy)
@@ -64,8 +84,8 @@ func ValidateAddress(addy string, poolAddy string) bool {
 	poolAddyNetwork := string(poolAddyRune[0:3])
 
 	if string(addyRune[0:3]) != poolAddyNetwork {
-		log.Printf("[Util] Invalid address, pool address and supplied address don't match testnet(dETo)/mainnet(dERo). Pool Address is in %s", poolAddyNetwork)
-		UtilErrorLogger.Printf("[Util] Invalid address, pool address and supplied address don't match testnet(dETo)/mainnet(dERo). Pool Address is in %s", poolAddyNetwork)
+		log.Printf("[Util] Invalid address, pool address and supplied address don't match testnet(dETo)/mainnet(dERo).")
+		UtilErrorLogger.Printf("[Util] Invalid address, pool address and supplied address don't match testnet(dETo)/mainnet(dERo).")
 		return false
 	}
 

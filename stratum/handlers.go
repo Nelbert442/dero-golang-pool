@@ -79,10 +79,19 @@ func (s *StratumServer) handleLoginRPC(cs *Session, params *LoginParams) (*JobRe
 		}
 	}
 
-	if !util.ValidateAddress(address, s.config.Address) {
-		log.Printf("[Handlers] Invalid address %s used for login by %s", address, cs.ip)
-		HandlersErrorLogger.Printf("[Handlers] Invalid address %s used for login by %s", address, cs.ip)
-		return nil, &ErrorReply{Code: -1, Message: "Invalid address used for login"}
+	switch s.config.Coin {
+	case "DERO":
+		if !util.ValidateAddress(address, s.config.Address) {
+			log.Printf("[Handlers] Invalid address %s used for login by %s", address, cs.ip)
+			HandlersErrorLogger.Printf("[Handlers] Invalid address %s used for login by %s", address, cs.ip)
+			return nil, &ErrorReply{Code: -1, Message: "Invalid address used for login"}
+		}
+	default:
+		if !util.ValidateAddressNonDERO(address, s.config.Address) {
+			log.Printf("[Payments] Invalid address format. Will not process payments - %v", address)
+			HandlersErrorLogger.Printf("[Payments] Invalid address format. Will not process payments - %v", address)
+			return nil, &ErrorReply{Code: -1, Message: "Invalid address used for login"}
+		}
 	}
 
 	t := s.currentBlockTemplate()
