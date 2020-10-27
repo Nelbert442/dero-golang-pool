@@ -13,6 +13,7 @@ import (
 	"github.com/deroproject/derosuite/astrobwt"
 	"github.com/deroproject/derosuite/blockchain"
 	"github.com/deroproject/derosuite/crypto"
+	"github.com/deroproject/derosuite/cryptonight"
 )
 
 var Diff1 = StringToBig("0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF")
@@ -85,6 +86,16 @@ func reverse(src []byte) []byte {
 		dst[len(src)-i] = src[i-1]
 	}
 	return dst
+}
+
+func CryptonightHash(shareBuff []byte, diff big.Int) bool {
+	var powhash crypto.Hash
+
+	hash := cryptonight.SlowHash(shareBuff)
+	copy(powhash[:], hash[:])
+	checkPowHashBig := blockchain.CheckPowHashBig(powhash, &diff)
+
+	return checkPowHashBig
 }
 
 func AstroBWTHash(shareBuff []byte, diff big.Int) (bool, bool) {

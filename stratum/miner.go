@@ -351,7 +351,10 @@ func (m *Miner) processShare(s *StratumServer, cs *Session, job *Job, t *BlockTe
 			}
 
 			atomic.AddInt64(&m.TrustedShares, 1)
+		case "cryptonight":
+			checkPowHashBig = util.CryptonightHash(shareBuff, diff)
 
+			atomic.AddInt64(&m.TrustedShares, 1)
 		default:
 			// Handle when no algo is defined or unhandled algo is defined, let miner know issues (properly gets sent back in job detail rejection message)
 			minerOutput := "Rejected share, no pool algo defined. Contact pool owner."
