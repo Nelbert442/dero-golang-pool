@@ -88,8 +88,8 @@ func (s *StratumServer) handleLoginRPC(cs *Session, params *LoginParams) (*JobRe
 		}
 	default:
 		if !util.ValidateAddressNonDERO(address, s.config.Address) {
-			log.Printf("[Payments] Invalid address format. Will not process payments - %v", address)
-			HandlersErrorLogger.Printf("[Payments] Invalid address format. Will not process payments - %v", address)
+			log.Printf("[Handlers] Invalid address %s used for login by %s", address, cs.ip)
+			HandlersErrorLogger.Printf("[Handlers] Invalid address %s used for login by %s", address, cs.ip)
 			return nil, &ErrorReply{Code: -1, Message: "Invalid address used for login"}
 		}
 	}

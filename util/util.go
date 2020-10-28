@@ -56,6 +56,8 @@ func ValidateAddressNonDERO(addy string, poolAddy string) bool {
 	prefix, _ := utf8.DecodeRuneInString(addy)
 	poolPrefix, _ := utf8.DecodeRuneInString(poolAddy)
 	if prefix != poolPrefix {
+		log.Printf("[Util] Address prefix (%v) and pool address prefix (%v) do not match. Invalid address.", prefix, poolPrefix)
+		UtilErrorLogger.Printf("[Util] Address prefix (%v) and pool address prefix (%v) do not match. Invalid address.", prefix, poolPrefix)
 		return false
 	}
 	addyRune := []rune(addy)
@@ -76,6 +78,8 @@ func ValidateAddress(addy string, poolAddy string) bool {
 	prefix, _ := utf8.DecodeRuneInString(addy)
 	poolPrefix, _ := utf8.DecodeRuneInString(poolAddy)
 	if prefix != poolPrefix {
+		log.Printf("[Util] Address prefix (%v) and pool address prefix (%v) do not match. Invalid address.", prefix, poolPrefix)
+		UtilErrorLogger.Printf("[Util] Address prefix (%v) and pool address prefix (%v) do not match. Invalid address.", prefix, poolPrefix)
 		return false
 	}
 	addyRune := []rune(addy)
