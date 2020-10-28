@@ -34,6 +34,7 @@ type ApiPayments struct {
 	Payees    uint64
 	Mixin     uint64
 	Amount    uint64
+	Fee       uint64
 }
 
 type ApiMiner struct {
@@ -280,11 +281,11 @@ func (apiServer *ApiServer) convertPaymentsResults(processedPayments *ProcessedP
 				reply.Payees = v.Payees + 1
 				reply.Mixin = value.Mixin
 			} else {
-				reply = &ApiPayments{Hash: value.TxHash, Timestamp: value.Timestamp, Mixin: value.Mixin, Amount: value.Amount, Payees: 1}
+				reply = &ApiPayments{Hash: value.TxHash, Timestamp: value.Timestamp, Mixin: value.Mixin, Amount: value.Amount, Fee: value.TxFee, Payees: 1}
 				totalPayments++
 			}
 		} else {
-			reply = &ApiPayments{Hash: value.TxHash, Timestamp: value.Timestamp, Mixin: value.Mixin, Amount: value.Amount, Payees: 1}
+			reply = &ApiPayments{Hash: value.TxHash, Timestamp: value.Timestamp, Mixin: value.Mixin, Amount: value.Amount, Fee: value.TxFee, Payees: 1}
 			totalPayments++
 		}
 		apiPayments[value.TxHash] = reply

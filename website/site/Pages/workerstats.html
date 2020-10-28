@@ -68,6 +68,7 @@
                         <th class="col1"><span data-tkey="timeSent">Time Sent</span></th>
                         <th class="col2"><span data-tkey="transactionHash">Transaction Hash</span></th>
                         <th class="col3"><span data-tkey="amount">Amount</span></th>
+                        <th class="col3"><span data-tkey="amount">Fee</span></th>
                         <th class="col4"><span data-tkey="mixin">Mixin</span></th>
                     </tr>
                     </thead>
@@ -139,6 +140,7 @@
 			hash: serializedPayment.Hash,
 			amount: serializedPayment.Amount,
 			mixin: serializedPayment.Mixin,
+            fee: serializedPayment.Fee,
 			recipients: serializedPayment.Payees
 		};
 	}
@@ -177,6 +179,7 @@
         return '<td>' + formatDate(payment.time) + '</td>' +
                 '<td>' + formatPaymentLink(payment.hash) + '</td>' +
                 '<td>' + getReadableCoins(payment.amount, 5, true) + '</td>' +
+                '<td>' + getReadableCoins(payment.fee, 5, true) + '</td>' +
                 '<td>' + payment.mixin + '</td>';
 	}
 

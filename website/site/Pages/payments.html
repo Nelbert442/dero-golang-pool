@@ -16,6 +16,7 @@
 			<th><i class="fa fa-paw"></i> Transaction Hash</th>
 			<th><i class="fa fa-money"></i> Amount</th>
 			<th><i class="fa fa-sitemap"></i> Mixin</th>
+			<th><i class="fa fa-money"></i> Fee</th>
 			<th><i class="fa fa-group"></i> Payees</th>
 		</tr>
 		</thead>
@@ -80,6 +81,7 @@
                 '<td>' + formatPaymentLink(payment.hash) + '</td>' +
                 '<td>' + getReadableCoins(payment.amount, 5, true) + '</td>' +
                 '<td>' + payment.mixin + '</td>' +
+				'<td>' + getReadableCoins(payment.fee, 5, true) + '</td>' +
                 '<td>' + payment.recipients + '</td>';
 	}
 	
@@ -106,6 +108,7 @@
 			hash: serializedPayment.Hash,
 			amount: serializedPayment.Amount,
 			mixin: serializedPayment.Mixin,
+			fee: serializedPayment.Fee,
 			recipients: serializedPayment.Payees
 		};
 	}
