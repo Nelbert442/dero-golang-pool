@@ -44,7 +44,7 @@ func NewBlockUnlocker(cfg *pool.UnlockerConfig, s *StratumServer) *BlockUnlocker
 }
 
 func (u *BlockUnlocker) StartBlockUnlocker(s *StratumServer) {
-	log.Println("[Unlocker] Starting block unlocker")
+	log.Printf("[Unlocker] Starting block unlocker")
 	UnlockerInfoLogger.Printf("[Unlocker] Starting block unlocker")
 	interval, _ := time.ParseDuration(u.config.Interval)
 	timer := time.NewTimer(interval)
@@ -74,7 +74,7 @@ func (u *BlockUnlocker) unlockPendingBlocks(s *StratumServer) {
 
 	//if len(candidates) == 0 || len(candidateBlocks) == 0 {
 	if blocksFound == nil {
-		log.Println("[Unlocker] No block candidates to unlock")
+		log.Printf("[Unlocker] No block candidates to unlock")
 		return
 	}
 
@@ -87,7 +87,7 @@ func (u *BlockUnlocker) unlockPendingBlocks(s *StratumServer) {
 	}
 
 	if len(candidateBlocks) == 0 {
-		log.Println("[Unlocker] No block candidates to unlock")
+		log.Printf("[Unlocker] No block candidates to unlock")
 		return
 	}
 
@@ -103,7 +103,15 @@ func (u *BlockUnlocker) unlockPendingBlocks(s *StratumServer) {
 	UnlockerInfoLogger.Printf("[Unlocker] Immature %v blocks, %v orphans", resultGrav.blocks, resultGrav.orphans)
 
 	if len(resultGrav.orphanedBlocks) > 0 {
+		writeWait, _ := time.ParseDuration("10ms")
+		for Graviton_backend.Writing == 1 {
+			//log.Printf("[Unlocker-writeorphanedblocks] GravitonDB is writing... sleeping for %v...", writeWait)
+			//StorageInfoLogger.Printf("[Unlocker-writeorphanedblocks] GravitonDB is writing... sleeping for %v...", writeWait)
+			time.Sleep(writeWait)
+		}
+		Graviton_backend.Writing = 1
 		err = Graviton_backend.WriteOrphanedBlocks(resultGrav.orphanedBlocks)
+		Graviton_backend.Writing = 0
 		if err != nil {
 			log.Printf("[Unlocker] Failed to insert orphaned blocks into backend: %v", err)
 			UnlockerErrorLogger.Printf("[Unlocker] Failed to insert orphaned blocks into backend: %v", err)
@@ -116,7 +124,15 @@ func (u *BlockUnlocker) unlockPendingBlocks(s *StratumServer) {
 
 	// Graviton DB
 	for _, block := range resultGrav.maturedBlocks {
+		writeWait, _ := time.ParseDuration("10ms")
+		for Graviton_backend.Writing == 1 {
+			//log.Printf("[Unlocker-writeimmatureblock] GravitonDB is writing... sleeping for %v...", writeWait)
+			//StorageInfoLogger.Printf("[Unlocker-writeimmatureblock] GravitonDB is writing... sleeping for %v...", writeWait)
+			time.Sleep(writeWait)
+		}
+		Graviton_backend.Writing = 1
 		err = Graviton_backend.WriteImmatureBlock(block)
+		Graviton_backend.Writing = 0
 		if err != nil {
 			log.Printf("[Unlocker] Failed to credit rewards for round %v: %v", block.RoundKey(), err)
 			UnlockerErrorLogger.Printf("[Unlocker] Failed to credit rewards for round %v: %v", block.RoundKey(), err)
@@ -141,7 +157,7 @@ func (u *BlockUnlocker) unlockAndCreditMiners(s *StratumServer) {
 	immatureBlocksFound := Graviton_backend.GetBlocksFound("immature")
 
 	if immatureBlocksFound == nil {
-		log.Println("[Unlocker] No immature blocks to credit miners")
+		log.Printf("[Unlocker] No immature blocks to credit miners")
 		return
 	}
 
@@ -156,7 +172,7 @@ func (u *BlockUnlocker) unlockAndCreditMiners(s *StratumServer) {
 	}
 
 	if len(immature) == 0 {
-		log.Println("[Unlocker] No immature blocks to credit miners")
+		log.Printf("[Unlocker] No immature blocks to credit miners")
 		return
 	}
 
@@ -170,7 +186,15 @@ func (u *BlockUnlocker) unlockAndCreditMiners(s *StratumServer) {
 	UnlockerInfoLogger.Printf("[Unlocker] Unlocked %v blocks, %v orphans", result.blocks, result.orphans)
 
 	if len(result.orphanedBlocks) > 0 {
+		writeWait, _ := time.ParseDuration("10ms")
+		for Graviton_backend.Writing == 1 {
+			//log.Printf("[Unlocker-writeorphanedblocks] GravitonDB is writing... sleeping for %v...", writeWait)
+			//StorageInfoLogger.Printf("[Unlocker-writeorphanedblocks] GravitonDB is writing... sleeping for %v...", writeWait)
+			time.Sleep(writeWait)
+		}
+		Graviton_backend.Writing = 1
 		err = Graviton_backend.WriteOrphanedBlocks(result.orphanedBlocks)
+		Graviton_backend.Writing = 0
 		if err != nil {
 			log.Printf("[Unlocker] Failed to insert orphaned blocks into backend: %v", err)
 			UnlockerErrorLogger.Printf("[Unlocker] Failed to insert orphaned blocks into backend: %v", err)
@@ -193,7 +217,15 @@ func (u *BlockUnlocker) unlockAndCreditMiners(s *StratumServer) {
 			return
 		}
 
+		writeWait, _ := time.ParseDuration("10ms")
+		for Graviton_backend.Writing == 1 {
+			//log.Printf("[Unlocker-writematuredblocks] GravitonDB is writing... sleeping for %v...", writeWait)
+			//StorageInfoLogger.Printf("[Unlocker-writematuredblocks] GravitonDB is writing... sleeping for %v...", writeWait)
+			time.Sleep(writeWait)
+		}
+		Graviton_backend.Writing = 1
 		err = Graviton_backend.WriteMaturedBlocks(block)
+		Graviton_backend.Writing = 0
 		if err != nil {
 			log.Printf("[Unlocker] Failed to credit rewards for round %v: %v", block.RoundKey(), err)
 			UnlockerErrorLogger.Printf("[Unlocker] Failed to credit rewards for round %v: %v", block.RoundKey(), err)
@@ -209,7 +241,16 @@ func (u *BlockUnlocker) unlockAndCreditMiners(s *StratumServer) {
 			info.Address = login
 			info.Amount = uint64(amount)
 			info.Timestamp = util.MakeTimestamp() / 1000
+
+			writeWait, _ := time.ParseDuration("10ms")
+			for Graviton_backend.Writing == 1 {
+				//log.Printf("[Unlocker-writependingpayments] GravitonDB is writing... sleeping for %v...", writeWait)
+				//StorageInfoLogger.Printf("[Unlocker-writependingpayments] GravitonDB is writing... sleeping for %v...", writeWait)
+				time.Sleep(writeWait)
+			}
+			Graviton_backend.Writing = 1
 			infoErr := Graviton_backend.WritePendingPayments(info)
+			Graviton_backend.Writing = 0
 			if infoErr != nil {
 				log.Printf("[Unlocker] Graviton DB err: %v", infoErr)
 				UnlockerErrorLogger.Printf("[Unlocker] Graviton DB err: %v", infoErr)
@@ -234,7 +275,7 @@ func (u *BlockUnlocker) unlockAndCreditMiners(s *StratumServer) {
 		for login, reward := range roundRewards {
 			entries = append(entries, fmt.Sprintf("\tREWARD %v: %v: %v", block.RoundKey(), login, reward))
 		}
-		log.Println(strings.Join(entries, "\n"))
+		log.Printf(strings.Join(entries, "\n"))
 		UnlockerInfoLogger.Printf(strings.Join(entries, "\n"))
 	}
 
@@ -315,7 +356,16 @@ func (u *BlockUnlocker) calculateRewardsGrav(s *StratumServer, block *BlockDataG
 	// Write miner stats - force a write to ensure latest stats are in db
 	log.Printf("[Unlocker] Storing miner stats")
 	UnlockerInfoLogger.Printf("[Unlocker] Storing miner stats")
+
+	writeWait, _ := time.ParseDuration("10ms")
+	for Graviton_backend.Writing == 1 {
+		//log.Printf("[Unlocker-writeminerstats] GravitonDB is writing... sleeping for %v...", writeWait)
+		//StorageInfoLogger.Printf("[Unlocker-writeminerstats] GravitonDB is writing... sleeping for %v...", writeWait)
+		time.Sleep(writeWait)
+	}
+	Graviton_backend.Writing = 1
 	err := Graviton_backend.WriteMinerStats(s.miners, s.hashrateExpiration)
+	Graviton_backend.Writing = 0
 	if err != nil {
 		log.Printf("[Unlocker] Err storing miner stats: %v", err)
 		UnlockerErrorLogger.Printf("[Unlocker] Err storing miner stats: %v", err)

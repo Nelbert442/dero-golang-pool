@@ -131,6 +131,7 @@ func (apiServer *ApiServer) listen() {
 	router.HandleFunc("/api/payments", apiServer.PaymentsIndex)
 	router.HandleFunc("/api/miners", apiServer.MinersIndex)
 	router.HandleFunc("/api/accounts", apiServer.AccountIndex)
+	router.HandleFunc("/api/charts", apiServer.ChartsIndex)
 	router.NotFoundHandler = http.HandlerFunc(notFound)
 	err := http.ListenAndServe(apiServer.config.Listen, router)
 	if err != nil {
@@ -148,6 +149,7 @@ func (apiServer *ApiServer) listenSSL() {
 	routerSSL.HandleFunc("/api/payments", apiServer.PaymentsIndex)
 	routerSSL.HandleFunc("/api/miners", apiServer.MinersIndex)
 	routerSSL.HandleFunc("/api/accounts", apiServer.AccountIndex)
+	routerSSL.HandleFunc("/api/charts", apiServer.ChartsIndex)
 	routerSSL.NotFoundHandler = http.HandlerFunc(notFound)
 	err := http.ListenAndServeTLS(apiServer.config.SSLListen, apiServer.config.CertFile, apiServer.config.KeyFile, routerSSL)
 	if err != nil {
@@ -240,12 +242,24 @@ func (apiServer *ApiServer) collectStats() {
 
 	// Build miner stats
 	minerStats := apiServer.backend.GetAllMinerStats()
-	apiMiners, poolHashrate, totalPoolMiners, soloHashrate, totalSoloMiners := apiServer.convertMinerResults(minerStats)
+	apiMiners, poolHashrate, totalPoolMiners, totalPoolWorkers, soloHashrate, totalSoloMiners, totalSoloWorkers := apiServer.convertMinerResults(minerStats)
 	stats["miners"] = apiMiners
 	stats["poolHashrate"] = poolHashrate
 	stats["totalPoolMiners"] = totalPoolMiners
+	stats["totalPoolWorkers"] = totalPoolWorkers
 	stats["soloHashrate"] = soloHashrate
 	stats["totalSoloMiners"] = totalSoloMiners
+	stats["totalSoloWorkers"] = totalSoloWorkers
+
+	// Chart data
+	poolHashrateChart := apiServer.backend.GetChartsData("poolhashrate")
+	poolMinersChart := apiServer.backend.GetChartsData("totalpoolminers")
+	poolWorkersChart := apiServer.backend.GetChartsData("totalpoolworkers")
+	poolDifficultyChart := apiServer.backend.GetChartsData("pooldifficulty")
+	stats["poolHashrateChart"] = poolHashrateChart
+	stats["poolMinersChart"] = poolMinersChart
+	stats["poolWorkersChart"] = poolWorkersChart
+	stats["poolDifficultyChart"] = poolDifficultyChart
 	apiServer.stats.Store(stats)
 }
 
@@ -326,13 +340,15 @@ func (apiServer *ApiServer) convertBlocksResults(minedBlocks []*BlockDataGrav) [
 	return blocksArr
 }
 
-func (apiServer *ApiServer) convertMinerResults(miners []*Miner) ([]*ApiMiner, int64, int64, int64, int64) {
+func (apiServer *ApiServer) convertMinerResults(miners []*Miner) ([]*ApiMiner, int64, int64, int64, int64, int64, int64) {
 	apiMiners := make(map[string]*ApiMiner)
 	var minersArr []*ApiMiner
 	var poolHashrate int64
 	var soloHashrate int64
-	var totalPoolMiners int64
-	var totalSoloMiners int64
+	totalPoolMiners := make(map[string]string)
+	var totalPoolWorkers int64
+	totalSoloMiners := make(map[string]string)
+	var totalSoloWorkers int64
 
 	for _, currMiner := range miners {
 		reply := &ApiMiner{}
@@ -384,7 +400,7 @@ func (apiServer *ApiServer) convertMinerResults(miners []*Miner) ([]*ApiMiner, i
 						Hashrate:        Hashrate,
 						Offline:         Offline,
 						Id:              ID,
-						Address:         currMiner.Address,
+						Address:         currMiner.Address[0:7] + "..." + currMiner.Address[len(currMiner.Address)-5:len(currMiner.Address)],
 						IsSolo:          currMiner.IsSolo,
 					}
 
@@ -392,11 +408,13 @@ func (apiServer *ApiServer) convertMinerResults(miners []*Miner) ([]*ApiMiner, i
 
 					// Compound pool stats: solo hashrate/miners and pool hashrate/miners
 					if currMiner.IsSolo && !Offline {
+						totalSoloMiners[currMiner.Address] = currMiner.Address
 						soloHashrate += Hashrate
-						totalSoloMiners++
+						totalSoloWorkers++
 					} else if !Offline {
+						totalPoolMiners[currMiner.Address] = currMiner.Address
 						poolHashrate += Hashrate
-						totalPoolMiners++
+						totalPoolWorkers++
 					}
 				}
 			}
@@ -406,7 +424,7 @@ func (apiServer *ApiServer) convertMinerResults(miners []*Miner) ([]*ApiMiner, i
 		minersArr = append(minersArr, apiMiners[m])
 	}
 
-	return minersArr, poolHashrate, totalPoolMiners, soloHashrate, totalSoloMiners
+	return minersArr, poolHashrate, int64(len(totalPoolMiners)), totalPoolWorkers, soloHashrate, int64(len(totalSoloMiners)), totalSoloWorkers
 }
 
 func (apiServer *ApiServer) GetConfigIndex() map[string]interface{} {
@@ -466,14 +484,16 @@ func (apiServer *ApiServer) StatsIndex(writer http.ResponseWriter, _ *http.Reque
 		reply["miners"] = stats["miners"]
 		reply["poolHashrate"] = stats["poolHashrate"]
 		reply["totalPoolMiners"] = stats["totalPoolMiners"]
+		reply["totalPoolWorkers"] = stats["totalPoolWorkers"]
 		reply["soloHashrate"] = stats["soloHashrate"]
 		reply["totalSoloMiners"] = stats["totalSoloMiners"]
+		reply["totalSoloWorkers"] = stats["totalSoloWorkers"]
 	}
 
 	err := json.NewEncoder(writer).Encode(reply)
 	if err != nil {
-		log.Println("[API] Error serializing API response: ", err)
-		APIErrorLogger.Printf("[API] Error serializing API response: ", err)
+		log.Printf("[API] Error serializing API response: %v", err)
+		APIErrorLogger.Printf("[API] Error serializing API response: %v", err)
 	}
 }
 
@@ -499,8 +519,8 @@ func (apiServer *ApiServer) BlocksIndex(writer http.ResponseWriter, _ *http.Requ
 
 	err := json.NewEncoder(writer).Encode(reply)
 	if err != nil {
-		log.Println("[API] Error serializing API response: ", err)
-		APIErrorLogger.Printf("[API] Error serializing API response: ", err)
+		log.Printf("[API] Error serializing API response: %v", err)
+		APIErrorLogger.Printf("[API] Error serializing API response: %v", err)
 	}
 }
 
@@ -521,8 +541,8 @@ func (apiServer *ApiServer) PaymentsIndex(writer http.ResponseWriter, _ *http.Re
 
 	err := json.NewEncoder(writer).Encode(reply)
 	if err != nil {
-		log.Println("[API] Error serializing API response: ", err)
-		APIErrorLogger.Printf("[API] Error serializing API response: ", err)
+		log.Printf("[API] Error serializing API response: %v", err)
+		APIErrorLogger.Printf("[API] Error serializing API response: %v", err)
 	}
 }
 
@@ -539,14 +559,16 @@ func (apiServer *ApiServer) MinersIndex(writer http.ResponseWriter, _ *http.Requ
 		reply["miners"] = stats["miners"]
 		reply["poolHashrate"] = stats["poolHashrate"]
 		reply["totalPoolMiners"] = stats["totalPoolMiners"]
+		reply["totalPoolWorkers"] = stats["totalPoolWorkers"]
 		reply["soloHashrate"] = stats["soloHashrate"]
 		reply["totalSoloMiners"] = stats["totalSoloMiners"]
+		reply["totalSoloWorkers"] = stats["totalSoloWorkers"]
 	}
 
 	err := json.NewEncoder(writer).Encode(reply)
 	if err != nil {
-		log.Println("[API] Error serializing API response: ", err)
-		APIErrorLogger.Printf("[API] Error serializing API response: ", err)
+		log.Printf("[API] Error serializing API response: %v", err)
+		APIErrorLogger.Printf("[API] Error serializing API response: %v", err)
 	}
 }
 
@@ -583,8 +605,10 @@ func (apiServer *ApiServer) AccountIndex(writer http.ResponseWriter, r *http.Req
 		reply["miners"] = addrStats["miners"]
 		reply["poolHashrate"] = addrStats["poolHashrate"]
 		reply["totalPoolMiners"] = addrStats["totalPoolMiners"]
+		reply["totalPoolWorkers"] = addrStats["totalPoolWorkers"]
 		reply["soloHashrate"] = addrStats["soloHashrate"]
 		reply["totalSoloMiners"] = addrStats["totalSoloMiners"]
+		reply["totalSoloWorkers"] = addrStats["totalSoloWorkers"]
 		reply["payments"] = addrStats["payments"]
 		reply["totalPayments"] = addrStats["totalPayments"]
 	} else {
@@ -602,8 +626,31 @@ func (apiServer *ApiServer) AccountIndex(writer http.ResponseWriter, r *http.Req
 
 	err := json.NewEncoder(writer).Encode(reply)
 	if err != nil {
-		log.Println("[API] Error serializing API response: ", err)
-		APIErrorLogger.Printf("[API] Error serializing API response: ", err)
+		log.Printf("[API] Error serializing API response: %v", err)
+		APIErrorLogger.Printf("[API] Error serializing API response: %v", err)
+	}
+}
+
+func (apiServer *ApiServer) ChartsIndex(writer http.ResponseWriter, _ *http.Request) {
+	writer.Header().Set("Content-Type", "application/json; charset=UTF-8")
+	writer.Header().Set("Access-Control-Allow-Origin", "*")
+	writer.Header().Set("Cache-Control", "no-cache")
+	writer.WriteHeader(http.StatusOK)
+
+	reply := make(map[string]interface{})
+
+	stats := apiServer.getStats()
+	if stats != nil {
+		reply["poolHashrateChart"] = stats["poolHashrateChart"]
+		reply["poolMinersChart"] = stats["poolMinersChart"]
+		reply["poolWorkersChart"] = stats["poolWorkersChart"]
+		reply["poolDifficultyChart"] = stats["poolDifficultyChart"]
+	}
+
+	err := json.NewEncoder(writer).Encode(reply)
+	if err != nil {
+		log.Printf("[API] Error serializing API response: %v", err)
+		APIErrorLogger.Printf("[API] Error serializing API response: %v", err)
 	}
 }
 
@@ -622,12 +669,14 @@ func (apiServer *ApiServer) getAddressStats(address string) map[string]interface
 		}
 	}
 
-	apiMiners, poolHashrate, totalPoolMiners, soloHashrate, totalSoloMiners := apiServer.convertMinerResults(addrMinerSlice)
+	apiMiners, poolHashrate, totalPoolMiners, totalPoolWorkers, soloHashrate, totalSoloMiners, totalSoloWorkers := apiServer.convertMinerResults(addrMinerSlice)
 	addressStats["miners"] = apiMiners
 	addressStats["poolHashrate"] = poolHashrate
 	addressStats["totalPoolMiners"] = totalPoolMiners
+	addressStats["totalPoolWorkers"] = totalPoolWorkers
 	addressStats["soloHashrate"] = soloHashrate
 	addressStats["totalSoloMiners"] = totalSoloMiners
+	addressStats["totalSoloWorkers"] = totalSoloWorkers
 
 	// Get payments associated by address
 	var addrPaymentSlice []*MinerPayments

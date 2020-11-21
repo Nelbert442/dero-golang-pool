@@ -8,6 +8,7 @@ import (
 	"strconv"
 	"strings"
 	"sync/atomic"
+	"time"
 
 	"github.com/Nelbert442/dero-golang-pool/util"
 )
@@ -105,7 +106,16 @@ func (s *StratumServer) handleLoginRPC(cs *Session, params *LoginParams) (*JobRe
 		HandlersInfoLogger.Printf("[Handlers] Registering new miner: %s@%s, Address: %s, PaymentID: %s, fixedDiff: %v, isSolo: %v", id, cs.ip, address, paymentid, fixDiff, isSolo)
 		miner = NewMiner(id, address, paymentid, fixDiff, workID, isSolo, cs.ip)
 		s.registerMiner(miner)
+
+		writeWait, _ := time.ParseDuration("10ms")
+		for Graviton_backend.Writing == 1 {
+			//log.Printf("[Handlers-handleLoginRPC] GravitonDB is writing... sleeping for %v...", writeWait)
+			//StorageInfoLogger.Printf("[Handlers-handleLoginRPC] GravitonDB is writing... sleeping for %v...", writeWait)
+			time.Sleep(writeWait)
+		}
+		Graviton_backend.Writing = 1
 		Graviton_backend.WriteMinerIDRegistration(miner)
+		Graviton_backend.Writing = 0
 	} else {
 		now := util.MakeTimestamp() / 1000
 		miner.StartedAt = now

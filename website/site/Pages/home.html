@@ -1,7 +1,11 @@
 <!-- Pool Stats -->
 <div class="poolStatsHolder">
 	<div><span class=bg-info">Total Pool Miners: <span id="totalPoolMiners"></span></span></div>
+	<div><span class=bg-info">Total Pool Workers: <span id="totalPoolWorkers"></span></span></div>
 	<div><span class=bg-info">Total Solo Miners: <span id="totalSoloMiners"></span></span></div>
+	<div><span class=bg-info">Total Solo Workers: <span id="totalSoloWorkers"></span></span></div>
+	<div><span class=bg-info">Total Blocks Mined: <span id="blocksTotal"></span></span></div>
+	<div><span class=bg-info">Minimum Payment Threshold: <span id="paymentsMinimum"></span></span></div>
 </div>
 
 <hr>
@@ -26,9 +30,25 @@
                 updateText('totalPoolMiners', lastStats.totalPoolMiners.toString());
 			} else { updateText('totalPoolMiners', "0"); }
 			
+            if (lastStats.totalPoolWorkers != null) {
+                updateText('totalPoolWorkers', lastStats.totalPoolWorkers.toString());
+			} else { updateText('totalPoolWorkers', "0"); }
+
             if (lastStats.totalSoloMiners != null) {
                 updateText('totalSoloMiners', lastStats.totalSoloMiners.toString());
 			} else { updateText('totalSoloMiners', "0"); }
+
+            if (lastStats.totalSoloWorkers != null) {
+                updateText('totalSoloWorkers', lastStats.totalSoloWorkers.toString());
+			} else { updateText('totalSoloWorkers', "0"); }
+
+			if (lastStats.blocksTotal != null) {
+                updateText('blocksTotal', lastStats.blocksTotal.toString());
+            } else { updateText('blocksTotal', "0"); }
+
+			if (lastStats.config.paymentMinimum != null) {
+				updateText('paymentsMinimum', getReadableCoins(lastStats.config.paymentMinimum, 4, false));
+			} else { updateText('paymentsMinimum', "0"); }
 
 			// Network stats
 

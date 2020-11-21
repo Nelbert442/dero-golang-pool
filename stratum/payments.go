@@ -11,7 +11,7 @@ import (
 	"github.com/Nelbert442/dero-golang-pool/pool"
 	"github.com/Nelbert442/dero-golang-pool/rpc"
 	"github.com/Nelbert442/dero-golang-pool/util"
-	"github.com/deroproject/derosuite/globals"
+	"github.com/deroproject/derosuite/address"
 	"github.com/deroproject/derosuite/walletapi"
 )
 
@@ -57,7 +57,7 @@ func NewPayoutsProcessor(cfg *pool.PaymentsConfig, s *StratumServer) *PayoutsPro
 }
 
 func (u *PayoutsProcessor) Start(s *StratumServer) {
-	log.Println("[Payments] Starting payouts")
+	log.Printf("[Payments] Starting payouts")
 	PaymentsInfoLogger.Printf("[Payments] Starting payouts")
 
 	intv, _ := time.ParseDuration(u.config.Interval)
@@ -121,7 +121,8 @@ func (u *PayoutsProcessor) process(s *StratumServer) {
 			break
 		}
 		poolBalance := poolBalanceObj.UnlockedBalance
-		if poolBalance < amount {
+		// Use <= here as in the event of running at 0 pool fee and no other balance, you will not be able to payout since invalid balance will occur from tx generation
+		if poolBalance <= amount {
 			log.Printf("[Payments] Not enough balance for payment, need %v DERO, pool has %v DERO", amount, poolBalance)
 			PaymentsErrorLogger.Printf("[Payments] Not enough balance for payment, need %v DERO, pool has %v DERO", amount, poolBalance)
 			break
@@ -131,33 +132,32 @@ func (u *PayoutsProcessor) process(s *StratumServer) {
 		// We already do this for when the miner connects, we need to get those details/vars or just regen them as well as re-validate JUST TO BE SURE prior to attempting to send
 		// NOTE: The issue with grabbing from the miners arr (s.miners), is that if they're not actively mining but get rewards from a past round, the query will not return their detail for payout
 
-		address, _, paymentID, _, _ := s.splitLoginString(login)
+		addr, _, paymentID, _, _ := s.splitLoginString(login)
 
-		log.Printf("[Payments] Split login. Address: %v, paymentID: %v", address, paymentID)
-		PaymentsInfoLogger.Printf("[Payments] Split login. Address: %v, paymentID: %v", address, paymentID)
+		log.Printf("[Payments] Split login. Address: %v, paymentID: %v", addr, paymentID)
+		PaymentsInfoLogger.Printf("[Payments] Split login. Address: %v, paymentID: %v", addr, paymentID)
 
 		// Validate Address - DERO will validate against native DERO validation functions, rest will validate against util [against pool address for comparison, similar to login]
 		switch s.config.Coin {
 		case "DERO":
-			validatedAddress, err := globals.ParseValidateAddress(address)
-			_ = validatedAddress
+			_, err := address.NewAddress(addr)
 
 			if err != nil {
-				log.Printf("[Payments] Invalid address format. Will not process payments - %v", address)
-				PaymentsErrorLogger.Printf("[Payments] Invalid address format. Will not process payments - %v", address)
+				log.Printf("[Payments] Invalid address format. Will not process payments - %v - %v", addr, err)
+				PaymentsErrorLogger.Printf("[Payments] Invalid address format. Will not process payments - %v - %v", addr, err)
 				continue
 			}
 		default:
-			if !util.ValidateAddressNonDERO(address, s.config.Address) {
-				log.Printf("[Payments] Invalid address format. Will not process payments - %v", address)
-				PaymentsErrorLogger.Printf("[Payments] Invalid address format. Will not process payments - %v", address)
+			if !util.ValidateAddressNonDERO(addr, s.config.Address) {
+				log.Printf("[Payments] Invalid address format. Will not process payments - %v", addr)
+				PaymentsErrorLogger.Printf("[Payments] Invalid address format. Will not process payments - %v", addr)
 				continue
 			}
 		}
 
 		currAddr := rpc.Destinations{
 			Amount:  amount,
-			Address: address,
+			Address: addr,
 		}
 		mustPay++
 
@@ -297,7 +297,16 @@ func (u *PayoutsProcessor) process(s *StratumServer) {
 			info.Mixin = u.config.Mixin
 			info.Amount = amount
 			info.Timestamp = util.MakeTimestamp() / 1000
+
+			writeWait, _ := time.ParseDuration("10ms")
+			for Graviton_backend.Writing == 1 {
+				//log.Printf("[Payments-writeprocessedpayments] GravitonDB is writing... sleeping for %v...", writeWait)
+				//StorageInfoLogger.Printf("[Payments-writeprocessedpayments] GravitonDB is writing... sleeping for %v...", writeWait)
+				time.Sleep(writeWait)
+			}
+			Graviton_backend.Writing = 1
 			infoErr := Graviton_backend.WriteProcessedPayments(info)
+			Graviton_backend.Writing = 0
 			if infoErr != nil {
 				log.Printf("[Payments] Graviton DB err: %v", infoErr)
 				PaymentsErrorLogger.Printf("[Payments] Graviton DB err: %v", infoErr)
@@ -370,7 +379,16 @@ func (u *PayoutsProcessor) process(s *StratumServer) {
 						info.Mixin = u.config.Mixin
 						info.Amount = amount
 						info.Timestamp = util.MakeTimestamp() / 1000
+
+						writeWait, _ := time.ParseDuration("10ms")
+						for Graviton_backend.Writing == 1 {
+							//log.Printf("[Payments-writeprocessedpayments] GravitonDB is writing... sleeping for %v...", writeWait)
+							//StorageInfoLogger.Printf("[Payments-writeprocessedpayments] GravitonDB is writing... sleeping for %v...", writeWait)
+							time.Sleep(writeWait)
+						}
+						Graviton_backend.Writing = 1
 						infoErr := Graviton_backend.WriteProcessedPayments(info)
+						Graviton_backend.Writing = 0
 						if infoErr != nil {
 							log.Printf("[Payments] Graviton DB err: %v", infoErr)
 							PaymentsErrorLogger.Printf("[Payments] Graviton DB err: %v", infoErr)
@@ -413,7 +431,16 @@ func (u *PayoutsProcessor) process(s *StratumServer) {
 					info.Mixin = u.config.Mixin
 					info.Amount = amount
 					info.Timestamp = util.MakeTimestamp() / 1000
+
+					writeWait, _ := time.ParseDuration("10ms")
+					for Graviton_backend.Writing == 1 {
+						//log.Printf("[Payments-writeprocessedpayments] GravitonDB is writing... sleeping for %v...", writeWait)
+						//StorageInfoLogger.Printf("[Payments-writeprocessedpayments] GravitonDB is writing... sleeping for %v...", writeWait)
+						time.Sleep(writeWait)
+					}
+					Graviton_backend.Writing = 1
 					infoErr := Graviton_backend.WriteProcessedPayments(info)
+					Graviton_backend.Writing = 0
 					if infoErr != nil {
 						log.Printf("[Payments] Graviton DB err: %v", infoErr)
 						PaymentsErrorLogger.Printf("[Payments] Graviton DB err: %v", infoErr)
@@ -434,7 +461,7 @@ func (u *PayoutsProcessor) process(s *StratumServer) {
 		log.Printf("[Payments] Paid total %v DERO to %v of %v payees", totalAmount, minersPaid, mustPay)
 		PaymentsInfoLogger.Printf("[Payments] Paid total %v DERO to %v of %v payees", totalAmount, minersPaid, mustPay)
 	} else {
-		log.Println("[Payments] No payees that have reached payout threshold")
+		log.Printf("[Payments] No payees that have reached payout threshold")
 	}
 }
 

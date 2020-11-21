@@ -1,30 +1,31 @@
 package pool
 
 type Config struct {
-	PoolHost                string         `json:"poolHost"`
-	BlockchainExplorer      string         `json:"blockchainExplorer"`
-	TransactionExploer      string         `json:"transactionExplorer"`
-	Address                 string         `json:"address"`
-	BypassShareValidation   bool           `json:"bypassShareValidation"`
-	Threads                 int            `json:"threads"`
-	Algo                    string         `json:"algo"`
-	Coin                    string         `json:"coin"`
-	CoinUnits               int64          `json:"coinUnits"`
-	CoinDecimalPlaces       int64          `json:"coinDecimalPlaces"`
-	CoinDifficultyTarget    int            `json:"coinDifficultyTarget"`
-	TrustedSharesCount      int64          `json:"trustedSharesCount"`
-	BlockRefreshInterval    string         `json:"blockRefreshInterval"`
-	HashrateExpiration      string         `json:"hashrateExpiration"`
-	StoreMinerStatsInterval string         `json:"storeMinerStatsInterval"`
-	GravitonMaxSnapshots    uint64         `json:"gravitonMaxSnapshots"`
-	GravitonMigrateWait     string         `json:"gravitonMigrateWait"`
-	UpstreamCheckInterval   string         `json:"upstreamCheckInterval"`
-	Upstream                []Upstream     `json:"upstream"`
-	Stratum                 Stratum        `json:"stratum"`
-	API                     APIConfig      `json:"api"`
-	UnlockerConfig          UnlockerConfig `json:"unlocker"`
-	PaymentsConfig          PaymentsConfig `json:"payments"`
-	Website                 Website        `json:"website"`
+	PoolHost                string           `json:"poolHost"`
+	BlockchainExplorer      string           `json:"blockchainExplorer"`
+	TransactionExploer      string           `json:"transactionExplorer"`
+	Address                 string           `json:"address"`
+	BypassShareValidation   bool             `json:"bypassShareValidation"`
+	Threads                 int              `json:"threads"`
+	Algo                    string           `json:"algo"`
+	Coin                    string           `json:"coin"`
+	CoinUnits               int64            `json:"coinUnits"`
+	CoinDecimalPlaces       int64            `json:"coinDecimalPlaces"`
+	CoinDifficultyTarget    int              `json:"coinDifficultyTarget"`
+	TrustedSharesCount      int64            `json:"trustedSharesCount"`
+	BlockRefreshInterval    string           `json:"blockRefreshInterval"`
+	HashrateExpiration      string           `json:"hashrateExpiration"`
+	StoreMinerStatsInterval string           `json:"storeMinerStatsInterval"`
+	GravitonMaxSnapshots    uint64           `json:"gravitonMaxSnapshots"`
+	GravitonMigrateWait     string           `json:"gravitonMigrateWait"`
+	UpstreamCheckInterval   string           `json:"upstreamCheckInterval"`
+	Upstream                []Upstream       `json:"upstream"`
+	Stratum                 Stratum          `json:"stratum"`
+	API                     APIConfig        `json:"api"`
+	UnlockerConfig          UnlockerConfig   `json:"unlocker"`
+	PaymentsConfig          PaymentsConfig   `json:"payments"`
+	Website                 Website          `json:"website"`
+	PoolCharts              PoolChartsConfig `json:"poolcharts"`
 }
 
 type Upstream struct {
@@ -121,4 +122,17 @@ type Website struct {
 	SSLPort  string `json:"sslPort"`
 	CertFile string `json:"certFile"`
 	KeyFile  string `json:"keyFile"`
+}
+
+type PoolChartsConfig struct {
+	Interval   int64           `json:"interval"`
+	Hashrate   ChartDataConfig `json:"hashrate"`
+	Miners     ChartDataConfig `json:"miners"`
+	Workers    ChartDataConfig `json:"workers"`
+	Difficulty ChartDataConfig `json:"difficulty"`
+}
+
+type ChartDataConfig struct {
+	Enabled       bool  `json:"enabled"`
+	MaximumPeriod int64 `json:"maximumPeriod"`
 }

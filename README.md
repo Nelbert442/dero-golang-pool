@@ -72,7 +72,11 @@ Copy the `config_example.json` file of your choice to `config.json` then overvie
 Explanation for each field:
 ```javascript
 {
-	/* Pool host that will be displayed on frontend for miners to connect to */
+    /*  Pool host that will be displayed on frontend for miners to connect to.
+        IMPORTANT: This value is used to define the Graviton tree name for storage. Once you set this value, if you change it
+		you will see data "loss" in the sense that you are now storing to a NEW tree and old data resides in an OLD tree.
+		Once you hit gravitonMaxSnapshots, the TREE is migrated and all k/v pairs within and not the whole DB. TODO for future to move everything.
+	*/
 	"poolHost": "your_pool_host_name",
 
 	/* Blockchain explorer, i.e. explorer.dero.io */
@@ -113,7 +117,7 @@ Explanation for each field:
     /*  Defines how often the upstream (daemon) getblocktemplate is refreshed.
         DERO blockchain is fast and runs on 27 Seconds blocktime. Best practice is to update your mining job at-least every second. 
         Bitcoin pool also updates miner job every 10 seconds and BTC blocktime is 10 mins -Captain [03/08/2020] .
-        Example of 10 second updates for 10 minute blocktimes on BTC. ~10/600 * 27 = 0.45
+        Example of 10 second updates for 10 minute blocktimes on BTC. ~10/600 * 27 = 0.45 [You can go as low as you'd like, it just increases daemon queries]
 	*/
 	"blockRefreshInterval": "450ms",
 
@@ -252,6 +256,26 @@ Explanation for each field:
 		"sslPort": "9090",			// Set bind port for SSL site
 		"certFile": "fullchain.cer",// Set full chain cert file. Includes cert, chain and ca. Located within same dir as exe file. TODO Future could use filepath package.
 		"keyFile": "cert.key"		// Set key file for cert file. Located within same dir as exe file. TODO Future could use filepath package.
+	},
+
+	"poolcharts": {
+		"updateInterval": "60s",	// Sets the update interval of 'pool' charts
+		"hashrate": {
+			"enabled": true,		// Sets storing of this chart data type to true/false
+			"maximumPeriod": 86400	// Sets the maximum period of the chart on the frontend for displaying. This value is represented in seconds and should be equal or greater to / divisible by updateInterval
+		},
+		"miners": {
+			"enabled": true,
+			"maximumPeriod": 86400
+		},
+		"workers": {
+			"enabled": true,
+			"maximumPeriod": 86400
+		},
+		"difficulty": {
+			"enabled": true,
+			"maximumPeriod": 604800
+		}
 	}
 }
 ```

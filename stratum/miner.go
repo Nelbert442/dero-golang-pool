@@ -225,7 +225,7 @@ func (m *Miner) storeShare(diff, templateHeight int64) {
 
 		if blockHeightArr != nil {
 			for height, _ := range blockHeightArr.Heights {
-				if atomic.LoadInt64(&m.RoundHeight) <= height {
+				if atomic.LoadInt64(&m.RoundHeight) != 0 && atomic.LoadInt64(&m.RoundHeight) <= height {
 					// Miner round height is less than a pre-found block [usually happens for disconnected miners && new rounds]. Reset counters
 					m.Lock()
 					atomic.StoreInt64(&m.RoundHeight, templateHeight)
@@ -429,7 +429,16 @@ func (m *Miner) processShare(s *StratumServer, cs *Session, job *Job, t *BlockTe
 			info.Solo = m.IsSolo
 			info.Address = m.Address
 			info.BlockState = "candidate"
+
+			writeWait, _ := time.ParseDuration("10ms")
+			for Graviton_backend.Writing == 1 {
+				//log.Printf("[Miner-processShare] GravitonDB is writing... sleeping for %v...", writeWait)
+				//StorageInfoLogger.Printf("[Miner-processShare] GravitonDB is writing... sleeping for %v...", writeWait)
+				time.Sleep(writeWait)
+			}
+			Graviton_backend.Writing = 1
 			infoErr := Graviton_backend.WriteBlocks(info, info.BlockState)
+			Graviton_backend.Writing = 0
 			if infoErr != nil {
 				log.Printf("[BLOCK] Graviton DB err: %v", infoErr)
 				MinerErrorLogger.Printf("[BLOCK] Graviton DB err: %v", infoErr)
@@ -450,11 +459,20 @@ func (m *Miner) processShare(s *StratumServer, cs *Session, job *Job, t *BlockTe
 			if !m.IsSolo {
 				log.Printf("[Miner] Updating miner stats in DB for current round...")
 				MinerInfoLogger.Printf("[Miner] Updating miner stats in DB for current round...")
+
+				writeWait, _ := time.ParseDuration("10ms")
+				for Graviton_backend.Writing == 1 {
+					//log.Printf("[Miner-processShare] GravitonDB is writing... sleeping for %v...", writeWait)
+					//StorageInfoLogger.Printf("[Miner-processShare] GravitonDB is writing... sleeping for %v...", writeWait)
+					time.Sleep(writeWait)
+				}
+				Graviton_backend.Writing = 1
 				_ = Graviton_backend.WriteMinerStats(s.miners, s.hashrateExpiration)
 
 				log.Printf("[Miner] Updating miner stats for the next round...")
 				MinerInfoLogger.Printf("[Miner] Updating miner stats for the next round...")
 				Graviton_backend.NextRound(int64(t.Height), s.hashrateExpiration)
+				Graviton_backend.Writing = 0
 			}
 
 			atomic.StoreInt64(&m.LastRoundShares, 0)

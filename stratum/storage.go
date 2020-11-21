@@ -7,6 +7,7 @@ import (
 	"math/big"
 	"os"
 	"path/filepath"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -39,6 +40,10 @@ type MinerStats struct {
 
 type GravitonMiners struct {
 	Miners []*Miner
+}
+
+type GravitonCharts struct {
+	Values []*ChartData
 }
 
 type BlockDataGrav struct {
@@ -98,6 +103,7 @@ type GravitonStore struct {
 	migrating     int
 	DBMaxSnapshot uint64
 	DBMigrateWait time.Duration
+	Writing       int
 }
 
 type TreeKV struct {
@@ -187,7 +193,11 @@ func (g *GravitonStore) SwapGravDB(poolhost, dbFolder string) {
 	}
 	log.Printf("Committing k/v pairs to tree")
 	StorageInfoLogger.Printf("Committing k/v pairs to tree")
-	graviton.Commit(tree)
+	_, cerr := graviton.Commit(tree)
+	if cerr != nil {
+		log.Printf("[Graviton] ERROR: %v", cerr)
+		StorageErrorLogger.Printf("[Graviton] ERROR: %v", cerr)
+	}
 	log.Printf("Migration to new DB is done.")
 	StorageInfoLogger.Printf("Migration to new DB is done.")
 	g.migrating = 0
@@ -297,9 +307,11 @@ func (g *GravitonStore) WriteBlocks(info *BlockDataGrav, blockType string) error
 			return err
 		}
 	}
-
-	graviton.Commit(tree) // commit the tree
-
+	_, cerr := graviton.Commit(tree)
+	if cerr != nil {
+		log.Printf("[Graviton] ERROR: %v", cerr)
+		StorageErrorLogger.Printf("[Graviton] ERROR: %v", cerr)
+	}
 	return nil
 }
 
@@ -347,8 +359,12 @@ func (g *GravitonStore) WriteBlocksFoundByHeightArr(height int64, isSolo bool) e
 	}
 
 	tree.Put([]byte(key), newFoundByHeight)
-	graviton.Commit(tree)
 
+	_, cerr := graviton.Commit(tree)
+	if cerr != nil {
+		log.Printf("[Graviton] ERROR: %v", cerr)
+		StorageErrorLogger.Printf("[Graviton] ERROR: %v", cerr)
+	}
 	return nil
 }
 
@@ -556,8 +572,11 @@ func (g *GravitonStore) RemoveKey(key string) error {
 		StorageErrorLogger.Printf("%v", err)
 		return err
 	}
-	graviton.Commit(tree)
-
+	_, cerr := graviton.Commit(tree)
+	if cerr != nil {
+		log.Printf("[Graviton] ERROR: %v", cerr)
+		StorageErrorLogger.Printf("[Graviton] ERROR: %v", cerr)
+	}
 	return nil
 }
 
@@ -606,13 +625,18 @@ func (g *GravitonStore) WriteImmaturePayments(info *PaymentPending) error {
 	}
 
 	tree.Put([]byte(key), newPaymentsPending)
-	graviton.Commit(tree)
-
-	v, err := tree.Get([]byte(key))
-	if v != nil {
-		var reply *PendingPayments
-		_ = json.Unmarshal(v, &reply)
+	_, cerr := graviton.Commit(tree)
+	if cerr != nil {
+		log.Printf("[Graviton] ERROR: %v", cerr)
+		StorageErrorLogger.Printf("[Graviton] ERROR: %v", cerr)
 	}
+	/*
+		v, err := tree.Get([]byte(key))
+		if v != nil {
+			var reply *PendingPayments
+			_ = json.Unmarshal(v, &reply)
+		}
+	*/
 
 	return nil
 }
@@ -678,13 +702,18 @@ func (g *GravitonStore) WritePendingPayments(info *PaymentPending) error {
 	}
 
 	tree.Put([]byte(key), newPaymentsPending)
-	graviton.Commit(tree)
-
-	v, err := tree.Get([]byte(key))
-	if v != nil {
-		var reply *PendingPayments
-		_ = json.Unmarshal(v, &reply)
+	_, cerr := graviton.Commit(tree)
+	if cerr != nil {
+		log.Printf("[Graviton] ERROR: %v", cerr)
+		StorageErrorLogger.Printf("[Graviton] ERROR: %v", cerr)
 	}
+	/*
+		v, err := tree.Get([]byte(key))
+		if v != nil {
+			var reply *PendingPayments
+			_ = json.Unmarshal(v, &reply)
+		}
+	*/
 
 	return nil
 }
@@ -751,8 +780,11 @@ func (g *GravitonStore) OverwritePendingPayments(info *PendingPayments) error {
 	key := "payments:pending"
 
 	tree.Put([]byte(key), confBytes)
-	graviton.Commit(tree)
-
+	_, cerr := graviton.Commit(tree)
+	if cerr != nil {
+		log.Printf("[Graviton] ERROR: %v", cerr)
+		StorageErrorLogger.Printf("[Graviton] ERROR: %v", cerr)
+	}
 	return nil
 }
 
@@ -806,8 +838,11 @@ func (g *GravitonStore) WriteProcessedPayments(info *MinerPayments) error {
 
 	tree.Put([]byte(key), newPaymentsProcessed)
 	// TODO: max value size of 104857600 would come out to ~299,593 payments [~[350]byte or so a piece] capable of being stored this way before errs on value store and need for splitting.
-	graviton.Commit(tree)
-
+	_, cerr := graviton.Commit(tree)
+	if cerr != nil {
+		log.Printf("[Graviton] ERROR: %v", cerr)
+		StorageErrorLogger.Printf("[Graviton] ERROR: %v", cerr)
+	}
 	return nil
 }
 
@@ -897,6 +932,7 @@ func (g *GravitonStore) WriteConfig(config *pool.Config) error {
 		store = g.DB
 		ss, _ = store.LoadSnapshot(0) // load most recent snapshot
 	}
+
 	if ss.GetVersion() >= g.DBMaxSnapshot {
 		Graviton_backend.SwapGravDB(Graviton_backend.DBTree, Graviton_backend.DBFolder)
 
@@ -907,8 +943,11 @@ func (g *GravitonStore) WriteConfig(config *pool.Config) error {
 	tree, _ := ss.GetTree(g.DBTree) // use or create tree named by poolhost in config
 	key := "config:" + config.Coin
 	tree.Put([]byte(key), []byte(confBytes)) // insert a value
-	graviton.Commit(tree)                    // commit the tree
-
+	_, cerr := graviton.Commit(tree)
+	if cerr != nil {
+		log.Printf("[Graviton] ERROR: %v", cerr)
+		StorageErrorLogger.Printf("[Graviton] ERROR: %v", cerr)
+	}
 	return nil
 }
 
@@ -1008,8 +1047,11 @@ func (g *GravitonStore) WriteMinerIDRegistration(miner *Miner) error {
 	}
 
 	tree.Put([]byte(key), newMinerIDs)
-	graviton.Commit(tree)
-
+	_, cerr := graviton.Commit(tree)
+	if cerr != nil {
+		log.Printf("[Graviton] ERROR: %v", cerr)
+		StorageErrorLogger.Printf("[Graviton] ERROR: %v", cerr)
+	}
 	return nil
 }
 
@@ -1187,9 +1229,12 @@ func (g *GravitonStore) WriteMinerStats(miners MinersMap, hashrateExpiration tim
 			}
 		}
 	}
-
 	if Commit {
-		graviton.Commit(tree) // commit the tree
+		_, cerr := graviton.Commit(tree)
+		if cerr != nil {
+			log.Printf("[Graviton] ERROR: %v", cerr)
+			StorageErrorLogger.Printf("[Graviton] ERROR: %v", cerr)
+		}
 	}
 
 	return nil
@@ -1202,8 +1247,8 @@ func (g *GravitonStore) WriteMinerStatsByID(miner *Miner, hashrateExpiration tim
 
 	confBytes, err := json.Marshal(updatedMiner)
 	if err != nil {
-		StorageErrorLogger.Printf("[Graviton] could not marshal pool.Config info: %v", err)
-		return fmt.Errorf("[Graviton] could not marshal pool.Config info: %v", err)
+		StorageErrorLogger.Printf("[Graviton] could not marshal updated miner info: %v", err)
+		return fmt.Errorf("[Graviton] could not marshal updated miner info: %v", err)
 	}
 
 	store := g.DB
@@ -1227,8 +1272,11 @@ func (g *GravitonStore) WriteMinerStatsByID(miner *Miner, hashrateExpiration tim
 	tree, _ := ss.GetTree(g.DBTree) // use or create tree named by poolhost in config
 	key := "miners:stats:" + updatedMiner.Id
 	tree.Put([]byte(key), []byte(confBytes)) // insert a value
-	graviton.Commit(tree)                    // commit the tree
-
+	_, cerr := graviton.Commit(tree)
+	if cerr != nil {
+		log.Printf("[Graviton] ERROR: %v", cerr)
+		StorageErrorLogger.Printf("[Graviton] ERROR: %v", cerr)
+	}
 	return nil
 }
 
@@ -1376,8 +1424,11 @@ func (g *GravitonStore) WriteRoundShares(roundHeight int64, roundShares map[stri
 	log.Printf("[Graviton-WriteRoundShares] Storing %v with values: %v", key, roundShares)
 	StorageInfoLogger.Printf("[Graviton-WriteRoundShares] Storing %v with values: %v", key, roundShares)
 	tree.Put([]byte(key), []byte(confBytes)) // insert a value
-	graviton.Commit(tree)                    // commit the tree
-
+	_, cerr := graviton.Commit(tree)
+	if cerr != nil {
+		log.Printf("[Graviton] ERROR: %v", cerr)
+		StorageErrorLogger.Printf("[Graviton] ERROR: %v", cerr)
+	}
 	return nil
 }
 
@@ -1411,6 +1462,115 @@ func (g *GravitonStore) NextRound(roundHeight int64, hashrateExpiration time.Dur
 	g.WriteRoundShares(roundHeight, roundShares)
 
 	return nil
+}
+
+func (g *GravitonStore) WriteChartsData(data *ChartData, chartType string, interval, maximumPeriod int64) error {
+	store := g.DB
+	ss, _ := store.LoadSnapshot(0) // load most recent snapshot
+
+	// Swap DB at g.DBMaxSnapshot+ commits. Check for g.migrating, if so sleep for g.DBMigrateWait ms
+	for g.migrating == 1 {
+		log.Printf("[WriteChartsData] G is migrating... sleeping for %v...", g.DBMigrateWait)
+		StorageInfoLogger.Printf("[WriteChartsData] G is migrating... sleeping for %v...", g.DBMigrateWait)
+		time.Sleep(g.DBMigrateWait)
+		store = g.DB
+		ss, _ = store.LoadSnapshot(0) // load most recent snapshot
+	}
+	if ss.GetVersion() >= g.DBMaxSnapshot {
+		Graviton_backend.SwapGravDB(Graviton_backend.DBTree, Graviton_backend.DBFolder)
+
+		store = g.DB
+		ss, _ = store.LoadSnapshot(0) // load most recent snapshot
+	}
+
+	chartWait, _ := time.ParseDuration("100ms")
+	time.Sleep(chartWait)
+
+	tree, _ := ss.GetTree(g.DBTree) // use or create tree named by poolhost in config
+	key := "charts:" + chartType
+	currCharts, err := tree.Get([]byte(key))
+	var charts *GravitonCharts
+
+	var newChartData []byte
+
+	if err != nil {
+		// Returns key not found if != nil, or other err, but assuming keynotfound/leafnotfound
+		var chartArr []*ChartData
+		chartArr = append(chartArr, data)
+		charts = &GravitonCharts{Values: chartArr}
+	} else {
+		// Retrieve value and convert to charts, so that you can manipulate and update db
+		_ = json.Unmarshal(currCharts, &charts)
+
+		for _, value := range charts.Values {
+			if value.Timestamp == data.Timestamp {
+				log.Printf("[Graviton] Chart timestamp already registered: %v", data.Timestamp)
+				//StorageInfoLogger.Printf("[Graviton] Miner already registered: %v", miner.Id)
+				return nil
+			}
+		}
+
+		charts.Values = append(charts.Values, data)
+
+		// Sort charts so most recent is index 0 [if preferred reverse, just swap > with <]
+		sort.SliceStable(charts.Values, func(i, j int) bool {
+			return charts.Values[i].Timestamp > charts.Values[j].Timestamp
+		})
+
+		// Trim off the end if .Values has more than defined maximumPeriod of chart data
+		maxNumValues := maximumPeriod / interval
+
+		if int64(len(charts.Values)) >= maxNumValues {
+			// Truncate slice to be to maxNumValues
+			charts.Values = charts.Values[:maxNumValues]
+		}
+	}
+
+	newChartData, err = json.Marshal(charts)
+	if err != nil {
+		StorageErrorLogger.Printf("[Graviton] could not marshal charts info: %v", err)
+		return fmt.Errorf("[Graviton] could not marshal charts info: %v", err)
+	}
+
+	tree.Put([]byte(key), newChartData)
+	_, cerr := graviton.Commit(tree)
+	if cerr != nil {
+		log.Printf("[Graviton] ERROR: %v", cerr)
+		StorageErrorLogger.Printf("[Graviton] ERROR: %v", cerr)
+	}
+	return nil
+}
+
+func (g *GravitonStore) GetChartsData(chartType string) *GravitonCharts {
+	store := g.DB
+	ss, _ := store.LoadSnapshot(0) // load most recent snapshot
+
+	// Swap DB at g.DBMaxSnapshot+ commits. Check for g.migrating, if so sleep for g.DBMigrateWait ms
+	for g.migrating == 1 {
+		log.Printf("[GetChartsData] G is migrating... sleeping for %v...", g.DBMigrateWait)
+		StorageInfoLogger.Printf("[GetChartsData] G is migrating... sleeping for %v...", g.DBMigrateWait)
+		time.Sleep(g.DBMigrateWait)
+		store = g.DB
+		ss, _ = store.LoadSnapshot(0) // load most recent snapshot
+	}
+	if ss.GetVersion() >= g.DBMaxSnapshot {
+		Graviton_backend.SwapGravDB(Graviton_backend.DBTree, Graviton_backend.DBFolder)
+
+		store = g.DB
+		ss, _ = store.LoadSnapshot(0) // load most recent snapshot
+	}
+
+	tree, _ := ss.GetTree(g.DBTree) // use or create tree named by poolhost in config
+	key := "charts:" + chartType
+
+	var result *GravitonCharts
+
+	v, _ := tree.Get([]byte(key))
+	if v != nil {
+		_ = json.Unmarshal(v, &result)
+	}
+
+	return result
 }
 
 func logFileOutStorage(lType string) *log.Logger {

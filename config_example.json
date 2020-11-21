@@ -133,5 +133,25 @@
 		"sslPort": "9090",
 		"certFile": "fullchain.cer",
 		"keyFile": "cert.key"
+	},
+
+	"poolcharts": {
+		"interval": 60,
+		"hashrate": {
+			"enabled": true,
+			"maximumPeriod": 86400
+		},
+		"miners": {
+			"enabled": true,
+			"maximumPeriod": 86400
+		},
+		"workers": {
+			"enabled": true,
+			"maximumPeriod": 86400
+		},
+		"difficulty": {
+			"enabled": true,
+			"maximumPeriod": 86400
+		}
 	}
 }

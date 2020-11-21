@@ -84,7 +84,16 @@ func NewStratum(cfg *pool.Config) *StratumServer {
 
 	// Startup/create new gravitondb (if it doesn't exist), write the configuration file (config.json) into storage for use / api surfacing later
 	Graviton_backend.NewGravDB(cfg.PoolHost, "pooldb", cfg.GravitonMigrateWait, cfg.GravitonMaxSnapshots) //stratum.gravitonDB.NewGravDB(cfg.PoolHost, "pooldb") // TODO: Add to params in config.json file
-	Graviton_backend.WriteConfig(cfg)                                                                     //stratum.gravitonDB.WriteConfig(cfg)
+
+	writeWait, _ := time.ParseDuration("10ms")
+	for Graviton_backend.Writing == 1 {
+		//log.Printf("[Stratum-writeconfig] GravitonDB is writing... sleeping for %v...", writeWait)
+		//StorageInfoLogger.Printf("[Stratum-writeconfig] GravitonDB is writing... sleeping for %v...", writeWait)
+		time.Sleep(writeWait)
+	}
+	Graviton_backend.Writing = 1
+	Graviton_backend.WriteConfig(cfg)
+	Graviton_backend.Writing = 0
 
 	// Set stratum.upstreams length based on cfg.Upstream only if they are set enabled: true. We use arr to simulate this and filter out cfg.Upstream objects
 	var arr []pool.Upstream
@@ -178,7 +187,16 @@ func NewStratum(cfg *pool.Config) *StratumServer {
 			select {
 			case <-minerStatsTimer.C:
 				// Write miner stats
+
+				writeWait, _ := time.ParseDuration("10ms")
+				for Graviton_backend.Writing == 1 {
+					//log.Printf("[Stratum-writeminerstats] GravitonDB is writing... sleeping for %v...", writeWait)
+					//StorageInfoLogger.Printf("[Stratum-writeminerstats] GravitonDB is writing... sleeping for %v...", writeWait)
+					time.Sleep(writeWait)
+				}
+				Graviton_backend.Writing = 1
 				err := Graviton_backend.WriteMinerStats(stratum.miners, stratum.hashrateExpiration)
+				Graviton_backend.Writing = 0
 				if err != nil {
 					log.Printf("[Stratum] Err storing miner stats: %v", err)
 					StratumErrorLogger.Printf("[Stratum] Err storing miner stats: %v", err)
@@ -296,15 +314,15 @@ func (s *StratumServer) handleClient(cs *Session, e *Endpoint) {
 	for {
 		data, isPrefix, err := connbuff.ReadLine()
 		if isPrefix {
-			log.Println("[Stratum] Socket flood detected from", cs.ip)
+			log.Printf("[Stratum] Socket flood detected from %v", cs.ip)
 			StratumErrorLogger.Printf("[Stratum] Socket flood detected from %v", cs.ip)
 			break
 		} else if err == io.EOF {
-			log.Println("[Stratum] Client disconnected", cs.ip)
+			log.Printf("[Stratum] Client disconnected %v", cs.ip)
 			StratumErrorLogger.Printf("[Stratum] Client disconnected %v", cs.ip)
 			break
 		} else if err != nil {
-			log.Println("[Stratum] Error reading:", err)
+			log.Printf("[Stratum] Error reading: %v", err)
 			StratumErrorLogger.Printf("[Stratum] Error reading: %v", err)
 			break
 		}
@@ -335,12 +353,12 @@ func (cs *Session) handleMessage(s *StratumServer, e *Endpoint, req *JSONRpcReq)
 	if req.Id == nil {
 		err := fmt.Errorf("[Stratum] Server disconnect request")
 		StratumErrorLogger.Printf("%v", err)
-		log.Println(err)
+		log.Printf("%v", err)
 		return err
 	} else if req.Params == nil {
 		err := fmt.Errorf("[Stratum] Server RPC request params")
 		StratumErrorLogger.Printf("%v", err)
-		log.Println(err)
+		log.Printf("%v", err)
 		return err
 	}
 
@@ -352,7 +370,7 @@ func (cs *Session) handleMessage(s *StratumServer, e *Endpoint, req *JSONRpcReq)
 
 		err := json.Unmarshal(*req.Params, &params)
 		if err != nil {
-			log.Println("[Stratum] Unable to parse params")
+			log.Printf("[Stratum] Unable to parse params")
 			StratumErrorLogger.Printf("[Stratum] Unable to parse params")
 			return err
 		}
@@ -365,7 +383,7 @@ func (cs *Session) handleMessage(s *StratumServer, e *Endpoint, req *JSONRpcReq)
 		var params GetJobParams
 		err := json.Unmarshal(*req.Params, &params)
 		if err != nil {
-			log.Println("[Stratum] Unable to parse params")
+			log.Printf("[Stratum] Unable to parse params")
 			StratumErrorLogger.Printf("[Stratum] Unable to parse params")
 			return err
 		}
@@ -378,7 +396,7 @@ func (cs *Session) handleMessage(s *StratumServer, e *Endpoint, req *JSONRpcReq)
 		var params SubmitParams
 		err := json.Unmarshal(*req.Params, &params)
 		if err != nil {
-			log.Println("[Stratum] Unable to parse params")
+			log.Printf("[Stratum] Unable to parse params")
 			StratumErrorLogger.Printf("[Stratum] Unable to parse params")
 			return err
 		}
@@ -518,11 +536,20 @@ func (s *StratumServer) SetupCloseHandler() {
 	signal.Notify(c, os.Interrupt, syscall.SIGTERM)
 	go func() {
 		<-c
-		log.Println("\r- Ctrl+C pressed in Terminal")
+		log.Printf("\r- Ctrl+C pressed in Terminal")
 		StratumInfoLogger.Printf("\r- Ctrl+C pressed in Terminal")
 		log.Printf("Closing - syncing miner stats...")
 		StratumInfoLogger.Printf("Closing - syncing miner stats...")
+
+		writeWait, _ := time.ParseDuration("10ms")
+		for Graviton_backend.Writing == 1 {
+			//log.Printf("[Stratum-writeminerstats] GravitonDB is writing... sleeping for %v...", writeWait)
+			//StorageInfoLogger.Printf("[Stratum-writeminerstats] GravitonDB is writing... sleeping for %v...", writeWait)
+			time.Sleep(writeWait)
+		}
+		Graviton_backend.Writing = 1
 		err := Graviton_backend.WriteMinerStats(s.miners, s.hashrateExpiration)
+		Graviton_backend.Writing = 0
 		if err != nil {
 			log.Printf("[Stratum] Err storing miner stats: %v", err)
 			StratumErrorLogger.Printf("[Stratum] Err storing miner stats: %v", err)
