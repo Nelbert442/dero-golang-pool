@@ -332,7 +332,7 @@ func (apiServer *ApiServer) convertBlocksResults(minedBlocks []*BlockDataGrav) [
 		blocksArr = append(blocksArr, apiBlocks[b])
 	}
 
-	// Sort payments so most recent is index 0 [if preferred reverse, just swap > with <]
+	// Sort blocks so most recent is index 0 [if preferred reverse, just swap > with <]
 	sort.SliceStable(blocksArr, func(i, j int) bool {
 		return blocksArr[i].Timestamp > blocksArr[j].Timestamp
 	})

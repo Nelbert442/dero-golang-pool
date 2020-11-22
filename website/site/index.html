@@ -195,13 +195,18 @@
 					fetchLiveStats();
 				}, 7500);
 			});
+
+			if (typeof discord !== 'undefined' && discord) {
+				$('#menu-content')
+					.append('<li><a target="_new" href="' + discord + '"><i class="fa fa-ticket"></i> <span data-tkey="discord">Discord</span></a></li>');
+			}
 		});
 		</script>
 
 	<div id="wrapper">
 		<!-- Navigation -->
 		<div class="nav-side-menu">
-			<div class="brand"><a href="/"><span id="coinSymbol"></span> <span data-tkey="miningPool">Mining Pool</span></a></div>
+			<div class="brand"><a href="/"><span id="coinSymbol"></span> <span data-tkey="miningPool">DERO Mining Pool</span></a></div>
 			<i class="fa fa-bars fa-2x toggle-btn" data-toggle="collapse" data-target="#menu-content"></i>
 			<div class="menu-list">
 				<ul id="menu-content" class="menu-content collapsed out">
@@ -248,7 +253,7 @@
 		<div class="text-muted">
 			<span data-tkey="poweredBy">Powered by</span> <a target="_blank" href="https://github.com/Nelbert442/dero-golang-pool"><i class="fa fa-github"></i> dero-golang-pool</a>
 			<span id="poolVersion"></span>
-			<span class="hidden-xs"><span data-tkey="openSource">open sourced under the</span> <a href="https://www.gnu.org/licenses/gpl-3.0.html">GPL</a></span>
+			<span class="hidden-xs"><span data-tkey="openSource">open sourced under the</span> <a href="https://www.gnu.org/licenses/gpl-3.0.html">GPLv3</a></span>
 		</div>
 	</footer>
 

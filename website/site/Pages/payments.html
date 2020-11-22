@@ -1,9 +1,30 @@
 <!-- Payment Table -->
-<div class="paymentsStatHolder">
-	<div>Total Payments: <span id="paymentsTotal"></span></div>
-	<div>Total Miners Paid: <span id="paymentsTotalPaid"></span></div>
-	<div>Minimum Payment Threshold: <span id="paymentsMinimum"></span></div>
-	<div>Denomination Unit: <span id="paymentsDenomination"></span></div>
+<div class="row paymentStatsHolder">
+	<div class="col-sm-3">
+		<div class="infoBox hoverExpandEffect">
+			<div class="icon">
+				<span class="fa fa-dollar"></span>
+			</div>
+			<div class="content">
+				<div class="text"><span>Payment Stats</span></div>
+				<div class="value"><span class="smallText">Total Payments: </span><span id="paymentsTotal" class="smallText">0</span></div>
+				<div class="value"><span class="smallText">Total Miners Paid: </span><span id="paymentsTotalPaid" class="smallText">0</span></div>
+			</div>
+		</div>
+	</div>
+
+	<div class="col-md-3">
+		<div class="infoBox hoverExpandEffect">
+			<div class="icon">
+				<span class="fa fa-cubes"></span>
+			</div>
+			<div class="content">
+				<div class="text"><span>Payment Settings</span></div>
+				<div class="value"><span class="smallText">Pool Fee: </span><span id="poolFee" class="smallText">NaN%</span></div>
+				<div class="value"><span class="smallText">Minimum Payout: </span><span id="paymentsMinimum" class="smallText">0</span></div>
+			</div>
+		</div>
+	</div>
 </div>
 
 <hr>
@@ -44,13 +65,13 @@
 			updateText('paymentsTotalPaid', lastStats.totalMinersPaid.toString());
 			} else { updateText('paymentsTotalPaid', "0"); }
 
+			if (lastStats.config.poolFee != null) {
+				updateText('poolFee', lastStats.config.poolFee + "%");
+			} else { updateText('poolFee', "0"); }
+
 			if (lastStats.config.paymentMinimum != null) {
 				updateText('paymentsMinimum', getReadableCoins(lastStats.config.paymentMinimum, 4, false));
 			} else { updateText('paymentsMinimum', "0"); }
-			
-			if (lastStats.config.coinUnits != null) {
-				updateText('paymentsDenomination', getReadableCoins(lastStats.config.coinUnits, 4, false));
-			} else { updateText('paymentsDenomination', "0"); }
 
 			if (lastStats.payments != null) {
 				renderPayments(lastStats.payments);

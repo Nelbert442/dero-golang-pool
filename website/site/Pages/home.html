@@ -1,25 +1,151 @@
 <!-- Pool Stats -->
-<div class="poolStatsHolder">
-	<div><span class=bg-info">Total Pool Miners: <span id="totalPoolMiners"></span></span></div>
-	<div><span class=bg-info">Total Pool Workers: <span id="totalPoolWorkers"></span></span></div>
-	<div><span class=bg-info">Total Solo Miners: <span id="totalSoloMiners"></span></span></div>
-	<div><span class=bg-info">Total Solo Workers: <span id="totalSoloWorkers"></span></span></div>
-	<div><span class=bg-info">Total Blocks Mined: <span id="blocksTotal"></span></span></div>
-	<div><span class=bg-info">Minimum Payment Threshold: <span id="paymentsMinimum"></span></span></div>
+<div class="row poolStatsHolder">
+	<div class="col-sm-4">
+		<div class="infoBox hoverExpandEffect">
+			<div class="icon">
+				<span class="fa fa-dashboard"></span>
+			</div>
+			<div class="content">
+				<div class="text"><span>Connected Miners (POOL/SOLO)</span></div>
+				<div class="value"><span class="smallText">Miners: </span><span id="totalPoolMiners" class="smallText">0</span><span class="smallText">/</span><span id="totalSoloMiners" class="smallText">0</span></div>
+				<div class="value"><span class="smallText">Workers: </span><span id="totalPoolWorkers" class="smallText">0</span><span class="smallText">/</span><span id="totalSoloWorkers" class="smallText">0</span></div>
+			</div>
+		</div>
+	</div>
+	<div class="col-sm-4">
+		<div class="infoBox hoverExpandEffect">
+			<div class="icon">
+				<span class="fa fa-dollar"></span>
+			</div>
+			<div class="content">
+				<div class="text"><span>Payments</span></div>
+				<div class="value"><span class="smallText">Minimum Payout: </span><span id="paymentsMinimum" class="smallText">0</span></div>
+				<div class="value"><span class="smallText">Pool Fee: </span><span id="poolFee" class="smallText">NaN%</span></div>
+			</div>
+		</div>
+	</div>
+	<div class="col-sm-4">
+		<div class="infoBox hoverExpandEffect">
+			<div class="icon">
+				<span class="fa fa-cubes"></span>
+			</div>
+			<div class="content">
+				<div class="text"><span>Blocks</span></div>
+				<div class="value"><span class="smallText">Total Blocks Mined: </span><span id="blocksTotal" class="smallText">0</span></div>
+			</div>
+		</div>
+	</div>
+</div>
+
+<!-- Network Stats -->
+<div class="row lastBlockStatsHolder">
+	<div class="col-sm-12">
+		<div class="hashInfo hoverExpandEffect">
+			<div class="content">
+				<div class="text"><span>Last Hash</span></div>
+				<div class="value"><span class="smallText"><a id="lastBlockHash" target="_blank">N/A</a></span><span class="smallText"> (</span><span id="lastBlockReward" class="smallText">0</span><span class="smallText">)</span></div>
+			</div>
+		</div>
+	</div>
 </div>
 
 <hr>
 
-<!-- Network Stats -->
-<div class="poolStatsHolder">
-	<div><span class=bg-info">Last Network Reward: <span id="lastBlockReward"></span></span></div>
-	<div><span class=bg-info">Last Network Hash: <a id="lastBlockHash" target="_blank">N/A</a></span></div>
+<div class="row chartsPoolStat">
+	<div class="col-sm-6 chartWrap">
+		<h4>Hashrate</h4>
+		<div id="chartHashrate" class="card" data-chart="hashrate">
+			<div class="chart"></div>
+		</div>
+	</div>
+	<div class="col-sm-6 chartWrap">
+		<h4>Difficulty</h4>
+		<div id="chartDifficulty" class="card" data-chart="diff">
+			<div class="chart"></div>
+		</div>
+	</div>
+	<div class="col-sm-6 chartWrap">
+		<h4>Miners</h4>
+		<div id="chartMiners" class="card" data-chart="miners">
+			<div class="chart"></div>
+		</div>
+	</div>
+	<div class="col-sm-6 chartWrap">
+		<h4>Workers</h4>
+		<div id="chartWorkers" class="card" data-chart="workers">
+			<div class="chart"></div>
+		</div>
+	</div>
+
+	<script>
+        var currencyGraphStat = {
+            type: 'line',
+            width: '100%',
+            height: '140',
+            lineColor: '#03a9f4',
+            fillColor: 'rgba(3, 169, 244, .4)',
+            spotColor: null,
+            minSpotColor: null,
+            maxSpotColor: null,
+            highlightLineColor: '#236d26',
+            highlightSpotColor: '#236d26',
+            spotRadius: 3,
+            chartRangeMin: 0,
+            drawNormalOnTop: false,
+            tooltipFormat: '<b>{{y}}</b> &ndash; {{offset:names}}'
+        };
+	</script>
 </div>
 
 <script>
 	function formatBlockLink(hash, height){
 		return getBlockchainUrl(hash);
 	}
+
+    function parseChartData(serializedChart){
+        var chartData = {
+            timestamp: serializedChart.Timestamp,
+			value: serializedChart.Value
+        };
+
+        return chartData;
+    }
+
+    function getGraphData (rawData) {
+        var graphData = {
+            names: [],
+            values: []
+        };
+
+        if(rawData) {
+			for (var i = rawData.length - 1, xy; xy = rawData[i]; i--) {
+				pChart = parseChartData(xy)
+                graphData.names.push(formatDate(pChart.timestamp))
+                graphData.values.push(pChart.value)
+            }
+        }
+
+        return graphData;
+    }
+
+    function createCharts(data) {
+		var graphData = {
+			diff: getGraphData(data.poolDifficultyChart.Values),
+			hashrate: getGraphData(data.poolHashrateChart.Values),
+			miners: getGraphData(data.poolMinersChart.Values),
+			workers: getGraphData(data.poolWorkersChart.Values)
+		};
+
+		for(var graphType in graphData) {
+			if(graphData[graphType].values.length > 1) {
+				var settings = jQuery.extend({}, currencyGraphStat);
+				settings.tooltipValueLookups = {names: graphData[graphType].names};
+				var $chart = $('[data-chart=' + graphType + '] .chart');
+				$chart.closest('.chartWrap').show();
+				$chart.sparkline(graphData[graphType].values, settings);
+			}
+		}
+    }
 
     currentPage = {
         destroy: function(){
@@ -46,6 +172,10 @@
                 updateText('blocksTotal', lastStats.blocksTotal.toString());
             } else { updateText('blocksTotal', "0"); }
 
+			if (lastStats.config.poolFee != null) {
+				updateText('poolFee', lastStats.config.poolFee + "%");
+			} else { updateText('poolFee', "0"); }
+
 			if (lastStats.config.paymentMinimum != null) {
 				updateText('paymentsMinimum', getReadableCoins(lastStats.config.paymentMinimum, 4, false));
 			} else { updateText('paymentsMinimum', "0"); }
@@ -62,4 +192,14 @@
 			} else { updateText('lastBlockHash', "0"); }
         }
 	};
+
+    var xhrRenderCharts;
+
+    $(function(){
+        xhrRenderCharts = $.ajax({
+            url: api + '/charts',
+            cache: false,
+            success: createCharts
+        });
+    });
 </script>
