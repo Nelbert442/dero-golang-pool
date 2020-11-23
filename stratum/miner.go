@@ -332,10 +332,10 @@ func (m *Miner) processShare(s *StratumServer, cs *Session, job *Job, t *BlockTe
 	} else {
 		switch s.algo {
 		case "astrobwt":
-			checkPowHashBig, success = util.AstroBWTHash(shareBuff, diff)
+			checkPowHashBig, success = util.AstroBWTHash(shareBuff, diff, setDiff)
 
 			if !success {
-				minerOutput := "Bad hash. If you see often [> 1/100 shares on avg], check input on miner software"
+				minerOutput := "Bad hash. If you see often [> 1/10 shares on avg], check input on miner software."
 				log.Printf("[Miner] Bad hash from miner %v@%v", m.Id, cs.ip)
 				MinerErrorLogger.Printf("[Miner] Bad hash from miner %v@%v", m.Id, cs.ip)
 

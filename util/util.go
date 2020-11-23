@@ -122,18 +122,22 @@ func CryptonightHash(shareBuff []byte, diff big.Int) bool {
 	return checkPowHashBig
 }
 
-func AstroBWTHash(shareBuff []byte, diff big.Int) (bool, bool) {
+func AstroBWTHash(shareBuff []byte, diff, setDiff big.Int) (bool, bool) {
 	var powhash crypto.Hash
 	var data astrobwt.Data
 	var max_pow_size int = 819200 //astrobwt.MAX_LENGTH
 
-	hash, success := astrobwt.POW_optimized_v2(shareBuff, max_pow_size, &data)
-	if !success || hash[len(hash)-1] != 0 {
-		return false, false
-	}
+	//hash, success := astrobwt.POW_optimized_v2(shareBuff, max_pow_size, &data)
+	hash, _ := astrobwt.POW_optimized_v2(shareBuff, max_pow_size, &data)
+	/*
+		if !success || hash[len(hash)-1] != 0 {
+			return false, false
+		}
+	*/
 
 	copy(powhash[:], hash[:])
 
+	success := blockchain.CheckPowHashBig(powhash, &setDiff)
 	checkPowHashBig := blockchain.CheckPowHashBig(powhash, &diff)
 
 	return checkPowHashBig, success
