@@ -294,6 +294,27 @@ Or build:
 go build main.go
 ```
 
+NOTE: logs/ and pooldb/ directories are created in the working directory. Keep this in mind if you are configuring systemd runs or when running the app itself.
+
+If you intend to run with systemd, you can leverage similar configuration to below:
+
+```
+[Unit]
+Description=dero-golang-pool
+After=network.target
+
+[Service]
+Type=simple
+Restart=on-failure
+RestartSec=10
+SyslogIdentifier=dero-golang-pool
+ExecStart=/pathtoyourdir/yourexecutable
+WorkingDirectory=/pathtoyourdir
+
+[Install]
+WantedBy=multi-user.target
+```
+
 ### Host the api
 
 Once `config.json` has "api"."enabled" set to true, it will listen by default locally on :8082 (or whichever port defined). You can use an example below to pull the content, or just poll it directly in a browser:
