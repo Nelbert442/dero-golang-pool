@@ -568,8 +568,8 @@ func logFileOutStratum(lType string) *log.Logger {
 	} else {
 		logFileName = "logs/stratum.log"
 	}
-	os.Mkdir("logs", 0600)
-	f, err := os.OpenFile(logFileName, os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0600)
+	os.Mkdir("logs", 0705)
+	f, err := os.OpenFile(logFileName, os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0705)
 	if err != nil {
 		panic(err)
 	}
