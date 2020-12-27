@@ -172,7 +172,7 @@ func (r *RPCClient) GetBlockByHash(hash string) (*GetBlockHashReply, error) {
 }
 
 func (r *RPCClient) GetLastBlockHeader() (*GetBlockHashReply, error) {
-	rpcResp, err := r.doPost(r.Url.String(), "getlastblockheader", []string{})
+	rpcResp, err := r.doPostNoParams(r.Url.String(), "getlastblockheader")
 	if err != nil {
 		return nil, err
 	}
@@ -186,8 +186,7 @@ func (r *RPCClient) GetLastBlockHeader() (*GetBlockHashReply, error) {
 }
 
 func (r *RPCClient) GetInfo() (*GetInfoReply, error) {
-	params := make(map[string]interface{})
-	rpcResp, err := r.doPost(r.Url.String(), "get_info", params)
+	rpcResp, err := r.doPostNoParams(r.Url.String(), "get_info")
 	var reply *GetInfoReply
 	if err != nil {
 		return nil, err
@@ -199,7 +198,7 @@ func (r *RPCClient) GetInfo() (*GetInfoReply, error) {
 }
 
 func (r *RPCClient) GetBalance(url string) (*GetBalanceReply, error) {
-	rpcResp, err := r.doPost(url, "getbalance", []string{})
+	rpcResp, err := r.doPostNoParams(url, "getbalance")
 	if err != nil {
 		return nil, err
 	}
@@ -231,6 +230,38 @@ func (r *RPCClient) SubmitBlock(blocktemplate_blob string, blockhashing_blob str
 
 func (r *RPCClient) doPost(url, method string, params interface{}) (*JSONRpcResp, error) {
 	jsonReq := map[string]interface{}{"jsonrpc": "2.0", "id": 0, "method": method, "params": params}
+	data, _ := json.Marshal(jsonReq)
+	req, err := http.NewRequest("POST", url, bytes.NewBuffer(data))
+	req.Header.Set("Content-Length", (string)(len(data)))
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Accept", "application/json")
+	req.SetBasicAuth(r.login, r.password)
+	resp, err := r.client.Do(req)
+	if err != nil {
+		r.markSick()
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode < 200 || resp.StatusCode >= 400 {
+		return nil, errors.New(resp.Status)
+	}
+
+	var rpcResp *JSONRpcResp
+	err = json.NewDecoder(resp.Body).Decode(&rpcResp)
+	if err != nil {
+		r.markSick()
+		return nil, err
+	}
+	if rpcResp.Error != nil {
+		r.markSick()
+		return nil, errors.New(rpcResp.Error["message"].(string))
+	}
+	return rpcResp, err
+}
+
+func (r *RPCClient) doPostNoParams(url, method string) (*JSONRpcResp, error) {
+	jsonReq := map[string]interface{}{"jsonrpc": "2.0", "id": 0, "method": method}
 	data, _ := json.Marshal(jsonReq)
 	req, err := http.NewRequest("POST", url, bytes.NewBuffer(data))
 	req.Header.Set("Content-Length", (string)(len(data)))
