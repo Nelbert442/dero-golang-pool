@@ -1,5 +1,10 @@
 # DERO Golang Pool
-DERO Golang Pool is currently in alpha stages and feedback/fixes are always welcome in regards to this pool software. While many pools leverage Redis or other database flavors, I chose to follow-suit with DERO and leverage the newly released Graviton database, which was built and supported by the DERO development team. See [Backend database choices](#backend-database-choices) for more details regarding this choice. Please read through the README and code, I'd be more than happy to assist with fixing things via issues and other means, please feel free to reach out to me. My current 'live' pool is [use1pool.nelbert442.com](https://use1pool.nelbert442.com) and will be updated in the near future to be leveraging this code base.
+DERO Golang Pool is currently in alpha stages and feedback/fixes are always welcome in regards to this pool software. While many pools leverage Redis or other database flavors, I chose to follow-suit with DERO and leverage the newly released Graviton database, which was built and supported by the DERO development team. See [Backend database choices](#backend-database-choices) for more details regarding this choice. Please read through the README and code, I'd be more than happy to assist with fixing things via issues and other means, please feel free to reach out to me. My current 'live' pool using this codebase is [pool.dero.network](https://pool.dero.network).
+
+## Pools Using this Codebase
+* [pool.dero.network](https://pool.dero.network)
+* [dero.xmrminers.club](https://dero.xmrminers.club/)
+* [letshash.it/dero](https://letshash.it/dero)
 
 ## Features
 * Developed in Golang
