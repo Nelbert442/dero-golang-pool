@@ -1434,13 +1434,32 @@ func (g *GravitonStore) WriteRoundShares(roundHeight int64, roundShares map[stri
 
 func (g *GravitonStore) NextRound(roundHeight int64, hashrateExpiration time.Duration) error {
 	miners := g.GetAllMinerStats()
+	blockHeightArr := g.GetBlocksFoundByHeightArr()
 	roundShares := make(map[string]int64)
+
+	// Create slice of heights that do not include solo blocks. This will be used to compare the last block found against miner heights below
+	var heights []int64
+	for height, isSolo := range blockHeightArr.Heights {
+		if !isSolo {
+			heights = append(heights, height)
+		}
+	}
+	// Sort heights so most recent is index 0 [if preferred reverse, just swap > with <]
+	sort.SliceStable(heights, func(i, j int) bool {
+		return heights[i] > heights[j]
+	})
 
 	for _, currMiner := range miners {
 		//currMiner, _ := miners.Get(value.Id)
 		if currMiner != nil {
-			// If the current miner roundheight is equal to roundheight, then add roundshares and lastroundshares to roundShares map
-			if currMiner.RoundHeight == roundHeight {
+			// If there have been blocks found, check to ensure that miner's roundheight is greater than the highest previously found height (shows their hashes are in current round)
+			if len(heights) > 1 {
+				if currMiner.RoundHeight > heights[1] {
+					roundShares[currMiner.Address] += currMiner.RoundShares
+					roundShares[currMiner.Address] += currMiner.LastRoundShares
+				}
+			} else {
+				// If there have been no previous blocks found, we are adding roundshares/lastroundshares regardless of miner's roundheight since it's the first
 				roundShares[currMiner.Address] += currMiner.RoundShares
 				roundShares[currMiner.Address] += currMiner.LastRoundShares
 			}
