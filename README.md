@@ -342,7 +342,7 @@ API Examples:
 
 Once `config.json` has "website"."enabled" set to true, it will listen by default locally on :8080 (or whichever port defined). It will leverage standard js/html/css files that a static webpage would, and integrate with the API above in #4.
 
-website.go is the runner, which just starts the listenandserve on the port defined, then serves up content within /website/Pages , feel free to make modifications to folder structure, just be sure to update website.go
+website.go is the runner, which just starts the listenandserve on the port defined, then serves up content within /website/pages , feel free to make modifications to folder structure, just be sure to update website.go
 
 ![DERO Pool Home](images/home.PNG?raw=true "DERO Pool Home") 
 ![DERO Pool Getting Started](images/gettingstarted.PNG?raw=true "DERO Pool Getting Started")

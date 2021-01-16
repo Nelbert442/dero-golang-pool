@@ -55,6 +55,10 @@
                 updateText('blocksMaturityCount', lastStats.config.unlockDepth.toString());
             } else { updateText('blocksMaturityCount', "0"); }
         
+            if (lastStats.candidates != null) {
+                renderBlocks(lastStats.candidates);
+            }
+
             if (lastStats.immature != null) {
                 renderBlocks(lastStats.immature);
             }

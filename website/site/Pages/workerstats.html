@@ -144,7 +144,18 @@
             fee: serializedPayment.Fee,
 			recipients: serializedPayment.Payees
 		};
-	}
+    }
+    
+    function getReadableHashRateString(hashrate)
+    {
+        var i = 0;
+        var byteUnits = [' H', ' KH', ' MH', ' GH', ' TH', ' PH' ];
+        while (hashrate > 1000){
+            hashrate = hashrate / 1000;
+            i++;
+        }
+        return hashrate.toFixed(2) + byteUnits[i];
+    }
 
 	function parseWorker(serializedWorker){
         var onlineStatus
@@ -158,7 +169,7 @@
 		return {
             status: onlineStatus,
 			workername: serializedWorker.Id,
-            hashrate: serializedWorker.Hashrate,
+            hashrate: getReadableHashRateString(serializedWorker.Hashrate) + '/sec',
             lastShare: serializedWorker.LastBeat,
             totalRoundHashes: serializedWorker.RoundShares
 		};
