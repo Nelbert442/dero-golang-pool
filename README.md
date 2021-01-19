@@ -94,7 +94,6 @@ Explanation for each field:
 	"address": "<pool_DERO_Address>",
 
     /*  True: Do not worry about verifying miner shares [faster processing, but potentially wrong algo], False: Validate miner shares with built-in derosuite functions */
-	/* NOTE: This is currently not going to do anything, see miner.go --> processShare(). Some reason causing issues with miner data, TODO for later */
 	"bypassShareValidation": false,
 
     /*  Number of threads to spawn stratum */
@@ -116,8 +115,7 @@ Explanation for each field:
 	"coinDifficultyTarget": 27,
 
 	/* Used for defining how many validated shares to submit in a row before passThru hashing [trusted] */
-	/* NOTE: This is currently not going to do anything, see miner.go --> processShare(). Some reason causing issues with miner data, TODO for later */
-	"trustedSharesCount": 1000000,
+	"trustedSharesCount": 30,
 
     /*  Defines how often the upstream (daemon) getblocktemplate is refreshed.
         DERO blockchain is fast and runs on 27 Seconds blocktime. Best practice is to update your mining job at-least every second. 

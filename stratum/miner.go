@@ -286,8 +286,9 @@ func (m *Miner) getHashrate(estimationWindow, hashrateExpiration time.Duration) 
 func (m *Miner) processShare(s *StratumServer, cs *Session, job *Job, t *BlockTemplate, nonce string, params *SubmitParams) (bool, string) {
 
 	// Var definitions
-	checkPowHashBig := false
-	success := false
+	var checkPowHashBig bool
+	var success bool
+	var bypassShareValidation bool
 	var result string = params.Result
 	var shareType string
 	var hashBytes []byte
@@ -308,15 +309,12 @@ func (m *Miner) processShare(s *StratumServer, cs *Session, job *Job, t *BlockTe
 	nonceBuff, _ := hex.DecodeString(nonce)
 	copy(shareBuff[39:], nonceBuff)
 
-	/*
-		// For some reason, upon shareType == "Trusted", miner stats stop being stored. Need to figure that out before re-enabling that piece
-		if atomic.LoadInt64(&m.TrustedShares) >= s.trustedSharesCount {
-			shareType = "Trusted"
-		} else {
-			shareType = "Valid"
-		}
-	*/
-	shareType = "Valid"
+	// After trustedSharesCount is hit (number of accepted shares in a row based on config.json), hash validation will be skipped until an incorrect hash is submitted
+	if atomic.LoadInt64(&m.TrustedShares) >= s.trustedSharesCount {
+		shareType = "Trusted"
+	} else {
+		shareType = "Valid"
+	}
 
 	// Append share type, solo or pool for logging assistance
 	if m.IsSolo {
@@ -328,7 +326,7 @@ func (m *Miner) processShare(s *StratumServer, cs *Session, job *Job, t *BlockTe
 	hashBytes, _ = hex.DecodeString(result)
 
 	if s.config.BypassShareValidation || shareType == "Trusted SOLO" || shareType == "Trusted POOL" {
-		checkPowHashBig = true
+		bypassShareValidation = true
 	} else {
 		switch s.algo {
 		case "astrobwt":
@@ -375,6 +373,11 @@ func (m *Miner) processShare(s *StratumServer, cs *Session, job *Job, t *BlockTe
 
 	// May be redundant, or use instead of CheckPowHashBig in future.
 	block := hashDiff.Cmp(&diff) >= 0
+
+	// If bypassing share validation (either with true/false of config or miner is trusted), block should define properly if a block is found and can set checkPowHashBig to true. Perhaps future improvements to be made here
+	if block && bypassShareValidation {
+		checkPowHashBig = true
+	}
 
 	if checkPowHashBig && block {
 		blockSubmit, err := r.SubmitBlock(t.Blocktemplate_blob, hex.EncodeToString(shareBuff))
