@@ -179,7 +179,7 @@ func (cs *Session) getJob(t *BlockTemplate, s *StratumServer, diff int64) *JobRe
 	}
 	job.submissions = make(map[string]struct{})
 	cs.pushJob(job)
-	reply := &JobReplyData{JobId: job.id, Blob: blob, Target: targetHex}
+	reply := &JobReplyData{JobId: job.id, Blob: blob, Target: targetHex, Algo: s.config.Algo, Height: t.Height}
 	return reply
 }
 
