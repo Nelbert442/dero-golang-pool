@@ -128,11 +128,11 @@ func (cs *Session) calcVarDiff(currDiff float64, s *StratumServer) int64 {
 
 	maxJump := s.config.Stratum.VarDiff.MaxJump / 100 * currDiff
 
-	// Prevent diff scale ups to be more than maxJump %. Scaling down is fine for large jumps for now (1.25x maxJump)
+	// Prevent diff scale up/down to be more than maxJump %.
 	if newDiff > currDiff && !(newDiff-maxJump <= currDiff) {
 		newDiff = currDiff + maxJump
-	} else if currDiff > newDiff && !(newDiff+(maxJump*1.25) >= currDiff) {
-		newDiff = currDiff - (maxJump * 1.25)
+	} else if currDiff > newDiff && !(newDiff+(maxJump) >= currDiff) {
+		newDiff = currDiff - (maxJump)
 	}
 
 	// Reset timestampArr
