@@ -33,6 +33,7 @@
 			<div class="content">
 				<div class="text"><span>Blocks</span></div>
 				<div class="value"><span class="smallText">Total Blocks Mined: </span><span id="blocksTotal" class="smallText">0</span></div>
+				<div class="value"><span class="smallText">Current Pool Effort: </span><span id="poolEffort" class="smallText">NaN%</span></div>
 			</div>
 		</div>
 	</div>
@@ -191,6 +192,13 @@
                 let el = updateText('lastBlockHash', lastStats.lastblock.Hash);
 				el.setAttribute('href', formatBlockLink(lastStats.lastblock.Hash, lastStats.lastblock.Height));
 			} else { updateText('lastBlockHash', "0"); }
+
+			// Block effort
+
+			if (lastStats.totalRoundShares != null) {
+				var percent = Math.round(lastStats.totalRoundShares / lastStats.lastblock.Difficulty * 100);
+				updateText('poolEffort', percent + "%")
+			} else { updateText('poolEffort', "NaN%"); }
         }
 	};
 

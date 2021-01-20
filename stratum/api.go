@@ -242,7 +242,7 @@ func (apiServer *ApiServer) collectStats() {
 
 	// Build miner stats
 	minerStats := apiServer.backend.GetAllMinerStats()
-	apiMiners, poolHashrate, totalPoolMiners, totalPoolWorkers, soloHashrate, totalSoloMiners, totalSoloWorkers := apiServer.convertMinerResults(minerStats)
+	apiMiners, poolHashrate, totalPoolMiners, totalPoolWorkers, soloHashrate, totalSoloMiners, totalSoloWorkers, totalRoundShares := apiServer.convertMinerResults(minerStats)
 	stats["miners"] = apiMiners
 	stats["poolHashrate"] = poolHashrate
 	stats["totalPoolMiners"] = totalPoolMiners
@@ -250,6 +250,7 @@ func (apiServer *ApiServer) collectStats() {
 	stats["soloHashrate"] = soloHashrate
 	stats["totalSoloMiners"] = totalSoloMiners
 	stats["totalSoloWorkers"] = totalSoloWorkers
+	stats["totalRoundShares"] = totalRoundShares
 
 	// Chart data
 	poolHashrateChart := apiServer.backend.GetChartsData("poolhashrate")
@@ -340,7 +341,7 @@ func (apiServer *ApiServer) convertBlocksResults(minedBlocks []*BlockDataGrav) [
 	return blocksArr
 }
 
-func (apiServer *ApiServer) convertMinerResults(miners []*Miner) ([]*ApiMiner, int64, int64, int64, int64, int64, int64) {
+func (apiServer *ApiServer) convertMinerResults(miners []*Miner) ([]*ApiMiner, int64, int64, int64, int64, int64, int64, int64) {
 	apiMiners := make(map[string]*ApiMiner)
 	var minersArr []*ApiMiner
 	var poolHashrate int64
@@ -349,11 +350,13 @@ func (apiServer *ApiServer) convertMinerResults(miners []*Miner) ([]*ApiMiner, i
 	var totalPoolWorkers int64
 	totalSoloMiners := make(map[string]string)
 	var totalSoloWorkers int64
+	var totalRoundShares int64
 
 	for _, currMiner := range miners {
 		reply := &ApiMiner{}
 		if miners != nil {
 			if currMiner != nil {
+				totalRoundShares += currMiner.RoundShares
 				var tempDuration time.Duration
 				now := util.MakeTimestamp() / 1000
 				var windowHashes bool
@@ -424,7 +427,7 @@ func (apiServer *ApiServer) convertMinerResults(miners []*Miner) ([]*ApiMiner, i
 		minersArr = append(minersArr, apiMiners[m])
 	}
 
-	return minersArr, poolHashrate, int64(len(totalPoolMiners)), totalPoolWorkers, soloHashrate, int64(len(totalSoloMiners)), totalSoloWorkers
+	return minersArr, poolHashrate, int64(len(totalPoolMiners)), totalPoolWorkers, soloHashrate, int64(len(totalSoloMiners)), totalSoloWorkers, totalRoundShares
 }
 
 func (apiServer *ApiServer) GetConfigIndex() map[string]interface{} {
@@ -488,6 +491,7 @@ func (apiServer *ApiServer) StatsIndex(writer http.ResponseWriter, _ *http.Reque
 		reply["soloHashrate"] = stats["soloHashrate"]
 		reply["totalSoloMiners"] = stats["totalSoloMiners"]
 		reply["totalSoloWorkers"] = stats["totalSoloWorkers"]
+		reply["totalRoundShares"] = stats["totalRoundShares"]
 	}
 
 	err := json.NewEncoder(writer).Encode(reply)
@@ -669,7 +673,7 @@ func (apiServer *ApiServer) getAddressStats(address string) map[string]interface
 		}
 	}
 
-	apiMiners, poolHashrate, totalPoolMiners, totalPoolWorkers, soloHashrate, totalSoloMiners, totalSoloWorkers := apiServer.convertMinerResults(addrMinerSlice)
+	apiMiners, poolHashrate, totalPoolMiners, totalPoolWorkers, soloHashrate, totalSoloMiners, totalSoloWorkers, _ := apiServer.convertMinerResults(addrMinerSlice)
 	addressStats["miners"] = apiMiners
 	addressStats["poolHashrate"] = poolHashrate
 	addressStats["totalPoolMiners"] = totalPoolMiners
