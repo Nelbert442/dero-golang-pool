@@ -50,6 +50,14 @@
 
 </div>
 
+<h4 class="push-up-15"><span data-tkey="donations">Donations<span></h4>
+<div class="card padding-l-10 padding-r-10">
+	<div class="stats">
+		<div><i class="fa fa-money"></i> <span data-tkey="donationsDesc">Donation Address: </span><span id="donationAddress"></span>.</div>
+		<div><i class="fa fa-money"></i> <span data-tkey="donationsDesc">Donation Description: </span><span id="donationDescription"></span>.</div>
+	</div>
+</div>
+
 <!-- Mining Applications and Configuration Generator -->
 <h3><span data-tkey="miningApps">Mining Applications</span></h3>
 
@@ -219,6 +227,8 @@
 			updateText('workerIDSeparator', lastStats.config.workIDAddressSeparator);
 			updateText('soloIDSeparator', lastStats.config.soloIDSeparator);
 			updateText('hashDonationSeparator', lastStats.config.hashDonationSeparator);
+			updateText('donationAddress', lastStats.config.donationAddress);
+			updateText('donationDescription', lastStats.config.donationDescription);
 
 			updateText('algorithm', lastStats.config.algo);
 			updateText('exampleAlgorithm', lastStats.config.algo);

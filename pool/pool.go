@@ -6,6 +6,7 @@ type Config struct {
 	TransactionExploer      string           `json:"transactionExplorer"`
 	Address                 string           `json:"address"`
 	DonationAddress         string           `json:"donationAddress"`
+	DonationDescription     string           `json:"donationDescription"`
 	BypassShareValidation   bool             `json:"bypassShareValidation"`
 	Threads                 int              `json:"threads"`
 	Algo                    string           `json:"algo"`

@@ -97,6 +97,9 @@ Explanation for each field:
 	/*	Pool donation address - miners connecting with %<#> on login address will donate some % of shares to the defined donation address. Default value is 0 (no donation) */
 	"donationAddress": "<pool_donation_DERO_Address>",
 
+	/*	Pool donation description - used for describing where the donations go and displaying on frontend (#getting_started page) */
+	"donationDescription": "Thank you for supporting our mining pool!",
+
     /*  True: Do not worry about verifying miner shares [faster processing, but potentially wrong algo], False: Validate miner shares with built-in derosuite functions */
 	"bypassShareValidation": false,
 

@@ -4,6 +4,7 @@
 	"transactionExplorer": "https://explorer.dero.io/tx/{id}",
 	"address": "<pool_DERO_Address>",
 	"donationAddress": "dERopdjpGmr2DEwQJdRrKc8M6obca9NQu2EaC2fNe3RNHonYcCfqmjGF7NBEHoB8dpLXWhnjdW7dugFTVhofuKTb4sfzmyBSAj",
+	"donationDescription": "Thank you for supporting our mining pool!",
 	"bypassShareValidation": false,
 
 	"threads": 2,
