@@ -23,11 +23,12 @@ DERO Golang Pool is currently in alpha stages and feedback/fixes are always welc
 * Support of pool and solo mining
 * PROP Payment Scheme
 * Light-weight webpage with built-in basic pool statistics, but template used to get off the ground running.
+* Allows for miner-set donations to some defined donation address. Simply add %5 (0-100, default is 0) to wallet address / username on connection and a percentage of each submitted share is donated.
 
 ### Future Features
 * (FUTURE) PPLNS and potentially other pool schemes support
 * (FUTURE) Management functions/go files for modifying/reporting of payments etc.
-* (FUTURE) More feature sets within the frontend such as admin page, charts etc.
+* (FUTURE) More feature sets within the frontend such as admin page etc.
 
 ## Table of Contents
 1. [Requirements](#requirements) 
@@ -92,6 +93,9 @@ Explanation for each field:
 
     /*  Mining pool address */
 	"address": "<pool_DERO_Address>",
+
+	/*	Pool donation address - miners connecting with %<#> on login address will donate some % of shares to the defined donation address. Default value is 0 (no donation) */
+	"donationAddress": "<pool_donation_DERO_Address>",
 
     /*  True: Do not worry about verifying miner shares [faster processing, but potentially wrong algo], False: Validate miner shares with built-in derosuite functions */
 	"bypassShareValidation": false,
@@ -174,6 +178,9 @@ Explanation for each field:
 		},
 		"workerID": {
 			"addressSeparator": "@"		// Defines separator used from miner login to parse workerID
+		},
+		"donatePercent": {
+			"addressSeparator": "%"		// Defines separator used from miner login to parse donation percentage (percentage of submitted shares that are donated to pool's donation address)
 		},
 		"soloMining": {
 			"enabled": true,			// Defines whether or not solo mining is enabled. By setting this to false, even if a miner connects with the appropriate solo~ connection, their ID will not include solo

@@ -50,6 +50,8 @@
                         <th class="col3 sort"><span data-tkey="hashRate">Hash Rate</span> <i class="fa fa-sort"></i></th>
                         <th class="col7 sort"><span data-tkey="lastShare">Last Share Submitted</span> <i class="fa fa-sort"></i></th>
                         <th class="col8 sort"><span data-tkey="totalRoundHashes">Total Round Hashes Submitted</span> <i class="fa fa-sort"></i></th>
+                        <th class="col9 sort"><span data-tkey="estimatedPayout">Estimated Payment (next block)</span> <i class="fa fa-sort"></i></th>
+                        <th class="col10 sort"><span data-tkey="totalHashesDonated">Total Hashes Donated</span> <i class="fa fa-sort"></i></th>
                     </tr>
                     </thead>
                     <tbody id="workersReport_rows">
@@ -171,7 +173,9 @@
 			workername: serializedWorker.Id,
             hashrate: getReadableHashRateString(serializedWorker.Hashrate) + '/sec',
             lastShare: serializedWorker.LastBeat,
-            totalRoundHashes: serializedWorker.RoundShares
+            totalRoundHashes: serializedWorker.RoundShares,
+            estimatedPayout: getReadableCoins((serializedWorker.RoundShares / lastStats.totalRoundShares * lastStats.lastblock.Reward).toString(), 5, false),
+            totalHashesDonated: serializedWorker.DonationTotal
 		};
 	}
 
@@ -184,7 +188,9 @@
             '<td>' + worker.workername + '</td>' +
             '<td>' + worker.hashrate + '</td>' +
             '<td>' + formatDate(worker.lastShare) + '</td>' +
-            '<td>' + worker.totalRoundHashes + '</td>';
+            '<td>' + worker.totalRoundHashes + '</td>' +
+            '<td>' + worker.estimatedPayout + '</td>' +
+            '<td>' + worker.totalHashesDonated + '</td>' ;
     }
 
     function getPaymentCells(payment){

@@ -50,9 +50,11 @@ type ApiMiner struct {
 	Hashrate        int64
 	Offline         bool
 	sync.RWMutex
-	Id      string
-	Address string
-	IsSolo  bool
+	Id            string
+	Address       string
+	IsSolo        bool
+	DonatePercent int64
+	DonationTotal int64
 }
 
 type ApiBlocks struct {
@@ -386,7 +388,7 @@ func (apiServer *ApiServer) convertMinerResults(miners []*Miner) ([]*ApiMiner, i
 					if currMiner.WorkID != "" {
 						ID = currMiner.WorkID
 					} else {
-						ID = currMiner.Id
+						ID = "undefined"
 					}
 
 					// Generate struct for miner stats
@@ -405,9 +407,11 @@ func (apiServer *ApiServer) convertMinerResults(miners []*Miner) ([]*ApiMiner, i
 						Id:              ID,
 						Address:         currMiner.Address[0:7] + "..." + currMiner.Address[len(currMiner.Address)-5:len(currMiner.Address)],
 						IsSolo:          currMiner.IsSolo,
+						DonatePercent:   currMiner.DonatePercent,
+						DonationTotal:   currMiner.DonationTotal,
 					}
 
-					apiMiners[ID] = reply
+					apiMiners[ID+currMiner.Address] = reply
 
 					// Compound pool stats: solo hashrate/miners and pool hashrate/miners
 					if currMiner.IsSolo && !Offline {
@@ -446,6 +450,7 @@ func (apiServer *ApiServer) GetConfigIndex() map[string]interface{} {
 	stats["workIDAddressSeparator"] = apiServer.stratum.config.Stratum.WorkerID.AddressSeparator
 	stats["fixedDiffAddressSeparator"] = apiServer.stratum.config.Stratum.FixedDiff.AddressSeparator
 	stats["soloIDSeparator"] = apiServer.stratum.config.Stratum.SoloMining.AddressSeparator
+	stats["hashDonationSeparator"] = apiServer.stratum.config.Stratum.DonatePercent.AddressSeparator
 	stats["ports"] = apiServer.stratum.config.Stratum.Ports
 	stats["unlockDepth"] = apiServer.stratum.config.UnlockerConfig.Depth
 	unlockTime, _ := time.ParseDuration(apiServer.stratum.config.UnlockerConfig.Interval)

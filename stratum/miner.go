@@ -5,6 +5,7 @@ import (
 	"encoding/binary"
 	"encoding/hex"
 	"encoding/json"
+	"fmt"
 	"log"
 	"math/big"
 	"os"
@@ -41,13 +42,15 @@ type Miner struct {
 	Hashrate        int64
 	Offline         bool
 	sync.RWMutex
-	Id        string
-	Address   string
-	PaymentID string
-	FixedDiff uint64
-	IsSolo    bool
-	WorkID    string
-	Ip        string
+	Id            string
+	Address       string
+	PaymentID     string
+	FixedDiff     uint64
+	IsSolo        bool
+	WorkID        string
+	Ip            string
+	DonatePercent int64
+	DonationTotal int64
 }
 
 var MinerInfoLogger = logFileOutMiner("INFO")
@@ -63,10 +66,10 @@ func (job *Job) submit(nonce string) bool {
 	return false
 }
 
-func NewMiner(id string, address string, paymentid string, fixedDiff uint64, workID string, isSolo bool, ip string) *Miner {
+func NewMiner(id string, address string, paymentid string, fixedDiff uint64, workID string, donationPercent int64, isSolo bool, ip string) *Miner {
 	shares := make(map[int64]int64)
 	now := util.MakeTimestamp() / 1000
-	return &Miner{Id: id, Address: address, PaymentID: paymentid, FixedDiff: fixedDiff, IsSolo: isSolo, WorkID: workID, Ip: ip, Shares: shares, StartedAt: now}
+	return &Miner{Id: id, Address: address, PaymentID: paymentid, FixedDiff: fixedDiff, IsSolo: isSolo, WorkID: workID, DonatePercent: donationPercent, Ip: ip, Shares: shares, StartedAt: now}
 }
 
 func (cs *Session) calcVarDiff(currDiff float64, s *StratumServer) int64 {
@@ -209,7 +212,7 @@ func (m *Miner) heartbeat() {
 	atomic.StoreInt64(&m.LastBeat, now)
 }
 
-func (m *Miner) storeShare(diff, templateHeight int64) {
+func (m *Miner) storeShare(diff, minershares, templateHeight int64) {
 	now := util.MakeTimestamp() / 1000
 
 	if m.IsSolo {
@@ -234,7 +237,7 @@ func (m *Miner) storeShare(diff, templateHeight int64) {
 						m.Shares[now] += diff
 					}
 					atomic.StoreInt64(&m.LastRoundShares, atomic.LoadInt64(&m.RoundShares))
-					atomic.StoreInt64(&m.RoundShares, diff)
+					atomic.StoreInt64(&m.RoundShares, minershares)
 					m.Unlock()
 					resetVars = true
 				}
@@ -248,7 +251,7 @@ func (m *Miner) storeShare(diff, templateHeight int64) {
 			if diff != 0 {
 				m.Shares[now] += diff
 			}
-			atomic.AddInt64(&m.RoundShares, diff)
+			atomic.AddInt64(&m.RoundShares, minershares)
 			m.Unlock()
 		}
 	}
@@ -286,6 +289,7 @@ func (m *Miner) getHashrate(estimationWindow, hashrateExpiration time.Duration) 
 func (m *Miner) processShare(s *StratumServer, cs *Session, job *Job, t *BlockTemplate, nonce string, params *SubmitParams) (bool, string) {
 
 	// Var definitions
+	var extraMinerMessage string
 	var checkPowHashBig bool
 	var success bool
 	var bypassShareValidation bool
@@ -293,9 +297,10 @@ func (m *Miner) processShare(s *StratumServer, cs *Session, job *Job, t *BlockTe
 	var shareType string
 	var hashBytes []byte
 	var diff big.Int
+	var donation float64
 	diff.SetUint64(t.Difficulty)
 	var setDiff big.Int
-	setDiff.SetInt64(cs.difficulty)
+	setDiff.SetUint64(uint64(cs.difficulty))
 	r := s.rpc()
 
 	shareBuff := make([]byte, len(t.Buffer))
@@ -447,6 +452,26 @@ func (m *Miner) processShare(s *StratumServer, cs *Session, job *Job, t *BlockTe
 				MinerErrorLogger.Printf("[BLOCK] Graviton DB err: %v", infoErr)
 			}
 
+			var minerShare int64
+			if m.DonatePercent > 0 && m.Address != s.donateID {
+				donation = float64(m.DonatePercent) / 100 * float64(cs.difficulty)
+				atomic.AddInt64(&m.DonationTotal, int64(donation))
+
+				donateMiner, ok := s.miners.Get(s.donateID)
+				if !ok {
+					log.Printf("[Miner] Miner %v@%v intended to donate %v shares, however donation miner is not setup.", params.Id, cs.ip, int64(donation))
+					MinerErrorLogger.Printf("[Miner] Miner %v@%v intended to donate %v shares, however donation miner is not setup.", params.Id, cs.ip, int64(donation))
+				} else {
+					log.Printf("[Miner] Miner %v@%v donated %v shares.", params.Id, cs.ip, int64(donation))
+					MinerErrorLogger.Printf("[Miner] Miner %v@%v donated %v shares.", params.Id, cs.ip, int64(donation))
+					donateMiner.storeShare(cs.difficulty, int64(donation), int64(t.Height))
+				}
+
+				minerShare = cs.difficulty - int64(donation)
+			} else {
+				minerShare = cs.difficulty
+			}
+
 			m.Lock()
 			atomic.StoreInt64(&m.RoundHeight, int64(t.Height))
 			// No need to add blank diff shares to m.Shares. Usually only 0 if running NextRound from storage.go
@@ -454,7 +479,7 @@ func (m *Miner) processShare(s *StratumServer, cs *Session, job *Job, t *BlockTe
 				m.Shares[now] += cs.difficulty
 			}
 
-			atomic.AddInt64(&m.LastRoundShares, atomic.LoadInt64(&m.RoundShares)+cs.difficulty)
+			atomic.AddInt64(&m.LastRoundShares, atomic.LoadInt64(&m.RoundShares)+minerShare)
 			atomic.StoreInt64(&m.RoundShares, 0)
 			m.Unlock()
 
@@ -478,7 +503,7 @@ func (m *Miner) processShare(s *StratumServer, cs *Session, job *Job, t *BlockTe
 				Graviton_backend.Writing = 0
 			}
 
-			atomic.StoreInt64(&m.LastRoundShares, 0)
+			//atomic.StoreInt64(&m.LastRoundShares, 0)	// Don't believe this is necessary, happens in nextround
 		}
 	} else if hashDiff.Cmp(&setDiff) < 0 {
 		minerOutput := "Low difficulty share"
@@ -493,7 +518,33 @@ func (m *Miner) processShare(s *StratumServer, cs *Session, job *Job, t *BlockTe
 
 	// Store share for current height and current round shares on normal basis. If block && checkPowHashBig, miner round share has already been counted, no need to double count here
 	if !block && !checkPowHashBig {
-		m.storeShare(cs.difficulty, int64(t.Height))
+		// If miner is donating, take % out of cs.difficulty (share amount stored) and storeShare to donation addr
+		if m.DonatePercent > 0 && m.Address != s.donateID {
+			donation = float64(m.DonatePercent) / 100 * float64(cs.difficulty)
+			atomic.AddInt64(&m.DonationTotal, int64(donation))
+
+			donateMiner, ok := s.miners.Get(s.donateID)
+			if !ok {
+				log.Printf("[Miner] Miner %v@%v intended to donate %v shares, however donation miner is not setup.", params.Id, cs.ip, int64(donation))
+				MinerErrorLogger.Printf("[Miner] Miner %v@%v intended to donate %v shares, however donation miner is not setup.", params.Id, cs.ip, int64(donation))
+			} else {
+				log.Printf("[Miner] Miner %v@%v donated %v shares.", params.Id, cs.ip, int64(donation))
+				MinerErrorLogger.Printf("[Miner] Miner %v@%v donated %v shares.", params.Id, cs.ip, int64(donation))
+				donateMiner.storeShare(int64(donation), int64(donation), int64(t.Height))
+			}
+
+			minerShare := cs.difficulty - int64(donation)
+			m.storeShare(cs.difficulty, minerShare, int64(t.Height))
+		} else {
+			m.storeShare(cs.difficulty, cs.difficulty, int64(t.Height))
+		}
+	} else {
+		// Add extra miner message to return back to mining software if a block is found by the miner - only certain miner software will read/use these results
+		if m.IsSolo {
+			extraMinerMessage = fmt.Sprintf("SOLO Block found at height %d, diff: %v, by you!", t.Height, t.Difficulty)
+		} else {
+			extraMinerMessage = fmt.Sprintf("POOL Block found at height %d, diff: %v, by you!", t.Height, t.Difficulty)
+		}
 	}
 
 	atomic.AddInt64(&m.ValidShares, 1)
@@ -515,7 +566,16 @@ func (m *Miner) processShare(s *StratumServer, cs *Session, job *Job, t *BlockTe
 
 	s.miners.Set(m.Id, m)
 
-	return true, ""
+	if m.DonatePercent > 0 && m.Address != s.donateID {
+		// Append if there is previous extra miner message being sent - like found block etc.
+		if extraMinerMessage != "" {
+			extraMinerMessage = fmt.Sprintf("%s -- Donated %v shares - Thank you!", extraMinerMessage, int64(donation))
+		} else {
+			extraMinerMessage = fmt.Sprintf("Donated %v shares - Thank you!", int64(donation))
+		}
+	}
+
+	return true, extraMinerMessage
 }
 
 func logFileOutMiner(lType string) *log.Logger {

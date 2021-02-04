@@ -68,9 +68,30 @@ func (u *PayoutsProcessor) Start(s *StratumServer) {
 	payments := Graviton_backend.GetPendingPayments()
 
 	if len(payments) > 0 {
-		log.Printf("[Payments] Previous payout failed, trying to resolve it. List of failed payments:\n %v",
-			formatPendingPayments(payments))
-		PaymentsInfoLogger.Printf("[Payments] Previous payout failed, trying to resolve it. List of failed payments:\n %v", formatPendingPayments(payments))
+		// Quick loop through to check if pending payments have reached threshold. Log to screen any insufficient balances pending as well as to screen/log any failed payments that are above threshold
+		var checkedPayments []*PaymentPending
+		var insufficientBalances []*PaymentPending
+		for _, val := range payments {
+			amount := val.Amount
+
+			if !u.reachedThreshold(amount) {
+				insufficientBalances = append(insufficientBalances, val)
+				continue
+			}
+
+			checkedPayments = append(checkedPayments, val)
+		}
+
+		if len(checkedPayments) > 0 {
+			log.Printf("[Payments] Previous payout failed, trying to resolve it. List of failed payments:\n %v",
+				formatPendingPayments(checkedPayments))
+			PaymentsInfoLogger.Printf("[Payments] Previous payout failed, trying to resolve it. List of failed payments:\n %v", formatPendingPayments(checkedPayments))
+		}
+
+		if len(insufficientBalances) > 0 {
+			log.Printf("[Payments] List of pending payments with insufficient balances (< %v):\n %v", u.config.Threshold,
+				formatPendingPayments(insufficientBalances))
+		}
 	}
 
 	// Immediately process payouts after start
@@ -132,7 +153,7 @@ func (u *PayoutsProcessor) process(s *StratumServer) {
 		// We already do this for when the miner connects, we need to get those details/vars or just regen them as well as re-validate JUST TO BE SURE prior to attempting to send
 		// NOTE: The issue with grabbing from the miners arr (s.miners), is that if they're not actively mining but get rewards from a past round, the query will not return their detail for payout
 
-		addr, _, paymentID, _, _ := s.splitLoginString(login)
+		addr, _, paymentID, _, _, _ := s.splitLoginString(login)
 
 		log.Printf("[Payments] Split login. Address: %v, paymentID: %v", addr, paymentID)
 		PaymentsInfoLogger.Printf("[Payments] Split login. Address: %v, paymentID: %v", addr, paymentID)

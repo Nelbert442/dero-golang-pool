@@ -14,10 +14,11 @@ import (
 )
 
 const (
-	paramAddr = iota
-	paramWID  = iota
-	paramPID  = iota
-	paramDiff = iota
+	paramAddr    = iota
+	paramWID     = iota
+	paramPID     = iota
+	paramDiff    = iota
+	paramDonPerc = iota
 )
 
 var noncePattern *regexp.Regexp
@@ -32,7 +33,28 @@ func (s *StratumServer) handleLoginRPC(cs *Session, params *LoginParams) (*JobRe
 
 	var id string
 	// Login validation / splitting optimized by Peppinux (https://github.com/peppinux)
-	address, workID, paymentid, fixDiff, isSolo := s.splitLoginString(params.Login)
+	address, workID, paymentid, fixDiff, donatePerc, isSolo := s.splitLoginString(params.Login)
+
+	// Initially set cs.difficulty. If there's no fixDiff defined, inside of cs.getJob the diff target will be set to cs.endpoint.difficulty,
+	// otherwise will be set to fixDiff (as long as it's above min diff in config)
+	if fixDiff != 0 {
+		// If fixDiff is lower than mindiff, set equal to mindiff
+		if fixDiff < uint64(cs.endpoint.config.MinDiff) {
+			fixDiff = uint64(cs.endpoint.config.MinDiff)
+		}
+		cs.difficulty = int64(fixDiff)
+		cs.isFixedDiff = true
+	} else {
+		cs.difficulty = cs.endpoint.config.Difficulty
+		cs.isFixedDiff = false
+	}
+
+	// Take care of less than 0 or greater than 100 vals for donate percentages
+	if donatePerc < 0 {
+		donatePerc = 0
+	} else if donatePerc > 100 {
+		donatePerc = 100
+	}
 
 	// PaymentID Length Validation
 	if paymentid != "" {
@@ -102,9 +124,9 @@ func (s *StratumServer) handleLoginRPC(cs *Session, params *LoginParams) (*JobRe
 
 	miner, ok := s.miners.Get(id)
 	if !ok {
-		log.Printf("[Handlers] Registering new miner: %s@%s, Address: %s, PaymentID: %s, fixedDiff: %v, isSolo: %v", id, cs.ip, address, paymentid, fixDiff, isSolo)
-		HandlersInfoLogger.Printf("[Handlers] Registering new miner: %s@%s, Address: %s, PaymentID: %s, fixedDiff: %v, isSolo: %v", id, cs.ip, address, paymentid, fixDiff, isSolo)
-		miner = NewMiner(id, address, paymentid, fixDiff, workID, isSolo, cs.ip)
+		log.Printf("[Handlers] Registering new miner: %s@%s, Address: %s, PaymentID: %s, fixedDiff: %v, donatePercent: %v, isSolo: %v", id, cs.ip, address, paymentid, fixDiff, donatePerc, isSolo)
+		HandlersInfoLogger.Printf("[Handlers] Registering new miner: %s@%s, Address: %s, PaymentID: %s, fixedDiff: %v, donatePercent: %v, isSolo: %v", id, cs.ip, address, paymentid, fixDiff, donatePerc, isSolo)
+		miner = NewMiner(id, address, paymentid, fixDiff, workID, donatePerc, isSolo, cs.ip)
 		s.registerMiner(miner)
 
 		writeWait, _ := time.ParseDuration("10ms")
@@ -119,23 +141,18 @@ func (s *StratumServer) handleLoginRPC(cs *Session, params *LoginParams) (*JobRe
 	} else {
 		now := util.MakeTimestamp() / 1000
 		miner.StartedAt = now
+		miner.DonatePercent = donatePerc
+		miner.PaymentID = paymentid
+		miner.FixedDiff = fixDiff
+		miner.IsSolo = isSolo
+		miner.WorkID = workID
 	}
 
-	log.Printf("[Handlers] Miner connected %s@%s, Address: %s, PaymentID: %s, fixedDiff: %v, isSolo: %v", id, cs.ip, address, paymentid, fixDiff, isSolo)
-	HandlersInfoLogger.Printf("[Handlers] Miner connected %s@%s, Address: %s, PaymentID: %s, fixedDiff: %v, isSolo: %v", id, cs.ip, address, paymentid, fixDiff, isSolo)
+	log.Printf("[Handlers] Miner connected %s@%s, Address: %s, PaymentID: %s, fixedDiff: %v, donatePercent: %v, isSolo: %v", id, cs.ip, address, paymentid, fixDiff, donatePerc, isSolo)
+	HandlersInfoLogger.Printf("[Handlers] Miner connected %s@%s, Address: %s, PaymentID: %s, fixedDiff: %v, donatePercent: %v, isSolo: %v", id, cs.ip, address, paymentid, fixDiff, donatePerc, isSolo)
 
 	s.registerSession(cs)
 	miner.heartbeat()
-
-	// Initially set cs.difficulty. If there's no fixDiff defined, inside of cs.getJob the diff target will be set to cs.endpoint.difficulty,
-	// otherwise will be set to fixDiff (as long as it's above min diff in config)
-	if fixDiff != 0 {
-		cs.difficulty = int64(fixDiff)
-		cs.isFixedDiff = true
-	} else {
-		cs.difficulty = cs.endpoint.config.Difficulty
-		cs.isFixedDiff = false
-	}
 
 	//log.Printf("[handleGetJobRPC] getJob: %v", cs.getJob(t))
 	job := cs.getJob(t, s, 0)
@@ -196,7 +213,7 @@ func (s *StratumServer) handleSubmitRPC(cs *Session, params *SubmitParams) (*Sta
 	if !validShare {
 		return nil, &ErrorReply{Code: -1, Message: minerOutput}
 	}
-	return &StatusReply{Status: "OK"}, nil
+	return &StatusReply{Status: "OK", Message: minerOutput}, nil
 }
 
 func (s *StratumServer) handleUnknownRPC(req *JSONRpcReq) *ErrorReply {
@@ -284,7 +301,7 @@ func (s *StratumServer) refreshBlockTemplate(bcast bool) {
 }
 
 // Optimized splitting functions with runes from @Peppinux (https://github.com/peppinux)
-func (s *StratumServer) splitLoginString(loginWorkerPair string) (addr, wid, pid string, diff uint64, isSolo bool) {
+func (s *StratumServer) splitLoginString(loginWorkerPair string) (addr, wid, pid string, diff uint64, donperc int64, isSolo bool) {
 	currParam := paramAddr // String always starts with ADDRESS
 	currSubstr := ""       // Substring starts empty
 
@@ -302,10 +319,11 @@ func (s *StratumServer) splitLoginString(loginWorkerPair string) (addr, wid, pid
 	widAddrSep := []rune(s.config.Stratum.WorkerID.AddressSeparator)
 	pidAddrSep := []rune(s.config.Stratum.PaymentID.AddressSeparator)
 	fDiffAddrSep := []rune(s.config.Stratum.FixedDiff.AddressSeparator)
+	donPercAddrSep := []rune(s.config.Stratum.DonatePercent.AddressSeparator)
 
 	lastPos := len(loginWorkerPair) - 1
 	for pos, c := range loginWorkerPair {
-		if c != widAddrSep[0] && c != pidAddrSep[0] && c != fDiffAddrSep[0] && pos != lastPos {
+		if c != widAddrSep[0] && c != pidAddrSep[0] && c != fDiffAddrSep[0] && c != donPercAddrSep[0] && pos != lastPos {
 			currSubstr += string(c)
 		} else {
 			if pos == lastPos {
@@ -320,6 +338,8 @@ func (s *StratumServer) splitLoginString(loginWorkerPair string) (addr, wid, pid
 				wid = currSubstr
 			case paramPID:
 				pid = currSubstr
+			case paramDonPerc:
+				donperc, _ = strconv.ParseInt(currSubstr, 10, 64)
 			case paramDiff:
 				diff, _ = strconv.ParseUint(currSubstr, 10, 64)
 			}
@@ -333,6 +353,8 @@ func (s *StratumServer) splitLoginString(loginWorkerPair string) (addr, wid, pid
 				currParam = paramPID
 			case fDiffAddrSep[0]:
 				currParam = paramDiff
+			case donPercAddrSep[0]:
+				currParam = paramDonPerc
 			}
 		}
 	}

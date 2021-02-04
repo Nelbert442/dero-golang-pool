@@ -37,6 +37,7 @@ type StratumServer struct {
 	gravitonDB         *GravitonStore
 	hashrateExpiration time.Duration
 	failsCount         int64
+	donateID           string
 }
 
 type Endpoint struct {
@@ -148,6 +149,53 @@ func NewStratum(cfg *pool.Config) *StratumServer {
 
 	infoIntv, _ := time.ParseDuration(cfg.UpstreamCheckInterval)
 	infoTimer := time.NewTimer(infoIntv)
+
+	// Setup donate ID
+	var dwid, dpid string
+	var ddiff uint64
+	var ddonperc int64
+	var disSolo bool
+	if stratum.config.DonationAddress != "" {
+		daddress := stratum.config.DonationAddress
+		stratum.donateID = daddress
+		dminer, ok := stratum.miners.Get(daddress)
+		if !ok {
+			log.Printf("[Stratum] Registering donation miner: Address: %s", daddress)
+			StratumInfoLogger.Printf("[Stratum] Registering donation miner: Address: %s", daddress)
+			dminer = NewMiner(daddress, daddress, dpid, ddiff, dwid, ddonperc, disSolo, "127.0.0.1")
+			stratum.registerMiner(dminer)
+
+			writeWait, _ := time.ParseDuration("10ms")
+			for Graviton_backend.Writing == 1 {
+				//log.Printf("[Handlers-handleLoginRPC] GravitonDB is writing... sleeping for %v...", writeWait)
+				//StorageInfoLogger.Printf("[Handlers-handleLoginRPC] GravitonDB is writing... sleeping for %v...", writeWait)
+				time.Sleep(writeWait)
+			}
+			Graviton_backend.Writing = 1
+			Graviton_backend.WriteMinerIDRegistration(dminer)
+			Graviton_backend.Writing = 0
+		}
+	} else {
+		daddress := stratum.config.Address
+		stratum.donateID = daddress
+		dminer, ok := stratum.miners.Get(daddress)
+		if !ok {
+			log.Printf("[Stratum] Registering donation miner: Address: %s", daddress)
+			StratumInfoLogger.Printf("[Stratum] Registering donation miner: Address: %s", daddress)
+			dminer = NewMiner(daddress, daddress, dpid, ddiff, dwid, ddonperc, disSolo, "127.0.0.1")
+			stratum.registerMiner(dminer)
+
+			writeWait, _ := time.ParseDuration("10ms")
+			for Graviton_backend.Writing == 1 {
+				//log.Printf("[Handlers-handleLoginRPC] GravitonDB is writing... sleeping for %v...", writeWait)
+				//StorageInfoLogger.Printf("[Handlers-handleLoginRPC] GravitonDB is writing... sleeping for %v...", writeWait)
+				time.Sleep(writeWait)
+			}
+			Graviton_backend.Writing = 1
+			Graviton_backend.WriteMinerIDRegistration(dminer)
+			Graviton_backend.Writing = 0
+		}
+	}
 
 	// Init block template
 	go stratum.refreshBlockTemplate(false)

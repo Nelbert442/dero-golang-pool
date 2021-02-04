@@ -412,7 +412,7 @@ func calculateRewardsForSharesGrav(s *StratumServer, shares map[string]int64, to
 	for login, n := range shares {
 		if n != 0 {
 			// Split away for workers, paymentIDs etc. just to compound the shares associated with a given address
-			address, _, paymentID, _, _ := s.splitLoginString(login)
+			address, _, paymentID, _, _, _ := s.splitLoginString(login)
 
 			percent := big.NewRat(n, total)
 			workerReward := new(big.Rat).Mul(reward, percent)

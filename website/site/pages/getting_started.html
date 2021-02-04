@@ -18,6 +18,7 @@
 				<div id="paymentId"><i class="fa fa-exchange"></i> <span data-tkey="paymentId">Exchange Payment ID</span>: <span><u data-tkey="parentaddress">walletaddress</u><span id="paymentIdSeparator">+</span><u data-tkey="addrPaymentId">paymentID</u></span></div>
 				<div id="fixedDiff"><i class="fa fa-wrench"></i> <span data-tkey="fixedDiff">Difficulty Locking</span>: <span><u data-tkey="parentaddress">walletaddress</u><span id="fixedDiffSeparator">.</span><u data-tkey="addrDiff">diff</u></span></div>
 				<div id="fixedDiff"><i class="fa fa-wrench"></i> <span data-tkey="fixedDiff">Worker Defining</span>: <span><u data-tkey="parentaddress">walletaddress</u><span id="workerIDSeparator">@</span><u data-tkey="workerName">worker</u></span></div>
+				<div id="fixedDiff"><i class="fa fa-money"></i> <span data-tkey="fixedDiff">Hash Donation</span>: <span><u data-tkey="parentaddress">walletaddress</u><span id="hashDonationSeparator">%</span><u data-tkey="workerName">1</u></span></div>
 			</div>
 		</div>
 	</div>
@@ -72,7 +73,7 @@
 		<div class="col-sm-6 col-xs-12">
 			<div class="input-group push-down-5">
 				<span class="input-group-addon"><i class="fa fa-server"></i></span>
-				<input class="form-control" id="gWorkerName" data-tplaceholder="workerNameField" type="text" placeholder="Worker_Name" />
+				<input class="form-control" id="gWorkerName" data-tplaceholder="workerNameField" type="text" placeholder="Worker Name (optional)" />
 			</div>
 		</div>
 		<div class="col-sm-6 col-xs-12">
@@ -84,7 +85,7 @@
 		<div class="col-sm-6 col-xs-12">
 			<div class="input-group push-down-5">
 				<span class="input-group-addon"><i class="fa fa-exchange"></i></span>
-				<input class="form-control" id="gPaymentID" type="text" data-tplaceholder="paymentIdField" placeholder="Parent Payment ID for exchanges (optional)" />
+				<input class="form-control" id="gPaymentID" type="text" data-tplaceholder="paymentIdField" placeholder="Payment ID (optional)" />
 			</div>
 		</div>
 		<div class="col-sm-6 col-xs-12">
@@ -93,8 +94,14 @@
 				<input class="form-control" id="gDifficulty" type="text" data-tplaceholder="fixedDiffField" placeholder="Fixed difficulty (optional)" />
 			</div>
 		</div>
+		<div class="col-sm-6 col-xs-12">
+			<div class="input-group push-down-5">
+				<span class="input-group-addon"><i class="fa fa-money"></i></span>
+				<input class="form-control" id="gDonation" type="text" data-tplaceholder="donationField" placeholder="Pool Donation % [0-100] (optional)" />
+			</div>
+		</div>
 		<div class="col-md-12 push-up-5">
-			<input id="generateConf" type="submit" tvalue="generateConfig" value="Generate configuration" class="btn btn-default" data-toggle="collapse" href="#xmrig" />
+			<input id="generateConf" type="submit" tvalue="generateConfig" value="Generate configuration" class="btn btn-default" data-toggle="collapse" href="#derominer" />
 		</div>
 	</div>
 </div>
@@ -114,7 +121,25 @@
 			</thead>
 			<tbody id="miningApps_rows">
 
-				<!-- XMR Stak -->
+				<!-- DERO Miner -->
+				<tr class="appInfo">
+					<td class="miningAppTitle">DERO Miner</td>
+					<td>CPU</td>
+					<td>Official DERO CPU Mining App</td>
+					<td><a class="btn btn-success" target="_blank" href="https://github.com/deroproject/derosuite/pull/22"><span data-tkey="download">Coming Soon</span></a></td>
+					<td><a class="btn btn-default" role="button" data-toggle="collapse" href="#derominer" aria-expanded="true" aria-controls="collapseExample"><span data-tkey="showConfig">See more</span></a></td>
+				</tr>
+				<tr class="appConfig">
+					<td colspan="5">
+						<div class="collapse" id="derominer">
+
+							<pre><code>dero-miner-windows-amd64.exe --wallet-address=<span class="exampleLogin">YOUR_WALLET_ADDRESS</span> --pool-address=<span class="exampleHost">POOL_HOST</span>:<span class="examplePort">PORT</span></code></pre>
+
+						</div>
+					</td>
+				</tr>
+
+				<!-- XMRig -->
 				<tr class="appInfo">
 					<td class="miningAppTitle">XMRig</td>
 					<td>CPU & GPU (NVIDIA)</td>
@@ -127,23 +152,22 @@
 						<div class="collapse" id="xmrig">
 
 							<pre><code>"pools": [
-{
-	"algo": "<span id="exampleAlgorithm"></span>"
-	"coin": "<span id="coin"></span>"
-        "url": "<span class="exampleHost">POOL_HOST</span>:<span class="examplePort">PORT</span>",
-        "user": "<span class="exampleLogin">YOUR_WALLET_ADDRESS</span>",
-        "rig_id": null,
-        "pass": "",
-        "nicehash": false,
-        "tls": false, /* Set to true if you are using an SSL port */
-        "tls-fingerprint": null,
-    },
-],</code></pre>
+				{
+				"algo": "<span id="exampleAlgorithm"></span>"
+				"coin": "<span id="coin"></span>"
+				"url": "<span class="exampleHost">POOL_HOST</span>:<span class="examplePort">PORT</span>",
+				"user": "<span class="exampleLogin">YOUR_WALLET_ADDRESS</span>",
+				"rig_id": null,
+				"pass": "",
+				"nicehash": false,
+				"tls": false, /* Set to true if you are using an SSL port */
+				"tls-fingerprint": null,
+				},
+				],</code></pre>
 
 						</div>
 					</td>
 				</tr>
-
 			</tbody>
 		</table>
 	</div>
@@ -194,6 +218,7 @@
 			updateText('fixedDiffSeparator', lastStats.config.fixedDiffAddressSeparator);
 			updateText('workerIDSeparator', lastStats.config.workIDAddressSeparator);
 			updateText('soloIDSeparator', lastStats.config.soloIDSeparator);
+			updateText('hashDonationSeparator', lastStats.config.hashDonationSeparator);
 
 			updateText('algorithm', lastStats.config.algo);
 			updateText('exampleAlgorithm', lastStats.config.algo);
@@ -231,8 +256,13 @@
 				.val()
 				.replace(/\s+/g, '')
 				.trim();
+			var donation = parseInt($('#gDonation')
+				.val()
+				.replace(/\s+/g, '')
+				.trim());
 
 			var login = address ? address : 'YOUR_WALLET_ADDRESS';
+			if (donation) login = login + lastStats.config.hashDonationSeparator + donation;
 			if (paymentID) login = login + lastStats.config.payIDAddressSeparator + paymentID;
 			if (difficulty) login = login + lastStats.config.fixedDiffAddressSeparator + difficulty;
 			if (workerName) login = login + lastStats.config.workIDAddressSeparator + workerName;

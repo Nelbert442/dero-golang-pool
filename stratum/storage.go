@@ -1097,6 +1097,35 @@ func (g *GravitonStore) CompareMinerStats(storedMiner, miner *Miner, hashrateExp
 	var oldHashesHeight int64
 
 	if storedMiner != nil {
+		if updatedMiner != nil {
+			// Sync donationtotal for all-time stats
+			if storedMiner.DonationTotal >= updatedMiner.DonationTotal {
+				diff := storedMiner.DonationTotal - updatedMiner.DonationTotal
+				if diff < 0 {
+					diff = 0
+				}
+				updatedMiner.DonationTotal += diff
+			}
+
+			// Sync accepts for all-time stats
+			if storedMiner.Accepts >= updatedMiner.Accepts {
+				diff := storedMiner.Accepts - updatedMiner.Accepts
+				if diff < 0 {
+					diff = 0
+				}
+				updatedMiner.Accepts += diff
+			}
+
+			// Sync rejects for all-time stats
+			if storedMiner.Rejects >= updatedMiner.Rejects {
+				diff := storedMiner.Rejects - updatedMiner.Rejects
+				if diff < 0 {
+					diff = 0
+				}
+				updatedMiner.Rejects += diff
+			}
+		}
+
 		if blockHeightArr != nil {
 			for height, solo := range blockHeightArr.Heights {
 				if storedMiner.RoundHeight <= height && !solo {

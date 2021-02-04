@@ -54,7 +54,8 @@ type JobReplyData struct {
 }
 
 type StatusReply struct {
-	Status string `json:"status"`
+	Status  string `json:"status"`
+	Message string `json:"message"`
 }
 
 type ErrorReply struct {

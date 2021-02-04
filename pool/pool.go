@@ -5,6 +5,7 @@ type Config struct {
 	BlockchainExplorer      string           `json:"blockchainExplorer"`
 	TransactionExploer      string           `json:"transactionExplorer"`
 	Address                 string           `json:"address"`
+	DonationAddress         string           `json:"donationAddress"`
 	BypassShareValidation   bool             `json:"bypassShareValidation"`
 	Threads                 int              `json:"threads"`
 	Algo                    string           `json:"algo"`
@@ -37,15 +38,16 @@ type Upstream struct {
 }
 
 type Stratum struct {
-	PaymentID   PaymentID     `json:"paymentId"`
-	FixedDiff   FixedDiff     `json:"fixedDiff"`
-	WorkerID    WorkerID      `json:"workerID"`
-	SoloMining  SoloMining    `json:"soloMining"`
-	Timeout     string        `json:"timeout"`
-	MaxFails    int64         `json:"maxFails"`
-	HealthCheck bool          `json:"healthCheck"`
-	Ports       []Port        `json:"listen"`
-	VarDiff     VarDiffConfig `json:"varDiff"`
+	PaymentID     PaymentID     `json:"paymentId"`
+	FixedDiff     FixedDiff     `json:"fixedDiff"`
+	WorkerID      WorkerID      `json:"workerID"`
+	DonatePercent DonatePercent `json:"donatePercent"`
+	SoloMining    SoloMining    `json:"soloMining"`
+	Timeout       string        `json:"timeout"`
+	MaxFails      int64         `json:"maxFails"`
+	HealthCheck   bool          `json:"healthCheck"`
+	Ports         []Port        `json:"listen"`
+	VarDiff       VarDiffConfig `json:"varDiff"`
 }
 
 type PaymentID struct {
@@ -57,6 +59,10 @@ type FixedDiff struct {
 }
 
 type WorkerID struct {
+	AddressSeparator string `json:"addressSeparator"`
+}
+
+type DonatePercent struct {
 	AddressSeparator string `json:"addressSeparator"`
 }
 
