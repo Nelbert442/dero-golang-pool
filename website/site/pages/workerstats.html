@@ -11,33 +11,17 @@
                 <span><i class="fa fa-refresh fa-spin"></i> <span data-tkey="searching">Searching...</span></span>
             </button></span>
         </div>
+        <h4 class="cookies push-up-20" style="display: none;" id="cookiemanagementtitle"><i class="fa fa-key"></i>&nbsp; <span data-tkey="cookieManagement">Website Cookie Management (YOU are in control)</span></h4>
+        <div class="row cookiemgmt">
+            <div class="col-sm-2"><span class="save-cookie-btn"><button class="btn btn-default" type="button" id="saveCookie" style="display: none;">
+                <span><i class="fa fa-key"></i> <span data-tkey="savecookie" style="word-wrap: break-word; white-space: normal;">Save Cookie (site remembers address)</span></span>
+            </button></span></div>
+            <div class="col-sm-2"><span class="remove-cookie-btn"><button class="btn btn-default" type="button" id="removeCookie" style="display: none;">
+                <span><i class="fa fa-key"></i> <span data-tkey="removecookie" style="word-wrap: break-word; white-space: normal;">Remove Cookie (site forgets address)</span></span>
+            </button></span></div>
+        </div>
         <div id="addressError"></div>
 
-        <!-- Hashrate 
-        <div class="yourStats{{coin}} push-up-20">
-            <h4><i class="fa fa-dashboard"></i>&nbsp; <span data-tkey="hashRate">Hash Rate</span></h4>
-        <div class="row card">
-                <div class="col-sm-6 stats push-up-10">
-                    <div><i class="fa fa-tachometer"></i> <span data-tkey="currentHashRate">Current Hash Rate</span>: <span id="yourHashrateHolder"></span></div>
-                    <div><i class="fa fa-clock-o"></i> <span data-tkey="lastShare">Last Share Submitted</span>: <span id="yourLastShare"></span></div>
-                    <div><i class="fa fa-cloud-upload"></i> <span data-tkey="totalRoundHashes">Total Round Hashes Submitted</span>: <span id="yourHashes"></span></div>
-                </div>
-        </div>
-        </div>
--->
-        <!-- Payments 
-        <div class="yourStats{{coin}} push-up-20">
-            <h4><i class="fa fa-money"></i>&nbsp; <span data-tkey="payments">Payments</span></h4>
-            <div class="row card">
-                <div class="col-sm-6 stats push-up-10">
-                    <div><i class="fa fa-bank"></i> <span data-tkey="pendingBalance">Pending Balance</span>: <span id="yourPendingBalance"></span></div>
-                    <div><i class="fa fa-money"></i> <span data-tkey="totalPaid">Total Paid</span>: <span id="yourPaid"></span></div>
-                    <div class="card-separate-text"><i class="fa fa-star card-icon"></i> <span class="card-label">Round contribution</span>: <span id="yourRoundShareProportion"></span>%
-                    <div><i class="fa fa-money"></i> <span data-tkey="payoutEstimate">Current Payout Estimate</span>: <span id="yourPayoutEstimate"></span></div>
-                </div>
-            </div>
-        </div>
--->
         <!-- Workers -->
         <h4 class="yourStats{{coin}} yourWorkers{{coin}} push-up-20"><i class="fa fa-server"></i>&nbsp; <span data-tkey="workerStats">Workers Statistics</span></h4>
         <div class="yourStats{{coin}} yourWorkers{{coin}} card">
@@ -92,6 +76,34 @@
 
 <!-- Javascript -->
 <script>
+    var docCookies = {
+        getItem: function (sKey) {
+            return decodeURIComponent(document.cookie.replace(new RegExp("(?:(?:^|.*;)\\s*" + encodeURIComponent(sKey)
+                .replace(/[\-\.\+\*]/g, "\\$&") + "\\s*\\=\\s*([^;]*).*$)|^.*$"), "$1")) || null;
+        },
+        setItem: function (sKey, sValue, vEnd, sPath, sDomain, bSecure) {
+            if (!sKey || /^(?:expires|max\-age|path|domain|secure)$/i.test(sKey)) {
+                return false;
+            }
+            var sExpires = "";
+            if (vEnd) {
+                switch (vEnd.constructor) {
+                    case Number:
+                        sExpires = vEnd === Infinity ? "; expires=Fri, 31 Dec 9999 23:59:59 GMT" : "; max-age=" + vEnd;
+                        break;
+                    case String:
+                        sExpires = "; expires=" + vEnd;
+                        break;
+                    case Date:
+                        sExpires = "; expires=" + vEnd.toUTCString();
+                        break;
+                }
+            }
+            document.cookie = encodeURIComponent(sKey) + "=" + encodeURIComponent(sValue) + sExpires + (sDomain ? "; domain=" + sDomain : "") + (sPath ? "; path=" + sPath : "") + (bSecure ? "; secure" : "");
+            return true;
+        }
+    };
+
 	let xhrAddressPoll = {}
 	let addressTimeout = {}
 	let ranOnce = false
@@ -102,6 +114,11 @@
 		update: function (updateKey) {}
 	};
 
+    if (docCookies.getItem(`mining_address`)) {
+        addr = document.getElementById("yourStatsInput")
+        addr.value = docCookies.getItem(`mining_address`)
+    }
+
     var xhrGetStats;
     $('#lookUp').click(function(){
         if (xhrGetStats) xhrGetStats.abort();
@@ -110,10 +127,24 @@
             dataType: 'json',
             cache: 'false',
         }).done(function(data){
+            var scookie = document.getElementById("saveCookie")
+            scookie.style.display = 'block';
+            var rcookie = document.getElementById("removeCookie")
+            rcookie.style.display = 'block';
+            var cookietitle = document.getElementById("cookiemanagementtitle")
+            cookietitle.style.display = 'block';
             addrStats = data;
             renderStats(addrStats);
         })
 	});
+
+    $('#saveCookie').click(function(){
+        docCookies.setItem(`mining_address`, document.getElementById("yourStatsInput").value, Infinity);
+    });
+
+    $('#removeCookie').click(function(){
+        docCookies.setItem(`mining_address`, '', "Thu, 01 Jan 1970 00:00:01 GMT")
+    });
 
 	function getPaymentRowElement(payment, jsonString){
 		var row = document.createElement('tr');
