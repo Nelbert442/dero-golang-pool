@@ -354,11 +354,39 @@ func (apiServer *ApiServer) convertMinerResults(miners []*Miner) ([]*ApiMiner, i
 	var totalSoloWorkers int64
 	var totalRoundShares int64
 
+	// Getting found block heights and ensuring that the total round hashes only accounts for > last height found (in event some old miner stats is present with roundhashes)
+	blockHeightArr := apiServer.backend.GetBlocksFoundByHeightArr()
+
+	// Create slice of heights that do not include solo blocks. This will be used to compare the last block found against miner heights below
+	var heights []int64
+	if blockHeightArr != nil {
+		for height, isSolo := range blockHeightArr.Heights {
+			if !isSolo {
+				heights = append(heights, height)
+			}
+		}
+		// Sort heights so most recent is index 0 [if preferred reverse, just swap > with <]
+		sort.SliceStable(heights, func(i, j int) bool {
+			return heights[i] > heights[j]
+		})
+	}
+
 	for _, currMiner := range miners {
 		reply := &ApiMiner{}
 		if miners != nil {
 			if currMiner != nil {
-				totalRoundShares += currMiner.RoundShares
+				// If there have been blocks found, check to ensure that miner's roundheight is greater than the highest previously found height (shows their hashes are in current round)
+				if len(heights) > 1 {
+					if currMiner.RoundHeight > heights[1] {
+						totalRoundShares += currMiner.RoundShares
+					}
+				} else if len(heights) == 1 {
+					if currMiner.RoundHeight > heights[0] {
+						totalRoundShares += currMiner.RoundShares
+					}
+				} else {
+					totalRoundShares += currMiner.RoundShares
+				}
 				var tempDuration time.Duration
 				now := util.MakeTimestamp() / 1000
 				var windowHashes bool
