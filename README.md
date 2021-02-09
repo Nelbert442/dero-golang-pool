@@ -330,7 +330,7 @@ WantedBy=multi-user.target
 
 ### Host the api
 
-Once `config.json` has "api"."enabled" set to true, it will listen by default locally on :8082 (or whichever port defined). You can use an example below to pull the content, or just poll it directly in a browser:
+Once `config.json` has "api"."enabled" set to true, it will listen by default locally on :8082 (or whichever port defined). The address and port you define will need to be updated and reflected within `config.js` for the frontend to load data to it. You can use an example below to pull the content, or just poll it directly in a browser:
 
 API Examples:
 
@@ -350,7 +350,13 @@ API Examples:
 
 Once `config.json` has "website"."enabled" set to true, it will listen by default locally on :8080 (or whichever port defined). It will leverage standard js/html/css files that a static webpage would, and integrate with the API above in #4.
 
-website.go is the runner, which just starts the listenandserve on the port defined, then serves up content within /website/pages , feel free to make modifications to folder structure, just be sure to update website.go
+`website.go` is the runner, which just starts the listenandserve on the port defined, then serves up content within /website/pages , feel free to make modifications to folder structure, just be sure to update website.go
+
+`config.js` is the javascript configuration document which points to the API url. Be sure to update api variable to point to the proper api url defined above:
+
+```
+var api = "http://127.0.0.1:8082/api";
+```
 
 ![DERO Pool Home](images/home.PNG?raw=true "DERO Pool Home") 
 ![DERO Pool Getting Started](images/gettingstarted.PNG?raw=true "DERO Pool Getting Started")
