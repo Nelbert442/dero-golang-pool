@@ -376,11 +376,7 @@ func (apiServer *ApiServer) convertMinerResults(miners []*Miner) ([]*ApiMiner, i
 		if miners != nil {
 			if currMiner != nil {
 				// If there have been blocks found, check to ensure that miner's roundheight is greater than the highest previously found height (shows their hashes are in current round)
-				if len(heights) > 1 {
-					if currMiner.RoundHeight > heights[1] {
-						totalRoundShares += currMiner.RoundShares
-					}
-				} else if len(heights) == 1 {
+				if len(heights) >= 1 {
 					if currMiner.RoundHeight > heights[0] {
 						totalRoundShares += currMiner.RoundShares
 					}
