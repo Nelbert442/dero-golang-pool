@@ -463,7 +463,7 @@ func (m *Miner) processShare(s *StratumServer, cs *Session, job *Job, t *BlockTe
 					MinerErrorLogger.Printf("[Miner] Miner %v@%v intended to donate %v shares, however donation miner is not setup.", params.Id, cs.ip, int64(donation))
 				} else {
 					log.Printf("[Miner] Miner %v@%v donated %v shares.", params.Id, cs.ip, int64(donation))
-					MinerErrorLogger.Printf("[Miner] Miner %v@%v donated %v shares.", params.Id, cs.ip, int64(donation))
+					MinerInfoLogger.Printf("[Miner] Miner %v@%v donated %v shares.", params.Id, cs.ip, int64(donation))
 					donateMiner.storeShare(cs.difficulty, int64(donation), int64(t.Height))
 				}
 
@@ -529,7 +529,7 @@ func (m *Miner) processShare(s *StratumServer, cs *Session, job *Job, t *BlockTe
 				MinerErrorLogger.Printf("[Miner] Miner %v@%v intended to donate %v shares, however donation miner is not setup.", params.Id, cs.ip, int64(donation))
 			} else {
 				log.Printf("[Miner] Miner %v@%v donated %v shares.", params.Id, cs.ip, int64(donation))
-				MinerErrorLogger.Printf("[Miner] Miner %v@%v donated %v shares.", params.Id, cs.ip, int64(donation))
+				MinerInfoLogger.Printf("[Miner] Miner %v@%v donated %v shares.", params.Id, cs.ip, int64(donation))
 				donateMiner.storeShare(int64(donation), int64(donation), int64(t.Height))
 			}
 

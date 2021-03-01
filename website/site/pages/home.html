@@ -110,6 +110,10 @@
 			value: serializedChart.Value
         };
 
+		if (chartData.value < 0) {
+			chartData.value = 0
+		}
+
         return chartData;
     }
 
