@@ -47,6 +47,19 @@
 
         <!-- Payments -->
         <h4 class="yourStats{{coin}} push-up-20"><i class="fa fa-money"></i>&nbsp; <span data-tkey="paymentsHistory">Payments History</span></h4>
+        <div class="row pendingPayment">
+            <div class="col-sm-3">
+                <div class="infoBox hoverExpandEffect" style="min-height:75px;height:auto;width:auto">
+                    <div class="icon">
+                        <span class="fa fa-money"></span>
+                    </div>
+                    <div class="content">
+                        <div class="text"><span>Pending Payment</span></div>
+                        <div class="value"><span class="smallText">Pending: </span><span id="pendingTotal" class="smallText">0</span></div>
+                    </div>
+                </div>
+            </div>
+        </div>
         <div class="yourStats{{coin}} card">
             <div id="workerPayments{{coin}}" class="table-responsive">
                 <table class="table table-hover table-striped">
@@ -135,6 +148,9 @@
             cookietitle.style.display = 'block';
             addrStats = data;
             renderStats(addrStats);
+            if (addrStats.pendingPayment != null) {
+                updateText('pendingTotal', getReadableCoins(addrStats.pendingPayment.toString(), 5, false));
+            } else { updateText('pendingTotal', "0"); }            
         })
 	});
 

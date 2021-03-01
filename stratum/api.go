@@ -646,6 +646,7 @@ func (apiServer *ApiServer) AccountIndex(writer http.ResponseWriter, r *http.Req
 		reply["totalSoloWorkers"] = addrStats["totalSoloWorkers"]
 		reply["payments"] = addrStats["payments"]
 		reply["totalPayments"] = addrStats["totalPayments"]
+		reply["pendingPayment"] = addrStats["pendingPayment"]
 	} else {
 		log.Printf("Address stats lookup failed. No address found for: %v", address)
 	}
@@ -730,6 +731,20 @@ func (apiServer *ApiServer) getAddressStats(address string) map[string]interface
 	apiPayments, totalPayments, _ := apiServer.convertPaymentsResults(addrProcessedPayments)
 	addressStats["payments"] = apiPayments
 	addressStats["totalPayments"] = totalPayments
+
+	// Get pending payments associated by address
+	var pendingAmount uint64
+
+	pendingPayments := apiServer.backend.GetPendingPayments()
+	if pendingPayments != nil {
+		for _, pending := range pendingPayments {
+			if pending.Address == address {
+				pendingAmount += pending.Amount
+			}
+		}
+	}
+
+	addressStats["pendingPayment"] = pendingAmount
 
 	return addressStats
 }
