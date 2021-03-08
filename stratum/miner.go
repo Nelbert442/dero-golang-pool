@@ -212,14 +212,22 @@ func (m *Miner) heartbeat() {
 	atomic.StoreInt64(&m.LastBeat, now)
 }
 
-func (m *Miner) storeShare(diff, minershares, templateHeight int64) {
+func (m *Miner) storeShare(diff, minershares, templateHeight int64, hashrateExpiration time.Duration) {
 	now := util.MakeTimestamp() / 1000
+	hashExpiration := int64(hashrateExpiration / time.Second)
 
 	if m.IsSolo {
 		// If miner is solo, we don't care about updating roundheight/roundshares etc. These vals aren't used as upon a solo block being found, the address who finds get all rewards
 		// Just normal tracking of shares for hashrate purposes
 		m.Lock()
 		m.Shares[now] += diff
+
+		for k := range m.Shares {
+			if k < now-hashExpiration {
+				delete(m.Shares, k)
+			}
+		}
+
 		m.Unlock()
 	} else {
 
@@ -227,7 +235,7 @@ func (m *Miner) storeShare(diff, minershares, templateHeight int64) {
 		var resetVars bool
 
 		if blockHeightArr != nil {
-			for height, _ := range blockHeightArr.Heights {
+			for height := range blockHeightArr.Heights {
 				if atomic.LoadInt64(&m.RoundHeight) != 0 && atomic.LoadInt64(&m.RoundHeight) <= height {
 					// Miner round height is less than a pre-found block [usually happens for disconnected miners && new rounds]. Reset counters
 					m.Lock()
@@ -235,6 +243,12 @@ func (m *Miner) storeShare(diff, minershares, templateHeight int64) {
 					// No need to add blank diff shares to m.Shares. Usually only 0 if running NextRound from storage.go
 					if diff != 0 {
 						m.Shares[now] += diff
+
+						for k := range m.Shares {
+							if k < now-hashExpiration {
+								delete(m.Shares, k)
+							}
+						}
 					}
 					atomic.StoreInt64(&m.LastRoundShares, atomic.LoadInt64(&m.RoundShares))
 					atomic.StoreInt64(&m.RoundShares, minershares)
@@ -250,6 +264,12 @@ func (m *Miner) storeShare(diff, minershares, templateHeight int64) {
 			// No need to add blank diff shares to m.Shares. Usually only 0 if running NextRound from storage.go
 			if diff != 0 {
 				m.Shares[now] += diff
+
+				for k := range m.Shares {
+					if k < now-hashExpiration {
+						delete(m.Shares, k)
+					}
+				}
 			}
 			atomic.AddInt64(&m.RoundShares, minershares)
 			m.Unlock()
@@ -269,14 +289,9 @@ func (m *Miner) getHashrate(estimationWindow, hashrateExpiration time.Duration) 
 	}
 
 	m.Lock()
-	// Total shares only keeping track of last hashrateExpiration time (config.json var)
-
-	hashExpiration := int64(hashrateExpiration / time.Second)
 
 	for k, v := range m.Shares {
-		if k < now-hashExpiration {
-			delete(m.Shares, k)
-		} else if k >= now-boundary {
+		if k >= now-boundary {
 			totalShares += v
 		}
 	}
@@ -464,7 +479,7 @@ func (m *Miner) processShare(s *StratumServer, cs *Session, job *Job, t *BlockTe
 				} else {
 					log.Printf("[Miner] Miner %v@%v donated %v shares.", params.Id, cs.ip, int64(donation))
 					MinerInfoLogger.Printf("[Miner] Miner %v@%v donated %v shares.", params.Id, cs.ip, int64(donation))
-					donateMiner.storeShare(cs.difficulty, int64(donation), int64(t.Height))
+					donateMiner.storeShare(cs.difficulty, int64(donation), int64(t.Height), s.hashrateExpiration)
 				}
 
 				minerShare = cs.difficulty - int64(donation)
@@ -530,13 +545,13 @@ func (m *Miner) processShare(s *StratumServer, cs *Session, job *Job, t *BlockTe
 			} else {
 				log.Printf("[Miner] Miner %v@%v donated %v shares.", params.Id, cs.ip, int64(donation))
 				MinerInfoLogger.Printf("[Miner] Miner %v@%v donated %v shares.", params.Id, cs.ip, int64(donation))
-				donateMiner.storeShare(int64(donation), int64(donation), int64(t.Height))
+				donateMiner.storeShare(int64(donation), int64(donation), int64(t.Height), s.hashrateExpiration)
 			}
 
 			minerShare := cs.difficulty - int64(donation)
-			m.storeShare(cs.difficulty, minerShare, int64(t.Height))
+			m.storeShare(cs.difficulty, minerShare, int64(t.Height), s.hashrateExpiration)
 		} else {
-			m.storeShare(cs.difficulty, cs.difficulty, int64(t.Height))
+			m.storeShare(cs.difficulty, cs.difficulty, int64(t.Height), s.hashrateExpiration)
 		}
 	} else {
 		// Add extra miner message to return back to mining software if a block is found by the miner - only certain miner software will read/use these results
