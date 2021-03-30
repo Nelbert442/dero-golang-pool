@@ -277,6 +277,12 @@ Explanation for each field:
 			"enabled": true,		// Sets storing of this chart data type to true/false
 			"maximumPeriod": 86400	// Sets the maximum period of the chart on the frontend for displaying. This value is represented in seconds and should be equal or greater to / divisible by updateInterval
 		},
+	"poolcharts": {
+		"interval": 60,				// Sets the update interval of 'pool' charts
+		"hashrate": {
+			"enabled": true,		// Sets storing of this chart data type to true/false
+			"maximumPeriod": 86400	// Sets the maximum period of the chart on the frontend for displaying. This value is represented in seconds and should be equal or greater to divisible by updateInterval
+		},
 		"miners": {
 			"enabled": true,
 			"maximumPeriod": 86400
@@ -287,7 +293,22 @@ Explanation for each field:
 		},
 		"difficulty": {
 			"enabled": true,
-			"maximumPeriod": 604800
+			"maximumPeriod": 86400
+		}
+	},
+	"solocharts": {
+		"interval": 60,			// Sets the update interval of 'solo' charts
+		"hashrate": {
+			"enabled": true,
+			"maximumPeriod": 86400
+		},
+		"miners": {
+			"enabled": true,
+			"maximumPeriod": 86400
+		},
+		"workers": {
+			"enabled": true,
+			"maximumPeriod": 86400
 		}
 	}
 }

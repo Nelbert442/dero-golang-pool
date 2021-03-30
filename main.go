@@ -38,7 +38,7 @@ func startStratum() {
 		go a.Start()
 
 		// Start charts, reliant on api (uses data from api to reduce duplicate db calls/query/processing) and no need to run charts if api isn't running too
-		charts := stratum.NewChartsProcessor(&cfg.PoolCharts, a)
+		charts := stratum.NewChartsProcessor(&cfg.PoolCharts, &cfg.SoloCharts, a)
 		go charts.Start()
 	}
 

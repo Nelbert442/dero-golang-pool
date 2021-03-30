@@ -158,5 +158,20 @@
 			"enabled": true,
 			"maximumPeriod": 86400
 		}
+	},
+	"solocharts": {
+		"interval": 60,
+		"hashrate": {
+			"enabled": true,
+			"maximumPeriod": 86400
+		},
+		"miners": {
+			"enabled": true,
+			"maximumPeriod": 86400
+		},
+		"workers": {
+			"enabled": true,
+			"maximumPeriod": 86400
+		}
 	}
 }

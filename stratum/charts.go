@@ -12,6 +12,7 @@ import (
 
 type Charts struct {
 	PoolChartsConfig *pool.PoolChartsConfig
+	SoloChartsConfig *pool.SoloChartsConfig
 	Api              *ApiServer
 }
 
@@ -23,8 +24,8 @@ type ChartData struct {
 var ChartsInfoLogger = logFileOutCharts("INFO")
 var ChartsErrorLogger = logFileOutCharts("ERROR")
 
-func NewChartsProcessor(pcfg *pool.PoolChartsConfig, a *ApiServer) *Charts {
-	c := &Charts{PoolChartsConfig: pcfg, Api: a}
+func NewChartsProcessor(pcfg *pool.PoolChartsConfig, scfg *pool.SoloChartsConfig, a *ApiServer) *Charts {
+	c := &Charts{PoolChartsConfig: pcfg, SoloChartsConfig: scfg, Api: a}
 	return c
 }
 
@@ -126,6 +127,105 @@ func (c *Charts) Start() {
 						Graviton_backend.WriteChartsData(cData, "totalpoolworkers", c.PoolChartsConfig.Interval, c.PoolChartsConfig.Workers.MaximumPeriod)
 						Graviton_backend.Writing = 0
 						pwTimer.Reset(pwIntv)
+					}
+				}
+			}
+		}()
+	}
+
+	// Solo Hashrate
+	if c.SoloChartsConfig.Hashrate.Enabled {
+		shrIntv := time.Duration(c.SoloChartsConfig.Interval) * time.Second
+		shrTimer := time.NewTimer(shrIntv)
+		log.Printf("[Charts] Set solo hashrate chart interval to %v", shrIntv)
+		ChartsInfoLogger.Printf("[Charts] Set solo hashrate chart interval to %v", shrIntv)
+
+		go func() {
+			for {
+				select {
+				case <-shrTimer.C:
+					stats := c.Api.getStats()
+					now := util.MakeTimestamp() / 1000
+					if stats["soloHashrate"] == nil {
+						shrTimer.Reset(shrIntv)
+					} else {
+						log.Printf("[Charts] Solo Hashrate: %v", stats["soloHashrate"])
+						cData := &ChartData{Timestamp: now, Value: stats["soloHashrate"].(int64)}
+						for Graviton_backend.Writing == 1 {
+							//log.Printf("[Charts-solohashrate] GravitonDB is writing... sleeping for %v...", writeWait)
+							//StorageInfoLogger.Printf("[Charts-solohashrate] GravitonDB is writing... sleeping for %v...", writeWait)
+							time.Sleep(writeWait)
+						}
+						Graviton_backend.Writing = 1
+						Graviton_backend.WriteChartsData(cData, "solohashrate", c.SoloChartsConfig.Interval, c.SoloChartsConfig.Hashrate.MaximumPeriod)
+						Graviton_backend.Writing = 0
+						shrTimer.Reset(shrIntv)
+					}
+				}
+			}
+		}()
+	}
+
+	// Solo Miners
+	if c.SoloChartsConfig.Miners.Enabled {
+		smIntv := time.Duration(c.SoloChartsConfig.Interval) * time.Second
+		smTimer := time.NewTimer(smIntv)
+		log.Printf("[Charts] Set solo miners chart interval to %v", smIntv)
+		ChartsInfoLogger.Printf("[Charts] Set solo miners chart interval to %v", smIntv)
+
+		go func() {
+			for {
+				select {
+				case <-smTimer.C:
+					stats := c.Api.getStats()
+					now := util.MakeTimestamp() / 1000
+					if stats["totalSoloMiners"] == nil {
+						smTimer.Reset(smIntv)
+					} else {
+						log.Printf("[Charts] Solo Miners: %v", stats["totalSoloMiners"])
+						cData := &ChartData{Timestamp: now, Value: stats["totalSoloMiners"].(int64)}
+						for Graviton_backend.Writing == 1 {
+							//log.Printf("[Charts-totalsolominers] GravitonDB is writing... sleeping for %v...", writeWait)
+							//StorageInfoLogger.Printf("[Charts-totalsolominers] GravitonDB is writing... sleeping for %v...", writeWait)
+							time.Sleep(writeWait)
+						}
+						Graviton_backend.Writing = 1
+						Graviton_backend.WriteChartsData(cData, "totalsolominers", c.SoloChartsConfig.Interval, c.SoloChartsConfig.Miners.MaximumPeriod)
+						Graviton_backend.Writing = 0
+						smTimer.Reset(smIntv)
+					}
+				}
+			}
+		}()
+	}
+
+	// Solo Workers
+	if c.SoloChartsConfig.Workers.Enabled {
+		swIntv := time.Duration(c.SoloChartsConfig.Interval) * time.Second
+		swTimer := time.NewTimer(swIntv)
+		log.Printf("[Charts] Set pool workers chart interval to %v", swIntv)
+		ChartsInfoLogger.Printf("[Charts] Set pool workers chart interval to %v", swIntv)
+
+		go func() {
+			for {
+				select {
+				case <-swTimer.C:
+					stats := c.Api.getStats()
+					now := util.MakeTimestamp() / 1000
+					if stats["totalSoloWorkers"] == nil {
+						swTimer.Reset(swIntv)
+					} else {
+						log.Printf("[Charts] Solo Workers: %v", stats["totalSoloWorkers"])
+						cData := &ChartData{Timestamp: now, Value: stats["totalSoloWorkers"].(int64)}
+						for Graviton_backend.Writing == 1 {
+							//log.Printf("[Charts-totalsoloworkers] GravitonDB is writing... sleeping for %v...", writeWait)
+							//StorageInfoLogger.Printf("[Charts-totalsoloworkers] GravitonDB is writing... sleeping for %v...", writeWait)
+							time.Sleep(writeWait)
+						}
+						Graviton_backend.Writing = 1
+						Graviton_backend.WriteChartsData(cData, "totalsoloworkers", c.SoloChartsConfig.Interval, c.SoloChartsConfig.Workers.MaximumPeriod)
+						Graviton_backend.Writing = 0
+						swTimer.Reset(swIntv)
 					}
 				}
 			}

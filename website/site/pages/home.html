@@ -136,19 +136,44 @@
 
     function createCharts(data) {
 		var graphData = {
-			diff: getGraphData(data.poolDifficultyChart.Values),
-			hashrate: getGraphData(data.poolHashrateChart.Values),
-			miners: getGraphData(data.poolMinersChart.Values),
-			workers: getGraphData(data.poolWorkersChart.Values)
+			diff: {
+				data: [getGraphData(data.poolDifficultyChart.Values)]
+			},
+			hashrate: {
+				data: [getGraphData(data.poolHashrateChart.Values), getGraphData(data.soloHashrateChart.Values)],
+				options: {
+					lineColor: 'orange'
+				}
+			},
+			miners: {
+				data: [getGraphData(data.poolMinersChart.Values), getGraphData(data.soloMinersChart.Values)],
+				options: {
+					lineColor: 'orange'
+				}
+			},
+			workers: {
+				data: [getGraphData(data.poolWorkersChart.Values), getGraphData(data.soloWorkersChart.Values)],
+				options: {
+					lineColor: 'orange'
+				}
+			}
 		};
 
 		for(var graphType in graphData) {
-			if(graphData[graphType].values.length > 1) {
+			if(graphData[graphType].data[0].values.length > 1) {
 				var settings = jQuery.extend({}, currencyGraphStat);
-				settings.tooltipValueLookups = {names: graphData[graphType].names};
+				settings.tooltipValueLookups = {names: graphData[graphType].data[0].names};
 				var $chart = $('[data-chart=' + graphType + '] .chart');
 				$chart.closest('.chartWrap').show();
-				$chart.sparkline(graphData[graphType].values, settings);
+				settings.tooltipFormat = graphData[graphType].data[1] ? '<span style="color:{{color}}">PROP: {{y}}</span> &ndash; {{offset:names}}' : '<span>{{y}}</span> &ndash; {{offset:names}}'
+				$chart.sparkline(graphData[graphType].data[0].values, settings);
+				if (graphData[graphType].data[1]) {
+					settings.composite = true
+					settings.lineColor = graphData[graphType].options.lineColor
+					settings.tooltipValueLookups = {names: graphData[graphType].data[1].names};
+					settings.tooltipFormat = '<span style="color:orange">SOLO: {{y}}</span> &ndash; {{offset:names}}'
+					$chart.sparkline(graphData[graphType].data[1].values, settings);
+				}
 			}
 		}
     }

@@ -258,10 +258,16 @@ func (apiServer *ApiServer) collectStats() {
 	poolHashrateChart := apiServer.backend.GetChartsData("poolhashrate")
 	poolMinersChart := apiServer.backend.GetChartsData("totalpoolminers")
 	poolWorkersChart := apiServer.backend.GetChartsData("totalpoolworkers")
+	soloHashrateChart := apiServer.backend.GetChartsData("solohashrate")
+	soloMinersChart := apiServer.backend.GetChartsData("totalsolominers")
+	soloWorkersChart := apiServer.backend.GetChartsData("totalsoloworkers")
 	poolDifficultyChart := apiServer.backend.GetChartsData("pooldifficulty")
 	stats["poolHashrateChart"] = poolHashrateChart
 	stats["poolMinersChart"] = poolMinersChart
 	stats["poolWorkersChart"] = poolWorkersChart
+	stats["soloHashrateChart"] = soloHashrateChart
+	stats["soloMinersChart"] = soloMinersChart
+	stats["soloWorkersChart"] = soloWorkersChart
 	stats["poolDifficultyChart"] = poolDifficultyChart
 	apiServer.stats.Store(stats)
 }
@@ -412,7 +418,11 @@ func (apiServer *ApiServer) convertMinerResults(miners []*Miner) ([]*ApiMiner, i
 					if currMiner.WorkID != "" {
 						ID = currMiner.WorkID
 					} else {
-						ID = "undefined"
+						if currMiner.IsSolo {
+							ID = "solo~undefined"
+						} else {
+							ID = "undefined"
+						}
 					}
 
 					// Generate struct for miner stats
@@ -680,6 +690,9 @@ func (apiServer *ApiServer) ChartsIndex(writer http.ResponseWriter, _ *http.Requ
 		reply["poolHashrateChart"] = stats["poolHashrateChart"]
 		reply["poolMinersChart"] = stats["poolMinersChart"]
 		reply["poolWorkersChart"] = stats["poolWorkersChart"]
+		reply["soloHashrateChart"] = stats["soloHashrateChart"]
+		reply["soloMinersChart"] = stats["soloMinersChart"]
+		reply["soloWorkersChart"] = stats["soloWorkersChart"]
 		reply["poolDifficultyChart"] = stats["poolDifficultyChart"]
 	}
 

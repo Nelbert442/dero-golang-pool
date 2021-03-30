@@ -28,6 +28,7 @@ type Config struct {
 	PaymentsConfig          PaymentsConfig   `json:"payments"`
 	Website                 Website          `json:"website"`
 	PoolCharts              PoolChartsConfig `json:"poolcharts"`
+	SoloCharts              SoloChartsConfig `json:"solocharts"`
 }
 
 type Upstream struct {
@@ -137,6 +138,13 @@ type PoolChartsConfig struct {
 	Miners     ChartDataConfig `json:"miners"`
 	Workers    ChartDataConfig `json:"workers"`
 	Difficulty ChartDataConfig `json:"difficulty"`
+}
+
+type SoloChartsConfig struct {
+	Interval int64           `json:"interval"`
+	Hashrate ChartDataConfig `json:"hashrate"`
+	Miners   ChartDataConfig `json:"miners"`
+	Workers  ChartDataConfig `json:"workers"`
 }
 
 type ChartDataConfig struct {
