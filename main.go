@@ -42,6 +42,12 @@ func startStratum() {
 		go charts.Start()
 	}
 
+	// If EventsConfig is enabled, start event configuration service/listeners
+	if cfg.EventsConfig.Enabled {
+		events := stratum.NewEventsProcessor(&cfg.EventsConfig, cfg.CoinUnits)
+		go events.Start()
+	}
+
 	// If unlocker enabled, start unlocker processes / go routines
 	if cfg.UnlockerConfig.Enabled {
 		unlocker := stratum.NewBlockUnlocker(&cfg.UnlockerConfig, s)

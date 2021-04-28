@@ -29,6 +29,7 @@ type Config struct {
 	Website                 Website          `json:"website"`
 	PoolCharts              PoolChartsConfig `json:"poolcharts"`
 	SoloCharts              SoloChartsConfig `json:"solocharts"`
+	EventsConfig            EventsConfig     `json:"events"`
 }
 
 type Upstream struct {
@@ -150,4 +151,18 @@ type SoloChartsConfig struct {
 type ChartDataConfig struct {
 	Enabled       bool  `json:"enabled"`
 	MaximumPeriod int64 `json:"maximumPeriod"`
+}
+
+type EventsConfig struct {
+	Enabled                 bool                    `json:"enabled"`
+	RandomRewardEventConfig RandomRewardEventConfig `json:"randomrewardevent"`
+}
+
+type RandomRewardEventConfig struct {
+	Enabled               bool    `json:"enabled"`
+	StartDay              string  `json:"startDay"`
+	EndDay                string  `json:"endDay"`
+	StepIntervalInSeconds int64   `json:"stepIntervalInSeconds"`
+	RewardValueInDERO     int64   `json:"rewardValueInDERO"`
+	MinerPercentCriteria  float64 `json:"minerPercentCriteria"`
 }

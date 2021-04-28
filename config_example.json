@@ -173,5 +173,16 @@
 			"enabled": true,
 			"maximumPeriod": 86400
 		}
+	},
+	"events": {
+		"enabled": true,
+		"randomrewardevent": {
+			"enabled": false,
+			"startDay": "2021-05-01",
+			"endDay": "2021-05-31",
+			"stepIntervalInSeconds": 30,
+			"rewardValueInDERO": 1,
+			"minerPercentCriteria": 0.9
+		}
 	}
 }

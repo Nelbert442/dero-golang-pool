@@ -22,10 +22,10 @@ type ApiServer struct {
 	backend        *GravitonStore
 	hashrateWindow time.Duration
 	stats          atomic.Value
-	miners         map[string]*Entry
-	minersMu       sync.RWMutex
-	statsIntv      time.Duration
-	stratum        *StratumServer
+	//miners         map[string]*Entry
+	//minersMu       sync.RWMutex
+	statsIntv time.Duration
+	stratum   *StratumServer
 }
 
 type ApiPayments struct {
@@ -77,10 +77,12 @@ type LastBlock struct {
 	Hash       string
 }
 
+/*
 type Entry struct {
 	stats     map[string]interface{}
 	updatedAt int64
 }
+*/
 
 var APIInfoLogger = logFileOutAPI("INFO")
 var APIErrorLogger = logFileOutAPI("ERROR")
@@ -91,8 +93,8 @@ func NewApiServer(cfg *pool.APIConfig, s *StratumServer) *ApiServer {
 		config:         *cfg,
 		backend:        Graviton_backend,
 		hashrateWindow: hashrateWindow,
-		miners:         make(map[string]*Entry),
-		stratum:        s,
+		//miners:         make(map[string]*Entry),
+		stratum: s,
 	}
 }
 

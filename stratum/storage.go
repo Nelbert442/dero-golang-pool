@@ -1621,6 +1621,145 @@ func (g *GravitonStore) GetChartsData(chartType string) *GravitonCharts {
 	return result
 }
 
+// This function is to overwrite events data
+func (g *GravitonStore) OverwriteEventsData(info map[string]*Miner, date string) error {
+	confBytes, err := json.Marshal(info)
+	if err != nil {
+		StorageErrorLogger.Printf("[Graviton] could not marshal eventsdata info: %v", err)
+		return fmt.Errorf("[Graviton] could not marshal eventsdata info: %v", err)
+	}
+
+	store := g.DB
+	ss, _ := store.LoadSnapshot(0) // load most recent snapshot
+
+	// Swap DB at g.DBMaxSnapshot+ commits. Check for g.migrating, if so sleep for g.DBMigrateWait ms
+	for g.migrating == 1 {
+		log.Printf("[OverwriteEventsData] G is migrating... sleeping for %v...", g.DBMigrateWait)
+		StorageInfoLogger.Printf("[OverwriteEventsData] G is migrating... sleeping for %v...", g.DBMigrateWait)
+		time.Sleep(g.DBMigrateWait)
+		store = g.DB
+		ss, _ = store.LoadSnapshot(0) // load most recent snapshot
+	}
+	if ss.GetVersion() >= g.DBMaxSnapshot {
+		Graviton_backend.SwapGravDB(Graviton_backend.DBTree, Graviton_backend.DBFolder)
+
+		store = g.DB
+		ss, _ = store.LoadSnapshot(0) // load most recent snapshot
+	}
+
+	tree, _ := ss.GetTree(g.DBTree) // use or create tree named by poolhost in config
+	key := "events:" + date
+
+	tree.Put([]byte(key), confBytes)
+	_, cerr := graviton.Commit(tree)
+	if cerr != nil {
+		log.Printf("[Graviton] ERROR: %v", cerr)
+		StorageErrorLogger.Printf("[Graviton] ERROR: %v", cerr)
+	}
+	return nil
+}
+
+func (g *GravitonStore) GetEventsData(date string) map[string]*Miner {
+	store := g.DB
+	ss, _ := store.LoadSnapshot(0) // load most recent snapshot
+
+	// Swap DB at g.DBMaxSnapshot+ commits. Check for g.migrating, if so sleep for g.DBMigrateWait ms
+	for g.migrating == 1 {
+		log.Printf("[GetEventsData] G is migrating... sleeping for %v...", g.DBMigrateWait)
+		StorageInfoLogger.Printf("[GetEventsData] G is migrating... sleeping for %v...", g.DBMigrateWait)
+		time.Sleep(g.DBMigrateWait)
+		store = g.DB
+		ss, _ = store.LoadSnapshot(0) // load most recent snapshot
+	}
+	if ss.GetVersion() >= g.DBMaxSnapshot {
+		Graviton_backend.SwapGravDB(Graviton_backend.DBTree, Graviton_backend.DBFolder)
+
+		store = g.DB
+		ss, _ = store.LoadSnapshot(0) // load most recent snapshot
+	}
+
+	tree, _ := ss.GetTree(g.DBTree) // use or create tree named by poolhost in config
+	key := "events:" + date
+
+	var result map[string]*Miner
+
+	v, _ := tree.Get([]byte(key))
+	if v != nil {
+		_ = json.Unmarshal(v, &result)
+	}
+
+	return result
+}
+
+func (g *GravitonStore) WriteEventsPayment(payment *PaymentPending, date string) error {
+	confBytes, err := json.Marshal(payment)
+	if err != nil {
+		StorageErrorLogger.Printf("[Graviton] could not marshal eventsdata info: %v", err)
+		return fmt.Errorf("[Graviton] could not marshal eventsdata info: %v", err)
+	}
+
+	store := g.DB
+	ss, _ := store.LoadSnapshot(0) // load most recent snapshot
+
+	// Swap DB at g.DBMaxSnapshot+ commits. Check for g.migrating, if so sleep for g.DBMigrateWait ms
+	for g.migrating == 1 {
+		log.Printf("[WriteEventsPayment] G is migrating... sleeping for %v...", g.DBMigrateWait)
+		StorageInfoLogger.Printf("[WriteEventsPayment] G is migrating... sleeping for %v...", g.DBMigrateWait)
+		time.Sleep(g.DBMigrateWait)
+		store = g.DB
+		ss, _ = store.LoadSnapshot(0) // load most recent snapshot
+	}
+	if ss.GetVersion() >= g.DBMaxSnapshot {
+		Graviton_backend.SwapGravDB(Graviton_backend.DBTree, Graviton_backend.DBFolder)
+
+		store = g.DB
+		ss, _ = store.LoadSnapshot(0) // load most recent snapshot
+	}
+
+	tree, _ := ss.GetTree(g.DBTree) // use or create tree named by poolhost in config
+	key := "eventspayment:" + date
+
+	tree.Put([]byte(key), confBytes)
+	_, cerr := graviton.Commit(tree)
+	if cerr != nil {
+		log.Printf("[Graviton] ERROR: %v", cerr)
+		StorageErrorLogger.Printf("[Graviton] ERROR: %v", cerr)
+	}
+	return nil
+}
+
+func (g *GravitonStore) GetEventsPayment(date string) *PaymentPending {
+	store := g.DB
+	ss, _ := store.LoadSnapshot(0) // load most recent snapshot
+
+	// Swap DB at g.DBMaxSnapshot+ commits. Check for g.migrating, if so sleep for g.DBMigrateWait ms
+	for g.migrating == 1 {
+		log.Printf("[GetEventsData] G is migrating... sleeping for %v...", g.DBMigrateWait)
+		StorageInfoLogger.Printf("[GetEventsData] G is migrating... sleeping for %v...", g.DBMigrateWait)
+		time.Sleep(g.DBMigrateWait)
+		store = g.DB
+		ss, _ = store.LoadSnapshot(0) // load most recent snapshot
+	}
+	if ss.GetVersion() >= g.DBMaxSnapshot {
+		Graviton_backend.SwapGravDB(Graviton_backend.DBTree, Graviton_backend.DBFolder)
+
+		store = g.DB
+		ss, _ = store.LoadSnapshot(0) // load most recent snapshot
+	}
+
+	tree, _ := ss.GetTree(g.DBTree) // use or create tree named by poolhost in config
+	key := "eventspayment:" + date
+
+	var result *PaymentPending
+
+	v, _ := tree.Get([]byte(key))
+	if v != nil {
+		_ = json.Unmarshal(v, &result)
+	}
+
+	return result
+}
+
 func logFileOutStorage(lType string) *log.Logger {
 	var logFileName string
 	if lType == "ERROR" {

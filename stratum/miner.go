@@ -29,6 +29,8 @@ type Job struct {
 type Miner struct {
 	LastBeat        int64
 	StartedAt       int64
+	EventDataOffset int64
+	//EventDataTempTime int64
 	ValidShares     int64
 	InvalidShares   int64
 	StaleShares     int64
