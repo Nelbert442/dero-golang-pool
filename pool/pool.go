@@ -165,4 +165,5 @@ type RandomRewardEventConfig struct {
 	StepIntervalInSeconds int64   `json:"stepIntervalInSeconds"`
 	RewardValueInDERO     int64   `json:"rewardValueInDERO"`
 	MinerPercentCriteria  float64 `json:"minerPercentCriteria"`
+	Bonus1hrDayEventDate  string  `json:"bonus1hrDayEventDate"`
 }

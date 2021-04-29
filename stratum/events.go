@@ -64,7 +64,6 @@ func (e *Events) Start() {
 					year, month, day := now.Date()
 					var todaysdate string
 					// Date string for use in the 'key' of graviton store
-					//todaysdate = strconv.Itoa(year) + "-" + int(month) + "-" + strconv.Itoa(day)
 					todaysdate = fmt.Sprintf("%v-%v-%v", strconv.Itoa(year), int(month), strconv.Itoa(day))
 
 					// TODO: Probably better ways to accomplish this, however it's base-logical level to go about it for now
@@ -84,22 +83,59 @@ func (e *Events) Start() {
 					eventEndMonthInt, _ := strconv.Atoi(eventEndMonth)
 					eventEndDay, _ := strconv.Atoi(eventEndSplit[2])
 
+					// Determine pieces of the bonus event day, if it exists
+					bonusEventStart := e.EventsConfig.RandomRewardEventConfig.Bonus1hrDayEventDate
+					var bonusEventStartSplit []string
+					var bonusEventStartYear, bonusEventStartMonth string
+					var bonusEventStartMonthInt, bonusEventStartDay int
+					if bonusEventStart != "" {
+						bonusEventStartSplit = strings.Split(bonusEventStart, "-")
+						bonusEventStartYear = bonusEventStartSplit[0]
+						bonusEventStartMonth = bonusEventStartSplit[1]
+						bonusEventStartMonthInt, _ = strconv.Atoi(bonusEventStartMonth)
+						bonusEventStartDay, _ = strconv.Atoi(bonusEventStartSplit[2])
+					}
+
 					// Logical boundary between event start date and end date to ensure that "today" is between those areas, so that data is only logged when you're in an event window
 					var inEventWindow bool
+					var bonusEventInWindow bool
+
 					log.Printf("[Events] Checking the year. Year now: %v , eventStartYear: %v, eventEndYear: %v", strconv.Itoa(year), eventStartYear, eventEndYear)
 					if strconv.Itoa(year) == eventStartYear || strconv.Itoa(year) == eventEndYear {
-						log.Printf("[Events] Checking the month. Month now: %v , eventStartMonth: %v, eventEndMonth: %v", month.String(), eventStartMonthInt, eventEndMonthInt)
-						if int(month) >= eventStartMonthInt || int(month) <= eventEndMonthInt {
+						log.Printf("[Events] Checking the month. Month now: %v , eventStartMonth: %v, eventEndMonth: %v", int(month), eventStartMonthInt, eventEndMonthInt)
+						if int(month) >= eventStartMonthInt && int(month) <= eventEndMonthInt {
 							log.Printf("[Events] Checking the day. Day now: %v , eventStartDay: %v, eventEndDay: %v . day >= eventStartDay || day <= eventEndDay", strconv.Itoa(day), eventStartDay, eventEndDay)
 							if eventStartMonthInt == eventEndMonthInt {
 								if day >= eventStartDay && day <= eventEndDay {
 									inEventWindow = true
+
+									// Check if we are in a bonusEvent day
+									if bonusEventStart != "" {
+										if strconv.Itoa(year) == bonusEventStartYear {
+											if int(month) == bonusEventStartMonthInt {
+												if day == bonusEventStartDay {
+													bonusEventInWindow = true
+												}
+											}
+										}
+									}
 								} else {
 									log.Printf("[Events] We are not in the event window.")
 								}
 							} else {
 								if (day >= eventStartDay && int(month) >= eventStartMonthInt) || (day <= eventEndDay && int(month) <= eventEndMonthInt) {
 									inEventWindow = true
+
+									// Check if we are in a bonusEvent day
+									if bonusEventStart != "" {
+										if strconv.Itoa(year) == bonusEventStartYear {
+											if int(month) == bonusEventStartMonthInt {
+												if day == bonusEventStartDay {
+													bonusEventInWindow = true
+												}
+											}
+										}
+									}
 								} else {
 									log.Printf("[Events] We are not in the event window.")
 								}
@@ -211,9 +247,9 @@ func (e *Events) Start() {
 								now = time.Now().UTC()
 								yesterday := now.AddDate(0, 0, -1)
 								year, month, day = yesterday.Date()
-								//yesterdaysdate := strconv.Itoa(year) + "-" + month.String() + "-" + strconv.Itoa(day)
 								yesterdaysdate := fmt.Sprintf("%v-%v-%v", strconv.Itoa(year), int(month), strconv.Itoa(day))
 								log.Printf("[Events] Yesterdays date: %v", yesterdaysdate)
+								// Do not try to find a winner if today is the start day, need to have a full day of data first
 								if todaysdate != e.EventsConfig.RandomRewardEventConfig.StartDay && len(storedstats) != 0 {
 									// Check for existing payment processed - yes pendingpayment is confusing... just trust the structs/process <3
 									yesterdayPayment := Graviton_backend.GetEventsPayment(yesterdaysdate)
@@ -256,10 +292,7 @@ func (e *Events) Start() {
 												yesterdayTimeWindow := unixEndTime - unixStartTime
 												yesterdayTimeWindowFloat := float64(yesterdayTimeWindow)
 												minerOffset := yesterdayTimeWindow - backendStats[k].EventDataOffset
-
-												//unixEndTimeFloat := float64(unixEndTime)
 												log.Printf("yesterdayTimeWindow (%v) - backendStats[k].EventDataOffset (%v)", yesterdayTimeWindow, backendStats[k].EventDataOffset)
-												//minerOffset := unixEndTime - backendStats[k].EventDataOffset
 												minerOffsetFloat := float64(minerOffset)
 												offsetPercent := minerOffsetFloat / yesterdayTimeWindowFloat
 												log.Printf("Offsetpercent: minerOffsetFloat (%v) / yesterdayTimeWindowFloat (%v)", minerOffsetFloat, yesterdayTimeWindowFloat)
@@ -278,38 +311,34 @@ func (e *Events) Start() {
 											n := rand.Int() % len(tempMinerArr)
 											log.Printf("[Events] Chosen address string: %v , int: %v", tempMinerArr[n], n)
 
-											var paymentsEnabled bool
-											// TODO: Enable payments - within the event window
-											log.Printf("[Events] Would be rewarding: %v", uint64(e.EventsConfig.RandomRewardEventConfig.RewardValueInDERO*e.CoinUnits))
-											if paymentsEnabled {
-												info := &PaymentPending{}
-												info.Address = tempMinerArr[n]
-												info.Amount = uint64(e.EventsConfig.RandomRewardEventConfig.RewardValueInDERO * e.CoinUnits)
-												info.Timestamp = util.MakeTimestamp() / 1000
+											log.Printf("[Events] Rewarding: %v", uint64(e.EventsConfig.RandomRewardEventConfig.RewardValueInDERO*e.CoinUnits))
+											info := &PaymentPending{}
+											info.Address = tempMinerArr[n]
+											info.Amount = uint64(e.EventsConfig.RandomRewardEventConfig.RewardValueInDERO * e.CoinUnits)
+											info.Timestamp = util.MakeTimestamp() / 1000
 
-												writeWait, _ := time.ParseDuration("10ms")
+											writeWait, _ := time.ParseDuration("10ms")
 
-												for Graviton_backend.Writing == 1 {
-													time.Sleep(writeWait)
-												}
-												Graviton_backend.Writing = 1
-												infoErr := Graviton_backend.WritePendingPayments(info)
-												Graviton_backend.Writing = 0
-												if infoErr != nil {
-													log.Printf("[Events] Graviton DB err: %v", infoErr)
-													EventsErrorLogger.Printf("[Events] Graviton DB err: %v", infoErr)
-												}
+											for Graviton_backend.Writing == 1 {
+												time.Sleep(writeWait)
+											}
+											Graviton_backend.Writing = 1
+											infoErr := Graviton_backend.WritePendingPayments(info)
+											Graviton_backend.Writing = 0
+											if infoErr != nil {
+												log.Printf("[Events] Graviton DB err: %v", infoErr)
+												EventsErrorLogger.Printf("[Events] Graviton DB err: %v", infoErr)
+											}
 
-												for Graviton_backend.Writing == 1 {
-													time.Sleep(writeWait)
-												}
-												Graviton_backend.Writing = 1
-												eventPaymentErr := Graviton_backend.WriteEventsPayment(info, yesterdaysdate)
-												Graviton_backend.Writing = 0
-												if eventPaymentErr != nil {
-													log.Printf("[Events] Graviton DB err: %v", eventPaymentErr)
-													EventsErrorLogger.Printf("[Events] Graviton DB err: %v", eventPaymentErr)
-												}
+											for Graviton_backend.Writing == 1 {
+												time.Sleep(writeWait)
+											}
+											Graviton_backend.Writing = 1
+											eventPaymentErr := Graviton_backend.WriteEventsPayment(info, yesterdaysdate)
+											Graviton_backend.Writing = 0
+											if eventPaymentErr != nil {
+												log.Printf("[Events] Graviton DB err: %v", eventPaymentErr)
+												EventsErrorLogger.Printf("[Events] Graviton DB err: %v", eventPaymentErr)
 											}
 										} else {
 											log.Printf("[Events] No miners within yesterday's data. No rewards processed.")
@@ -317,8 +346,6 @@ func (e *Events) Start() {
 									} else {
 										log.Printf("[Events] Payment was already processed for yesterday (%v). No rewards processed.", yesterdayPayment)
 									}
-								} else {
-									//log.Printf("[Events] It's the start of the event, no payouts possible yet.")
 								}
 							}
 						} else {
@@ -396,38 +423,34 @@ func (e *Events) Start() {
 								n := rand.Int() % len(tempMinerArr)
 								log.Printf("[Events] Chosen address string: %v , int: %v", tempMinerArr[n], n)
 
-								var paymentsEnabled bool
-								// TODO: Enable payments - within the event window
 								log.Printf("[Events] Rewarding: %v", uint64(e.EventsConfig.RandomRewardEventConfig.RewardValueInDERO*e.CoinUnits))
-								if paymentsEnabled {
-									info := &PaymentPending{}
-									info.Address = tempMinerArr[n]
-									info.Amount = uint64(e.EventsConfig.RandomRewardEventConfig.RewardValueInDERO * e.CoinUnits)
-									info.Timestamp = util.MakeTimestamp() / 1000
+								info := &PaymentPending{}
+								info.Address = tempMinerArr[n]
+								info.Amount = uint64(e.EventsConfig.RandomRewardEventConfig.RewardValueInDERO * e.CoinUnits)
+								info.Timestamp = util.MakeTimestamp() / 1000
 
-									writeWait, _ := time.ParseDuration("10ms")
+								writeWait, _ := time.ParseDuration("10ms")
 
-									for Graviton_backend.Writing == 1 {
-										time.Sleep(writeWait)
-									}
-									Graviton_backend.Writing = 1
-									infoErr := Graviton_backend.WritePendingPayments(info)
-									Graviton_backend.Writing = 0
-									if infoErr != nil {
-										log.Printf("[Events] Graviton DB err: %v", infoErr)
-										EventsErrorLogger.Printf("[Events] Graviton DB err: %v", infoErr)
-									}
+								for Graviton_backend.Writing == 1 {
+									time.Sleep(writeWait)
+								}
+								Graviton_backend.Writing = 1
+								infoErr := Graviton_backend.WritePendingPayments(info)
+								Graviton_backend.Writing = 0
+								if infoErr != nil {
+									log.Printf("[Events] Graviton DB err: %v", infoErr)
+									EventsErrorLogger.Printf("[Events] Graviton DB err: %v", infoErr)
+								}
 
-									for Graviton_backend.Writing == 1 {
-										time.Sleep(writeWait)
-									}
-									Graviton_backend.Writing = 1
-									eventPaymentErr := Graviton_backend.WriteEventsPayment(info, yesterdaysdate)
-									Graviton_backend.Writing = 0
-									if eventPaymentErr != nil {
-										log.Printf("[Events] Graviton DB err: %v", eventPaymentErr)
-										EventsErrorLogger.Printf("[Events] Graviton DB err: %v", eventPaymentErr)
-									}
+								for Graviton_backend.Writing == 1 {
+									time.Sleep(writeWait)
+								}
+								Graviton_backend.Writing = 1
+								eventPaymentErr := Graviton_backend.WriteEventsPayment(info, yesterdaysdate)
+								Graviton_backend.Writing = 0
+								if eventPaymentErr != nil {
+									log.Printf("[Events] Graviton DB err: %v", eventPaymentErr)
+									EventsErrorLogger.Printf("[Events] Graviton DB err: %v", eventPaymentErr)
 								}
 							} else {
 								log.Printf("[Events] No miners within yesterday's data. No rewards processed.")
@@ -435,8 +458,91 @@ func (e *Events) Start() {
 						} else {
 							log.Printf("[Events] Payment was already processed for yesterday (%v). No rewards processed.", yesterdayPayment)
 						}
-					} else {
-						//log.Printf("[Events] We are past the end of the event. If this continues, please disable the event in the config.json file so you don't continue to get notified.")
+					}
+
+					// Check if there's a 1hr event
+					nowBonus := time.Now().UTC()
+					log.Printf("Now Hour: %v", nowBonus.Hour())
+					lastHourBonus := nowBonus.Add(-time.Hour * 1)
+					log.Printf("lastHourBonus Hour: %v", lastHourBonus.Hour())
+					year, month, day = lastHourBonus.Date()
+					hour := lastHourBonus.Hour()
+					lastHourBonusDate := fmt.Sprintf("%v-%v-%v-%v", strconv.Itoa(year), int(month), strconv.Itoa(day), hour)
+					// If bonusEventStart is defined; bonusEventInWindow (current time is in the bonus window) and the day of the lastHourBonus.Date() is equal to the right day (meaning it works for the first and the last hour payouts)
+					if bonusEventStart != "" && bonusEventInWindow == true && day == bonusEventStartDay {
+						log.Printf("We are in bonus event window!")
+						// Check for existing payment processed - yes pendingpayment is confusing... just trust the structs/process <3
+						lastHourPayment := Graviton_backend.GetEventsPayment(lastHourBonusDate)
+						if lastHourPayment == nil {
+							backendStats := Graviton_backend.GetEventsData(todaysdate)
+							var tempMinerArr []string
+							for k, _ := range backendStats {
+								var mExist bool
+								if backendStats[k].LastBeat == 0 {
+									mExist = true
+								}
+								for _, m := range tempMinerArr {
+									if k == m {
+										mExist = true
+									}
+								}
+								if !mExist {
+									// Do logic to calculate the startedAt offset for the day
+									thisHourStartWindow := time.Date(year, month, day, hour, 0, 0, 0, time.UTC)
+									unixStartTime := thisHourStartWindow.UnixNano() / int64(time.Millisecond) / 1000
+									log.Printf("thisHourStartWindow: %v , %v", thisHourStartWindow, unixStartTime)
+
+									log.Printf("LastBeat at (%v) >= unixStartTime (%v).", backendStats[k].LastBeat, unixStartTime)
+									if backendStats[k].LastBeat >= unixStartTime {
+										log.Printf("[Events] Adding miner. LastBeat is within the hour.")
+										tempMinerArr = append(tempMinerArr, k)
+									} else {
+										log.Printf("[Events] Not adding miner (%v), lastbeat is not within this hour", k)
+									}
+								}
+							}
+
+							if tempMinerArr != nil {
+								log.Printf("[Events] Choosing the winner for this hour: %v", lastHourBonusDate)
+								rand.Seed(time.Now().Unix())
+								n := rand.Int() % len(tempMinerArr)
+								log.Printf("[Events] Chosen address string: %v , int: %v", tempMinerArr[n], n)
+
+								log.Printf("[Events] Rewarding: %v", uint64(e.EventsConfig.RandomRewardEventConfig.RewardValueInDERO*e.CoinUnits))
+								info := &PaymentPending{}
+								info.Address = tempMinerArr[n]
+								info.Amount = uint64(e.EventsConfig.RandomRewardEventConfig.RewardValueInDERO * e.CoinUnits)
+								info.Timestamp = util.MakeTimestamp() / 1000
+
+								writeWait, _ := time.ParseDuration("10ms")
+
+								for Graviton_backend.Writing == 1 {
+									time.Sleep(writeWait)
+								}
+								Graviton_backend.Writing = 1
+								infoErr := Graviton_backend.WritePendingPayments(info)
+								Graviton_backend.Writing = 0
+								if infoErr != nil {
+									log.Printf("[Events] Graviton DB err: %v", infoErr)
+									EventsErrorLogger.Printf("[Events] Graviton DB err: %v", infoErr)
+								}
+
+								for Graviton_backend.Writing == 1 {
+									time.Sleep(writeWait)
+								}
+								Graviton_backend.Writing = 1
+								eventPaymentErr := Graviton_backend.WriteEventsPayment(info, lastHourBonusDate)
+								Graviton_backend.Writing = 0
+								if eventPaymentErr != nil {
+									log.Printf("[Events] Graviton DB err: %v", eventPaymentErr)
+									EventsErrorLogger.Printf("[Events] Graviton DB err: %v", eventPaymentErr)
+								}
+							} else {
+								log.Printf("[Events] No miners within this hour's data. No rewards processed.")
+							}
+						} else {
+							log.Printf("[Events] Payment was already processed for this hour (%v). No rewards processed.", lastHourBonusDate)
+						}
 					}
 
 					rreTimer.Reset(rreIntv)

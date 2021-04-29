@@ -182,7 +182,8 @@
 			"endDay": "2021-05-31",
 			"stepIntervalInSeconds": 30,
 			"rewardValueInDERO": 1,
-			"minerPercentCriteria": 0.9
+			"minerPercentCriteria": 0.9,
+			"bonus1hrDayEventDate": "2021-05-05"
 		}
 	}
 }

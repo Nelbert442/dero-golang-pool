@@ -314,12 +314,13 @@ Explanation for each field:
 	"events": {
 		"enabled": true,		// Sets the events configuration to true/false
 		"randomrewardevent": {
-			"enabled": false,	// Sets the randomrewardevent to enabled
-			"startDay": "2021-05-01",	// Defines the start date for the event
-			"endDay": "2021-05-31",		// Defins the end date for the event
-			"stepIntervalInSeconds": 30,	// Defines the step interval for the automated process to query/store data for the event
-			"rewardValueInDERO": 1,		// Defines the reward value in DERO for the event per-day
-			"minerPercentCriteria": 0.9	// Defines the minimum miner percentage (90% in this case) that they must be mining in the day to be eligible
+			"enabled": false,						// Sets the randomrewardevent to enabled
+			"startDay": "2021-05-01",				// Defines the start date for the event
+			"endDay": "2021-05-31",					// Defins the end date for the event
+			"stepIntervalInSeconds": 30,			// Defines the step interval for the automated process to query/store data for the event
+			"rewardValueInDERO": 1,					// Defines the reward value in DERO for the event per-day
+			"minerPercentCriteria": 0.9,			// Defines the minimum miner percentage (90% in this case) that they must be mining in the day to be eligible
+			"bonus1hrDayEventDate": "2021-05-05"	// Defines a bonus 1hr day event where rewards are every hour! If "" then it will not occur
 		}
 	}
 }
