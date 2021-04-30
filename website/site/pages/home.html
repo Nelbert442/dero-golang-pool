@@ -223,14 +223,26 @@
 			} else { updateText('lastBlockHash', "0"); }
 
 			// Block effort
-
+			/*
 			if (lastStats.totalRoundShares != null) {
 				var percent = Math.round(lastStats.totalRoundShares / lastStats.lastblock.Difficulty * 100);
 				updateText('poolEffort', percent + "%")
 			} else { updateText('poolEffort', "NaN%"); }
+			*/
+
+			var xhrRenderCharts;
+
+			$(function(){
+				xhrRenderCharts = $.ajax({
+					url: api + '/charts',
+					cache: false,
+					success: createCharts
+				});
+			});
         }
 	};
 
+	/*
     var xhrRenderCharts;
 
     $(function(){
@@ -240,4 +252,5 @@
             success: createCharts
         });
     });
+	*/
 </script>

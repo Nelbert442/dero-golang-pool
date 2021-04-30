@@ -46,12 +46,21 @@ func (e *Events) Start() {
 	_ = writeWait
 
 	// RandomRewardEvent
-	if e.EventsConfig.RandomRewardEventConfig.Enabled {
+	if e.EventsConfig.RandomRewardEventConfig.Enabled && e.EventsConfig.RandomRewardEventConfig.StartDay != "" && e.EventsConfig.RandomRewardEventConfig.EndDay != "" {
 		// Start of every day event interval
 		rreIntv := time.Duration(e.EventsConfig.RandomRewardEventConfig.StepIntervalInSeconds) * time.Second
 		rreTimer := time.NewTimer(rreIntv)
-		log.Printf("[Events] Set random rewards event step interval to %v", rreIntv)
-		EventsInfoLogger.Printf("[Events] Set random rewards event step interval to %v", rreIntv)
+		log.Printf("[Events] Set random rewards event step interval to '%v'", rreIntv)
+		EventsInfoLogger.Printf("[Events] Set random rewards event step interval to '%v'", rreIntv)
+
+		log.Printf("[Events] Set event start date to '%v'", e.EventsConfig.RandomRewardEventConfig.StartDay)
+		EventsInfoLogger.Printf("[Events] Set event start date to '%v'", e.EventsConfig.RandomRewardEventConfig.StartDay)
+
+		log.Printf("[Events] Set event end date to '%v'", e.EventsConfig.RandomRewardEventConfig.EndDay)
+		EventsInfoLogger.Printf("[Events] Set event end date to '%v'", e.EventsConfig.RandomRewardEventConfig.EndDay)
+
+		log.Printf("[Events] Set bonus event date to '%v'", e.EventsConfig.RandomRewardEventConfig.Bonus1hrDayEventDate)
+		EventsInfoLogger.Printf("[Events] Set bonus event date to '%v'", e.EventsConfig.RandomRewardEventConfig.Bonus1hrDayEventDate)
 
 		go func() {
 			for {
@@ -66,22 +75,26 @@ func (e *Events) Start() {
 					// Date string for use in the 'key' of graviton store
 					todaysdate = fmt.Sprintf("%v-%v-%v", strconv.Itoa(year), int(month), strconv.Itoa(day))
 
-					// TODO: Probably better ways to accomplish this, however it's base-logical level to go about it for now
+					// TODO: Probably better ways to accomplish this, however it's base-logical level to go about it for now. Like using time.After() and time.Before() etc.
 					// Determine pieces of the event start day
 					eventStart := e.EventsConfig.RandomRewardEventConfig.StartDay
 					eventStartSplit := strings.Split(eventStart, "-")
 					eventStartYear := eventStartSplit[0]
+					eventStartYearInt, _ := strconv.Atoi(eventStartYear)
 					eventStartMonth := eventStartSplit[1]
 					eventStartMonthInt, _ := strconv.Atoi(eventStartMonth)
 					eventStartDay, _ := strconv.Atoi(eventStartSplit[2])
+					eventStartDate := fmt.Sprintf("%v-%v-%v", strconv.Itoa(eventStartYearInt), eventStartMonthInt, strconv.Itoa(eventStartDay))
 
 					// Determine pieces of the event end day
 					eventEnd := e.EventsConfig.RandomRewardEventConfig.EndDay
 					eventEndSplit := strings.Split(eventEnd, "-")
 					eventEndYear := eventEndSplit[0]
+					eventEndYearInt, _ := strconv.Atoi(eventEndYear)
 					eventEndMonth := eventEndSplit[1]
 					eventEndMonthInt, _ := strconv.Atoi(eventEndMonth)
 					eventEndDay, _ := strconv.Atoi(eventEndSplit[2])
+					eventEndDate := fmt.Sprintf("%v-%v-%v", strconv.Itoa(eventEndYearInt), eventEndMonthInt, strconv.Itoa(eventEndDay))
 
 					// Determine pieces of the bonus event day, if it exists
 					bonusEventStart := e.EventsConfig.RandomRewardEventConfig.Bonus1hrDayEventDate
@@ -100,11 +113,11 @@ func (e *Events) Start() {
 					var inEventWindow bool
 					var bonusEventInWindow bool
 
-					log.Printf("[Events] Checking the year. Year now: %v , eventStartYear: %v, eventEndYear: %v", strconv.Itoa(year), eventStartYear, eventEndYear)
+					//log.Printf("[Events] Checking the year. Year now: %v , eventStartYear: %v, eventEndYear: %v", strconv.Itoa(year), eventStartYear, eventEndYear)
 					if strconv.Itoa(year) == eventStartYear || strconv.Itoa(year) == eventEndYear {
-						log.Printf("[Events] Checking the month. Month now: %v , eventStartMonth: %v, eventEndMonth: %v", int(month), eventStartMonthInt, eventEndMonthInt)
+						//log.Printf("[Events] Checking the month. Month now: %v , eventStartMonth: %v, eventEndMonth: %v", int(month), eventStartMonthInt, eventEndMonthInt)
 						if int(month) >= eventStartMonthInt && int(month) <= eventEndMonthInt {
-							log.Printf("[Events] Checking the day. Day now: %v , eventStartDay: %v, eventEndDay: %v . day >= eventStartDay || day <= eventEndDay", strconv.Itoa(day), eventStartDay, eventEndDay)
+							//log.Printf("[Events] Checking the day. Day now: %v , eventStartDay: %v, eventEndDay: %v . day >= eventStartDay || day <= eventEndDay", strconv.Itoa(day), eventStartDay, eventEndDay)
 							if eventStartMonthInt == eventEndMonthInt {
 								if day >= eventStartDay && day <= eventEndDay {
 									inEventWindow = true
@@ -120,7 +133,7 @@ func (e *Events) Start() {
 										}
 									}
 								} else {
-									log.Printf("[Events] We are not in the event window.")
+									//log.Printf("[Events] We are not in the event window.")
 								}
 							} else {
 								if (day >= eventStartDay && int(month) >= eventStartMonthInt) || (day <= eventEndDay && int(month) <= eventEndMonthInt) {
@@ -137,13 +150,12 @@ func (e *Events) Start() {
 										}
 									}
 								} else {
-									log.Printf("[Events] We are not in the event window.")
+									//log.Printf("[Events] We are not in the event window.")
 								}
 							}
 
 							// If we are in the event window, perform data storing and reward tasks.
 							if inEventWindow {
-								log.Printf("[Events] We are in the event window!!")
 								log.Printf("[Events] Getting data for date: %v", todaysdate)
 								storedstats := Graviton_backend.GetEventsData(todaysdate)
 
@@ -163,14 +175,14 @@ func (e *Events) Start() {
 													// Already one, compare
 													if cm.StartedAt < loadedStartedAt {
 														// Set v.StartedAt
-														log.Printf("[Events] Storing startedAt for %v . Current value: %v , New Value: %v (should be lower)", address, loadedStartedAt, cm.StartedAt)
+														log.Printf("[Events] Storing startedAt for %v . Current value: %v , New Value: %v", address, loadedStartedAt, cm.StartedAt)
+														EventsInfoLogger.Printf("[Events] Storing startedAt for %v . Current value: %v , New Value: %v", address, loadedStartedAt, cm.StartedAt)
 														storedstats[address].StartedAt = cm.StartedAt
 													} else {
-														log.Printf("[Events] Stored startedAt for %v is already lowest, continue.", address)
+														//log.Printf("[Events] Stored startedAt for %v is already lowest, continue.", address)
 													}
 												} else {
 													// Set v.StartedAt
-													log.Printf("[Events] Stored startedAt value for %v is 0. New Value: %v", address, cm.StartedAt)
 													storedstats[address].StartedAt = cm.StartedAt
 												}
 
@@ -180,14 +192,14 @@ func (e *Events) Start() {
 													// Already one, compare
 													if cm.LastBeat > loadedLastBeat {
 														// Set v.LastBeat
-														log.Printf("[Events] Storing LastBeat for %v . Current value: %v , New Value: %v (should be lower)", address, loadedLastBeat, cm.LastBeat)
+														log.Printf("[Events] Storing LastBeat for %v . Current value: %v , New Value: %v", address, loadedLastBeat, cm.LastBeat)
+														EventsInfoLogger.Printf("[Events] Storing LastBeat for %v . Current value: %v , New Value: %v", address, loadedLastBeat, cm.LastBeat)
 														storedstats[address].LastBeat = cm.LastBeat
 													} else {
-														log.Printf("[Events] Stored LastBeat for %v is already highest.", address)
+														//log.Printf("[Events] Stored LastBeat for %v is already highest.", address)
 													}
 												} else {
 													// Set v.LastBeat
-													log.Printf("[Events] Stored LastBeat value for %v is 0. New Value: %v", address, cm.LastBeat)
 													storedstats[address].LastBeat = cm.LastBeat
 												}
 											} else {
@@ -201,10 +213,11 @@ func (e *Events) Start() {
 											address := cm.Address
 
 											log.Printf("[Events] Storing details for address %v . Did not exist before.", address)
+											EventsInfoLogger.Printf("[Events] Storing details for address %v . Did not exist before.", address)
 											storedAddressDetails := &Miner{StartedAt: cm.StartedAt, LastBeat: cm.LastBeat}
 
 											storedstats[address] = storedAddressDetails
-											log.Printf("[Events] Should be storing: %v", storedstats[address])
+											//log.Printf("[Events] Should be storing: %v", storedstats[address])
 										}
 									}
 
@@ -216,16 +229,17 @@ func (e *Events) Start() {
 										now := time.Now().UnixNano() / int64(time.Millisecond) / 1000
 
 										// If last beat is not within the last 5 minutes
-										log.Printf("[Events] Checking if lastbeat (%v) <= now (%v) - 300", v.LastBeat, now)
+										//log.Printf("[Events] Checking if lastbeat (%v) <= now (%v) - 300", v.LastBeat, now)
 										todayStartWindow := time.Date(year, month, day, 0, 0, 0, 0, time.UTC)
 										todaysStartTime := todayStartWindow.UnixNano() / int64(time.Millisecond) / 1000
 										if v.LastBeat <= now-300 && v.LastBeat >= todaysStartTime {
 											if storedstats[address].LastBeat != 0 && storedstats[address].StartedAt != 0 {
 												storedstats[address].EventDataOffset += now - (v.LastBeat + storedstats[address].EventDataOffset + 300)
+												log.Printf("[Events] Address (%v) eventdataoffset %v", address, storedstats[address].EventDataOffset)
+												EventsInfoLogger.Printf("[Events] Address (%v) eventdataoffset %v", address, storedstats[address].EventDataOffset)
 											} /*else if storedstats[address].LastBeat != 0 && storedstats[address].StartedAt != 0 {
 												storedstats[address].EventDataOffset = now - (v.LastBeat + 300)
 											}*/
-											log.Printf("[Events] Address (%v) eventdataoffset %v", address, storedstats[address].EventDataOffset)
 										}
 									}
 
@@ -238,9 +252,11 @@ func (e *Events) Start() {
 									Graviton_backend.Writing = 0
 									if err != nil {
 										log.Printf("[Events] Error overwriting events data")
+										EventsInfoLogger.Printf("[Events] Error overwriting events data")
 									}
 								} else {
 									log.Printf("[Events] No stats to store for event, no connected miners.")
+									EventsInfoLogger.Printf("[Events] No stats to store for event, no connected miners.")
 								}
 
 								// Put addresses into a string slice
@@ -248,9 +264,9 @@ func (e *Events) Start() {
 								yesterday := now.AddDate(0, 0, -1)
 								year, month, day = yesterday.Date()
 								yesterdaysdate := fmt.Sprintf("%v-%v-%v", strconv.Itoa(year), int(month), strconv.Itoa(day))
-								log.Printf("[Events] Yesterdays date: %v", yesterdaysdate)
+
 								// Do not try to find a winner if today is the start day, need to have a full day of data first
-								if todaysdate != e.EventsConfig.RandomRewardEventConfig.StartDay && len(storedstats) != 0 {
+								if todaysdate != eventStartDate && len(storedstats) != 0 {
 									// Check for existing payment processed - yes pendingpayment is confusing... just trust the structs/process <3
 									yesterdayPayment := Graviton_backend.GetEventsPayment(yesterdaysdate)
 									if yesterdayPayment == nil {
@@ -270,48 +286,49 @@ func (e *Events) Start() {
 												// Do logic to calculate the startedAt offset for the day
 												yesterdayStartWindow := time.Date(year, month, day, 0, 0, 0, 0, time.UTC)
 												unixStartTime := yesterdayStartWindow.UnixNano() / int64(time.Millisecond) / 1000
-												log.Printf("YesterdayStartWindow: %v , %v", yesterdayStartWindow, unixStartTime)
 
-												log.Printf("backendStats[k].StartedAt(%v) > unixStartTime (%v)", backendStats[k].StartedAt, unixStartTime)
-												log.Printf("LastBeat at (%v) < unixStartTime (%v).", backendStats[k].LastBeat, unixStartTime)
 												if backendStats[k].StartedAt > unixStartTime {
 													// Do logic to calc difference
-													log.Printf("StartedAt (%v) is greater than unixStartTime (%v). Difference adding to offset: %v", backendStats[k].StartedAt, unixStartTime, backendStats[k].StartedAt-unixStartTime)
+													log.Printf("[Events] Difference (%v) adding to offset: %v", k, backendStats[k].StartedAt-unixStartTime)
+													EventsInfoLogger.Printf("[Events] Difference (%v) adding to offset: %v", k, backendStats[k].StartedAt-unixStartTime)
+
 													backendStats[k].EventDataOffset += backendStats[k].StartedAt - unixStartTime
 												} else if backendStats[k].LastBeat < unixStartTime {
-													log.Printf("LastBeat at (%v) is greater than unixStartTime (%v). Adding time.now - unixStartTime to offset", backendStats[k].LastBeat, unixStartTime)
 													beatNow := time.Now().UTC().UnixNano() / int64(time.Millisecond) / 1000
-													log.Printf("now(%v) - beatNow (%v) - unixStartTime (%v)", time.Now().UTC(), beatNow, unixStartTime)
+
+													log.Printf("[Events] LastBeat is greater than unixStartTime. Difference (%v) adding to offset: %v", k, beatNow-unixStartTime)
+													EventsInfoLogger.Printf("[Events] LastBeat is greater than unixStartTime. Difference (%v) adding to offset: %v", k, beatNow-unixStartTime)
+
 													backendStats[k].EventDataOffset += beatNow - unixStartTime
 												}
 
 												yesterdayEndWindow := time.Date(year, month, day, 23, 59, 59, 9999, time.UTC)
 												unixEndTime := yesterdayEndWindow.UnixNano() / int64(time.Millisecond) / 1000
-												log.Printf("YesterdayEndWindow: %v , %v", yesterdayEndWindow, unixEndTime)
 
 												yesterdayTimeWindow := unixEndTime - unixStartTime
 												yesterdayTimeWindowFloat := float64(yesterdayTimeWindow)
 												minerOffset := yesterdayTimeWindow - backendStats[k].EventDataOffset
-												log.Printf("yesterdayTimeWindow (%v) - backendStats[k].EventDataOffset (%v)", yesterdayTimeWindow, backendStats[k].EventDataOffset)
 												minerOffsetFloat := float64(minerOffset)
 												offsetPercent := minerOffsetFloat / yesterdayTimeWindowFloat
-												log.Printf("Offsetpercent: minerOffsetFloat (%v) / yesterdayTimeWindowFloat (%v)", minerOffsetFloat, yesterdayTimeWindowFloat)
 												if offsetPercent >= e.EventsConfig.RandomRewardEventConfig.MinerPercentCriteria {
-													log.Printf("Adding miner. Meets criteria: %v", offsetPercent)
+													log.Printf("[Events] Adding miner. Meets criteria: %v", offsetPercent)
+													EventsInfoLogger.Printf("[Events] Adding miner. Meets criteria: %v", offsetPercent)
 													tempMinerArr = append(tempMinerArr, k)
 												} else {
-													log.Printf("Not adding miner, they did not meet the mining percent criteria: %v", offsetPercent)
+													log.Printf("[Events] Not adding miner (%v), they did not meet the mining percent criteria: %v", k, offsetPercent)
+													EventsInfoLogger.Printf("[Events] Not adding miner (%v), they did not meet the mining percent criteria: %v", k, offsetPercent)
 												}
 											}
 										}
 
 										if tempMinerArr != nil {
-											log.Printf("[Events] Choosing the winner for date: %v", yesterdaysdate)
+											log.Printf("[Events] Choosing the winner for yesterday: %v", yesterdaysdate)
+											EventsInfoLogger.Printf("[Events] Choosing the winner for yesterday: %v", yesterdaysdate)
 											rand.Seed(time.Now().Unix())
 											n := rand.Int() % len(tempMinerArr)
-											log.Printf("[Events] Chosen address string: %v , int: %v", tempMinerArr[n], n)
+											log.Printf("[Events] Chosen address string: %v , int: %v . Rewarding: %v", tempMinerArr[n], n, uint64(e.EventsConfig.RandomRewardEventConfig.RewardValueInDERO*e.CoinUnits))
+											EventsInfoLogger.Printf("[Events] Chosen address string: %v , int: %v . Rewarding: %v", tempMinerArr[n], n, uint64(e.EventsConfig.RandomRewardEventConfig.RewardValueInDERO*e.CoinUnits))
 
-											log.Printf("[Events] Rewarding: %v", uint64(e.EventsConfig.RandomRewardEventConfig.RewardValueInDERO*e.CoinUnits))
 											info := &PaymentPending{}
 											info.Address = tempMinerArr[n]
 											info.Amount = uint64(e.EventsConfig.RandomRewardEventConfig.RewardValueInDERO * e.CoinUnits)
@@ -341,18 +358,18 @@ func (e *Events) Start() {
 												EventsErrorLogger.Printf("[Events] Graviton DB err: %v", eventPaymentErr)
 											}
 										} else {
-											log.Printf("[Events] No miners within yesterday's data. No rewards processed.")
+											//log.Printf("[Events] No miners within yesterday's data. No rewards processed.")
 										}
 									} else {
-										log.Printf("[Events] Payment was already processed for yesterday (%v). No rewards processed.", yesterdayPayment)
+										//log.Printf("[Events] Payment was already processed for yesterday (%v). No rewards processed.", yesterdayPayment)
 									}
 								}
 							}
 						} else {
-							log.Printf("[Events] We are not in the event window.")
+							//log.Printf("[Events] We are not in the event window.")
 						}
 					} else {
-						log.Printf("[Events] We are not in the event window.")
+						//log.Printf("[Events] We are not in the event window.")
 					}
 
 					// If todaysdate is same as eventEnd + 1, payout eventEndDay. This will only be caught once and at the end of an event, since above logic will not catch the end date's reward
@@ -361,8 +378,8 @@ func (e *Events) Start() {
 					yesterday := now.AddDate(0, 0, -1)
 					year, month, day = yesterday.Date()
 					yesterdaysdate := fmt.Sprintf("%v-%v-%v", strconv.Itoa(year), int(month), strconv.Itoa(day))
-					log.Printf("[Events] Yesterdays date (end): %v", yesterdaysdate)
-					if yesterdaysdate == e.EventsConfig.RandomRewardEventConfig.EndDay {
+
+					if yesterdaysdate == eventEndDate {
 						// Check for existing payment processed - yes pendingpayment is confusing... just trust the structs/process <3
 						yesterdayPayment := Graviton_backend.GetEventsPayment(yesterdaysdate)
 						if yesterdayPayment == nil {
@@ -382,48 +399,49 @@ func (e *Events) Start() {
 									// Do logic to calculate the startedAt offset for the day
 									yesterdayStartWindow := time.Date(year, month, day, 0, 0, 0, 0, time.UTC)
 									unixStartTime := yesterdayStartWindow.UnixNano() / int64(time.Millisecond) / 1000
-									log.Printf("YesterdayStartWindow: %v , %v", yesterdayStartWindow, unixStartTime)
 
-									log.Printf("backendStats[k].StartedAt(%v) > unixStartTime (%v)", backendStats[k].StartedAt, unixStartTime)
-									log.Printf("LastBeat at (%v) < unixStartTime (%v).", backendStats[k].LastBeat, unixStartTime)
 									if backendStats[k].StartedAt > unixStartTime {
 										// Do logic to calc difference
-										log.Printf("StartedAt (%v) is greater than unixStartTime (%v). Difference adding to offset: %v", backendStats[k].StartedAt, unixStartTime, backendStats[k].StartedAt-unixStartTime)
+										log.Printf("[Events] Difference (%v) adding to offset: %v", k, backendStats[k].StartedAt-unixStartTime)
+										EventsInfoLogger.Printf("[Events] Difference (%v) adding to offset: %v", k, backendStats[k].StartedAt-unixStartTime)
+
 										backendStats[k].EventDataOffset += backendStats[k].StartedAt - unixStartTime
 									} else if backendStats[k].LastBeat < unixStartTime {
-										log.Printf("LastBeat at (%v) is greater than unixStartTime (%v). Adding time.now - unixStartTime to offset", backendStats[k].LastBeat, unixStartTime)
 										beatNow := time.Now().UTC().UnixNano() / int64(time.Millisecond) / 1000
-										log.Printf("now(%v) - beatNow (%v) - unixStartTime (%v)", time.Now().UTC(), beatNow, unixStartTime)
+
+										log.Printf("[Events] LastBeat is greater than unixStartTime. Difference (%v) adding to offset: %v", k, beatNow-unixStartTime)
+										EventsInfoLogger.Printf("[Events] LastBeat is greater than unixStartTime. Difference (%v) adding to offset: %v", k, beatNow-unixStartTime)
+
 										backendStats[k].EventDataOffset += beatNow - unixStartTime
 									}
 
 									yesterdayEndWindow := time.Date(year, month, day, 23, 59, 59, 9999, time.UTC)
 									unixEndTime := yesterdayEndWindow.UnixNano() / int64(time.Millisecond) / 1000
-									log.Printf("YesterdayEndWindow: %v , %v", yesterdayEndWindow, unixEndTime)
 
 									yesterdayTimeWindow := unixEndTime - unixStartTime
 									yesterdayTimeWindowFloat := float64(yesterdayTimeWindow)
 									minerOffset := yesterdayTimeWindow - backendStats[k].EventDataOffset
-									log.Printf("yesterdayTimeWindow (%v) - backendStats[k].EventDataOffset (%v)", yesterdayTimeWindow, backendStats[k].EventDataOffset)
 									minerOffsetFloat := float64(minerOffset)
 									offsetPercent := minerOffsetFloat / yesterdayTimeWindowFloat
-									log.Printf("Offsetpercent: minerOffsetFloat (%v) / yesterdayTimeWindowFloat (%v)", minerOffsetFloat, yesterdayTimeWindowFloat)
 									if offsetPercent >= e.EventsConfig.RandomRewardEventConfig.MinerPercentCriteria {
 										log.Printf("[Events] Adding miner. Meets criteria: %v", offsetPercent)
+										EventsInfoLogger.Printf("[Events] Adding miner. Meets criteria: %v", offsetPercent)
 										tempMinerArr = append(tempMinerArr, k)
 									} else {
 										log.Printf("[Events] Not adding miner (%v), they did not meet the mining percent criteria: %v", k, offsetPercent)
+										EventsInfoLogger.Printf("[Events] Not adding miner (%v), they did not meet the mining percent criteria: %v", k, offsetPercent)
 									}
 								}
 							}
 
 							if tempMinerArr != nil {
-								log.Printf("[Events] Choosing the winner for date: %v", yesterdaysdate)
+								log.Printf("[Events] Choosing the winner for yesterday: %v", yesterdaysdate)
+								EventsInfoLogger.Printf("[Events] Choosing the winner for yesterday: %v", yesterdaysdate)
 								rand.Seed(time.Now().Unix())
 								n := rand.Int() % len(tempMinerArr)
-								log.Printf("[Events] Chosen address string: %v , int: %v", tempMinerArr[n], n)
+								log.Printf("[Events] Chosen address string: %v , int: %v . Rewarding: %v", tempMinerArr[n], n, uint64(e.EventsConfig.RandomRewardEventConfig.RewardValueInDERO*e.CoinUnits))
+								EventsInfoLogger.Printf("[Events] Chosen address string: %v , int: %v . Rewarding: %v", tempMinerArr[n], n, uint64(e.EventsConfig.RandomRewardEventConfig.RewardValueInDERO*e.CoinUnits))
 
-								log.Printf("[Events] Rewarding: %v", uint64(e.EventsConfig.RandomRewardEventConfig.RewardValueInDERO*e.CoinUnits))
 								info := &PaymentPending{}
 								info.Address = tempMinerArr[n]
 								info.Amount = uint64(e.EventsConfig.RandomRewardEventConfig.RewardValueInDERO * e.CoinUnits)
@@ -453,24 +471,21 @@ func (e *Events) Start() {
 									EventsErrorLogger.Printf("[Events] Graviton DB err: %v", eventPaymentErr)
 								}
 							} else {
-								log.Printf("[Events] No miners within yesterday's data. No rewards processed.")
+								//log.Printf("[Events] No miners within yesterday's data. No rewards processed.")
 							}
 						} else {
-							log.Printf("[Events] Payment was already processed for yesterday (%v). No rewards processed.", yesterdayPayment)
+							//log.Printf("[Events] Payment was already processed for yesterday (%v). No rewards processed.", yesterdayPayment)
 						}
 					}
 
 					// Check if there's a 1hr event
 					nowBonus := time.Now().UTC()
-					log.Printf("Now Hour: %v", nowBonus.Hour())
 					lastHourBonus := nowBonus.Add(-time.Hour * 1)
-					log.Printf("lastHourBonus Hour: %v", lastHourBonus.Hour())
 					year, month, day = lastHourBonus.Date()
 					hour := lastHourBonus.Hour()
 					lastHourBonusDate := fmt.Sprintf("%v-%v-%v-%v", strconv.Itoa(year), int(month), strconv.Itoa(day), hour)
 					// If bonusEventStart is defined; bonusEventInWindow (current time is in the bonus window) and the day of the lastHourBonus.Date() is equal to the right day (meaning it works for the first and the last hour payouts)
 					if bonusEventStart != "" && bonusEventInWindow == true && day == bonusEventStartDay {
-						log.Printf("We are in bonus event window!")
 						// Check for existing payment processed - yes pendingpayment is confusing... just trust the structs/process <3
 						lastHourPayment := Graviton_backend.GetEventsPayment(lastHourBonusDate)
 						if lastHourPayment == nil {
@@ -490,25 +505,26 @@ func (e *Events) Start() {
 									// Do logic to calculate the startedAt offset for the day
 									thisHourStartWindow := time.Date(year, month, day, hour, 0, 0, 0, time.UTC)
 									unixStartTime := thisHourStartWindow.UnixNano() / int64(time.Millisecond) / 1000
-									log.Printf("thisHourStartWindow: %v , %v", thisHourStartWindow, unixStartTime)
 
-									log.Printf("LastBeat at (%v) >= unixStartTime (%v).", backendStats[k].LastBeat, unixStartTime)
 									if backendStats[k].LastBeat >= unixStartTime {
-										log.Printf("[Events] Adding miner. LastBeat is within the hour.")
+										log.Printf("[Events] Adding miner. LastBeat is within the hour (%v).", thisHourStartWindow)
+										EventsInfoLogger.Printf("[Events] Adding miner. LastBeat is within the hour (%v).", thisHourStartWindow)
 										tempMinerArr = append(tempMinerArr, k)
 									} else {
-										log.Printf("[Events] Not adding miner (%v), lastbeat is not within this hour", k)
+										log.Printf("[Events] Not adding miner (%v), lastbeat is not within this hour (%v).", k, thisHourStartWindow)
+										EventsInfoLogger.Printf("[Events] Not adding miner (%v), lastbeat is not within this hour (%v).", k, thisHourStartWindow)
 									}
 								}
 							}
 
 							if tempMinerArr != nil {
 								log.Printf("[Events] Choosing the winner for this hour: %v", lastHourBonusDate)
+								EventsInfoLogger.Printf("[Events] Choosing the winner for this hour: %v", lastHourBonusDate)
 								rand.Seed(time.Now().Unix())
 								n := rand.Int() % len(tempMinerArr)
-								log.Printf("[Events] Chosen address string: %v , int: %v", tempMinerArr[n], n)
+								log.Printf("[Events] Chosen address string: %v , int: %v . Rewarding: %v", tempMinerArr[n], n, uint64(e.EventsConfig.RandomRewardEventConfig.RewardValueInDERO*e.CoinUnits))
+								EventsInfoLogger.Printf("[Events] Chosen address string: %v , int: %v . Rewarding: %v", tempMinerArr[n], n, uint64(e.EventsConfig.RandomRewardEventConfig.RewardValueInDERO*e.CoinUnits))
 
-								log.Printf("[Events] Rewarding: %v", uint64(e.EventsConfig.RandomRewardEventConfig.RewardValueInDERO*e.CoinUnits))
 								info := &PaymentPending{}
 								info.Address = tempMinerArr[n]
 								info.Amount = uint64(e.EventsConfig.RandomRewardEventConfig.RewardValueInDERO * e.CoinUnits)
@@ -538,10 +554,11 @@ func (e *Events) Start() {
 									EventsErrorLogger.Printf("[Events] Graviton DB err: %v", eventPaymentErr)
 								}
 							} else {
-								log.Printf("[Events] No miners within this hour's data. No rewards processed.")
+								//log.Printf("[Events] No miners within this hour's data. No rewards processed.")
+								//EventsInfoLogger.Printf("[Events] No miners within this hour's data. No rewards processed.")
 							}
 						} else {
-							log.Printf("[Events] Payment was already processed for this hour (%v). No rewards processed.", lastHourBonusDate)
+							//log.Printf("[Events] Payment was already processed for this hour (%v). No rewards processed.", lastHourBonusDate)
 						}
 					}
 
