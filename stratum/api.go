@@ -3,10 +3,13 @@ package stratum
 
 import (
 	"encoding/json"
+	"fmt"
 	"log"
 	"net/http"
 	"os"
 	"sort"
+	"strconv"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -19,6 +22,7 @@ import (
 
 type ApiServer struct {
 	config         pool.APIConfig
+	eventsconfig   pool.EventsConfig
 	backend        *GravitonStore
 	hashrateWindow time.Duration
 	stats          atomic.Value
@@ -35,6 +39,12 @@ type ApiPayments struct {
 	Mixin     uint64
 	Amount    uint64
 	Fee       uint64
+}
+
+type ApiEventPayments struct {
+	Timestamp int64
+	Amount    uint64
+	Address   string
 }
 
 type ApiMiner struct {
@@ -87,10 +97,11 @@ type Entry struct {
 var APIInfoLogger = logFileOutAPI("INFO")
 var APIErrorLogger = logFileOutAPI("ERROR")
 
-func NewApiServer(cfg *pool.APIConfig, s *StratumServer) *ApiServer {
+func NewApiServer(cfg *pool.APIConfig, s *StratumServer, eventsconfig *pool.EventsConfig) *ApiServer {
 	hashrateWindow, _ := time.ParseDuration(cfg.HashrateWindow)
 	return &ApiServer{
 		config:         *cfg,
+		eventsconfig:   *eventsconfig,
 		backend:        Graviton_backend,
 		hashrateWindow: hashrateWindow,
 		//miners:         make(map[string]*Entry),
@@ -136,6 +147,7 @@ func (apiServer *ApiServer) listen() {
 	router.HandleFunc("/api/miners", apiServer.MinersIndex)
 	router.HandleFunc("/api/accounts", apiServer.AccountIndex)
 	router.HandleFunc("/api/charts", apiServer.ChartsIndex)
+	router.HandleFunc("/api/events", apiServer.EventsIndex)
 	router.NotFoundHandler = http.HandlerFunc(notFound)
 	err := http.ListenAndServe(apiServer.config.Listen, router)
 	if err != nil {
@@ -154,6 +166,7 @@ func (apiServer *ApiServer) listenSSL() {
 	routerSSL.HandleFunc("/api/miners", apiServer.MinersIndex)
 	routerSSL.HandleFunc("/api/accounts", apiServer.AccountIndex)
 	routerSSL.HandleFunc("/api/charts", apiServer.ChartsIndex)
+	routerSSL.HandleFunc("/api/events", apiServer.EventsIndex)
 	routerSSL.NotFoundHandler = http.HandlerFunc(notFound)
 	err := http.ListenAndServeTLS(apiServer.config.SSLListen, apiServer.config.CertFile, apiServer.config.KeyFile, routerSSL)
 	if err != nil {
@@ -271,6 +284,16 @@ func (apiServer *ApiServer) collectStats() {
 	stats["soloMinersChart"] = soloMinersChart
 	stats["soloWorkersChart"] = soloWorkersChart
 	stats["poolDifficultyChart"] = poolDifficultyChart
+
+	// Events data
+	eventsData, eventsPayoutCount := apiServer.getEventsData()
+	stats["eventsData"] = eventsData
+	stats["eventPayoutCount"] = eventsPayoutCount
+	stats["eventStartDate"] = apiServer.eventsconfig.RandomRewardEventConfig.StartDay
+	stats["eventEndDate"] = apiServer.eventsconfig.RandomRewardEventConfig.EndDay
+	stats["eventCriteria"] = apiServer.eventsconfig.RandomRewardEventConfig.MinerPercentCriteria
+	stats["eventRewardAmount"] = apiServer.eventsconfig.RandomRewardEventConfig.RewardValueInDERO
+
 	apiServer.stats.Store(stats)
 }
 
@@ -762,6 +785,120 @@ func (apiServer *ApiServer) getAddressStats(address string) map[string]interface
 	addressStats["pendingPayment"] = pendingAmount
 
 	return addressStats
+}
+
+func (apiServer *ApiServer) getEventsData() ([]*ApiEventPayments, int64) {
+	var eventPaymentSlice []*ApiEventPayments
+	var eventPayouts int64
+
+	if apiServer.eventsconfig.Enabled {
+		// Determine pieces of the event start day
+		eventStart := apiServer.eventsconfig.RandomRewardEventConfig.StartDay
+		eventStartSplit := strings.Split(eventStart, "-")
+		eventStartYear := eventStartSplit[0]
+		eventStartYearInt, _ := strconv.Atoi(eventStartYear)
+		eventStartMonth := eventStartSplit[1]
+		eventStartMonthInt, _ := strconv.Atoi(eventStartMonth)
+		eventStartDay, _ := strconv.Atoi(eventStartSplit[2])
+		eventStartDate := time.Date(eventStartYearInt, time.Month(eventStartMonthInt), eventStartDay, 0, 0, 0, 0, time.UTC)
+
+		// Determine pieces of the event end day
+		eventEnd := apiServer.eventsconfig.RandomRewardEventConfig.EndDay
+		eventEndSplit := strings.Split(eventEnd, "-")
+		eventEndYear := eventEndSplit[0]
+		eventEndYearInt, _ := strconv.Atoi(eventEndYear)
+		eventEndMonth := eventEndSplit[1]
+		eventEndMonthInt, _ := strconv.Atoi(eventEndMonth)
+		eventEndDay, _ := strconv.Atoi(eventEndSplit[2])
+		eventEndDate := time.Date(eventEndYearInt, time.Month(eventEndMonthInt), eventEndDay, 0, 0, 0, 0, time.UTC)
+
+		// Determine pieces of the bonus event day, if it exists
+		bonusEventStart := apiServer.eventsconfig.RandomRewardEventConfig.Bonus1hrDayEventDate
+		var bonusEventStartSplit []string
+		var bonusEventStartYear, bonusEventStartMonth string
+		var bonusEventStartMonthInt, bonusEventStartDay int
+		var bonusEventDate time.Time
+		if bonusEventStart != "" {
+			bonusEventStartSplit = strings.Split(bonusEventStart, "-")
+			bonusEventStartYear = bonusEventStartSplit[0]
+			bonusEventStartYearInt, _ := strconv.Atoi(bonusEventStartYear)
+			bonusEventStartMonth = bonusEventStartSplit[1]
+			bonusEventStartMonthInt, _ = strconv.Atoi(bonusEventStartMonth)
+			bonusEventStartDay, _ = strconv.Atoi(bonusEventStartSplit[2])
+			bonusEventDate = time.Date(bonusEventStartYearInt, time.Month(bonusEventStartMonthInt), bonusEventStartDay, 0, 0, 0, 0, time.UTC)
+		}
+
+		// Find the time inbetween event start and end, so we can generate a for() loop to go through the graviton backend [future could store in graviton a slice instead of individual, but will see]
+		timeDiff := eventEndDate.Sub(eventStartDate)
+		timeDiffInDays := timeDiff.Hours() / 24
+
+		for i := 0; i < int(timeDiffInDays); i++ {
+			// Assign currTime to each day to retrieve results
+			var currDayTimeString, currHourTimeString string
+			currTime := eventStartDate.AddDate(0, 0, i)
+			currTime.Year()
+			currDayTimeString = fmt.Sprintf("%v-%v-%v", currTime.Year(), int(currTime.Month()), currTime.Day())
+
+			if currTime == bonusEventDate {
+				// Get all of the hourly rewards as well
+				currHourStartWindow := time.Date(currTime.Year(), currTime.Month(), currTime.Day(), 0, 0, 0, 0, time.UTC)
+				for f := 0; f < 24; f++ {
+					currHour := currHourStartWindow.Add(time.Hour * time.Duration(f))
+					currHourTimeString = fmt.Sprintf("%v-%v-%v-%v", currHour.Year(), int(currHour.Month()), currHour.Day(), currHour.Hour())
+					currHourReward := apiServer.backend.GetEventsPayment(currHourTimeString)
+					if currHourReward != nil {
+						replyHour := &ApiEventPayments{
+							Timestamp: currHourReward.Timestamp,
+							Amount:    currHourReward.Amount,
+							Address:   currHourReward.Address[0:7] + "..." + currHourReward.Address[len(currHourReward.Address)-5:len(currHourReward.Address)],
+						}
+
+						eventPaymentSlice = append(eventPaymentSlice, replyHour)
+						eventPayouts++
+					}
+				}
+			}
+
+			currDayReward := apiServer.backend.GetEventsPayment(currDayTimeString)
+			if currDayReward != nil {
+				replyDay := &ApiEventPayments{
+					Timestamp: currDayReward.Timestamp,
+					Amount:    currDayReward.Amount,
+					Address:   currDayReward.Address[0:7] + "..." + currDayReward.Address[len(currDayReward.Address)-5:len(currDayReward.Address)],
+				}
+
+				eventPaymentSlice = append(eventPaymentSlice, replyDay)
+				eventPayouts++
+			}
+		}
+	}
+
+	return eventPaymentSlice, eventPayouts
+}
+
+func (apiServer *ApiServer) EventsIndex(writer http.ResponseWriter, _ *http.Request) {
+	writer.Header().Set("Content-Type", "application/json; charset=UTF-8")
+	writer.Header().Set("Access-Control-Allow-Origin", "*")
+	writer.Header().Set("Cache-Control", "no-cache")
+	writer.WriteHeader(http.StatusOK)
+
+	reply := make(map[string]interface{})
+
+	stats := apiServer.getStats()
+	if stats != nil {
+		reply["eventsData"] = stats["eventsData"]
+		reply["eventPayoutCount"] = stats["eventPayoutCount"]
+		reply["eventStartDate"] = stats["eventStartDate"]
+		reply["eventEndDate"] = stats["eventEndDate"]
+		reply["eventCriteria"] = stats["eventCriteria"]
+		reply["eventRewardAmount"] = stats["eventRewardAmount"]
+	}
+
+	err := json.NewEncoder(writer).Encode(reply)
+	if err != nil {
+		log.Printf("[API] Error serializing API response: %v", err)
+		APIErrorLogger.Printf("[API] Error serializing API response: %v", err)
+	}
 }
 
 func (apiServer *ApiServer) getStats() map[string]interface{} {

@@ -43,7 +43,6 @@ func (e *Events) Start() {
 	log.Printf("[Events] Starting events data collection")
 	EventsInfoLogger.Printf("[Events] Starting events data collection")
 	writeWait, _ := time.ParseDuration("10ms")
-	_ = writeWait
 
 	// RandomRewardEvent
 	if e.EventsConfig.RandomRewardEventConfig.Enabled && e.EventsConfig.RandomRewardEventConfig.StartDay != "" && e.EventsConfig.RandomRewardEventConfig.EndDay != "" {
@@ -75,7 +74,7 @@ func (e *Events) Start() {
 					// Date string for use in the 'key' of graviton store
 					todaysdate = fmt.Sprintf("%v-%v-%v", strconv.Itoa(year), int(month), strconv.Itoa(day))
 
-					// TODO: Probably better ways to accomplish this, however it's base-logical level to go about it for now. Like using time.After() and time.Before() etc.
+					// TODO: Probably better ways to accomplish this, however it's base-logical level to go about it for now. Like using time.Now().After() and time.Now().Before() etc.
 					// Determine pieces of the event start day
 					eventStart := e.EventsConfig.RandomRewardEventConfig.StartDay
 					eventStartSplit := strings.Split(eventStart, "-")
@@ -156,7 +155,6 @@ func (e *Events) Start() {
 
 							// If we are in the event window, perform data storing and reward tasks.
 							if inEventWindow {
-								log.Printf("[Events] Getting data for date: %v", todaysdate)
 								storedstats := Graviton_backend.GetEventsData(todaysdate)
 
 								// Compare and contrast and update the storage (as a whole)
@@ -243,7 +241,6 @@ func (e *Events) Start() {
 										}
 									}
 
-									writeWait, _ := time.ParseDuration("10ms")
 									for Graviton_backend.Writing == 1 {
 										time.Sleep(writeWait)
 									}
@@ -333,8 +330,6 @@ func (e *Events) Start() {
 											info.Address = tempMinerArr[n]
 											info.Amount = uint64(e.EventsConfig.RandomRewardEventConfig.RewardValueInDERO * e.CoinUnits)
 											info.Timestamp = util.MakeTimestamp() / 1000
-
-											writeWait, _ := time.ParseDuration("10ms")
 
 											for Graviton_backend.Writing == 1 {
 												time.Sleep(writeWait)
@@ -447,8 +442,6 @@ func (e *Events) Start() {
 								info.Amount = uint64(e.EventsConfig.RandomRewardEventConfig.RewardValueInDERO * e.CoinUnits)
 								info.Timestamp = util.MakeTimestamp() / 1000
 
-								writeWait, _ := time.ParseDuration("10ms")
-
 								for Graviton_backend.Writing == 1 {
 									time.Sleep(writeWait)
 								}
@@ -529,8 +522,6 @@ func (e *Events) Start() {
 								info.Address = tempMinerArr[n]
 								info.Amount = uint64(e.EventsConfig.RandomRewardEventConfig.RewardValueInDERO * e.CoinUnits)
 								info.Timestamp = util.MakeTimestamp() / 1000
-
-								writeWait, _ := time.ParseDuration("10ms")
 
 								for Graviton_backend.Writing == 1 {
 									time.Sleep(writeWait)

@@ -32,20 +32,20 @@ func startStratum() {
 
 	s := stratum.NewStratum(&cfg)
 
+	// If EventsConfig is enabled, start event configuration service/listeners
+	if cfg.EventsConfig.Enabled {
+		events := stratum.NewEventsProcessor(&cfg.EventsConfig, cfg.CoinUnits)
+		go events.Start()
+	}
+
 	// If API enabled, start api service/listeners
 	if cfg.API.Enabled {
-		a := stratum.NewApiServer(&cfg.API, s)
+		a := stratum.NewApiServer(&cfg.API, s, &cfg.EventsConfig)
 		go a.Start()
 
 		// Start charts, reliant on api (uses data from api to reduce duplicate db calls/query/processing) and no need to run charts if api isn't running too
 		charts := stratum.NewChartsProcessor(&cfg.PoolCharts, &cfg.SoloCharts, a)
 		go charts.Start()
-	}
-
-	// If EventsConfig is enabled, start event configuration service/listeners
-	if cfg.EventsConfig.Enabled {
-		events := stratum.NewEventsProcessor(&cfg.EventsConfig, cfg.CoinUnits)
-		go events.Start()
 	}
 
 	// If unlocker enabled, start unlocker processes / go routines
