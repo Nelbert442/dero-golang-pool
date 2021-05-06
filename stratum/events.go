@@ -31,8 +31,8 @@ type RandomRewardEventMiners struct {
 	MinerDetails map[string]*ApiMiner
 }
 
-var EventsInfoLogger = logFileOutCharts("INFO")
-var EventsErrorLogger = logFileOutCharts("ERROR")
+var EventsInfoLogger = logFileOutEvents("INFO")
+var EventsErrorLogger = logFileOutEvents("ERROR")
 
 func NewEventsProcessor(eventsconfig *pool.EventsConfig, coinunits int64) *Events {
 	e := &Events{EventsConfig: eventsconfig, CoinUnits: coinunits}
