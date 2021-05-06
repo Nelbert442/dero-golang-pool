@@ -308,12 +308,12 @@ func (e *Events) Start() {
 												minerOffsetFloat := float64(minerOffset)
 												offsetPercent := minerOffsetFloat / yesterdayTimeWindowFloat
 												if offsetPercent >= e.EventsConfig.RandomRewardEventConfig.MinerPercentCriteria {
-													log.Printf("[Events] Adding miner. Meets criteria: %v", offsetPercent)
-													EventsInfoLogger.Printf("[Events] Adding miner. Meets criteria: %v", offsetPercent)
+													log.Printf("[Events] Adding miner (%v). Meets criteria: %v . startedAt (%v) && lastBeat (%v)", k, offsetPercent, backendStats[k].StartedAt, backendStats[k].LastBeat)
+													EventsInfoLogger.Printf("[Events] Adding miner (%v). Meets criteria: %v . startedAt (%v) && lastBeat (%v)", k, offsetPercent, backendStats[k].StartedAt, backendStats[k].LastBeat)
 													tempMinerArr = append(tempMinerArr, k)
 												} else {
-													log.Printf("[Events] Not adding miner (%v), they did not meet the mining percent criteria: %v", k, offsetPercent)
-													EventsInfoLogger.Printf("[Events] Not adding miner (%v), they did not meet the mining percent criteria: %v", k, offsetPercent)
+													log.Printf("[Events] Not adding miner (%v), they did not meet the mining percent criteria: %v . startedAt (%v) && lastBeat (%v)", k, offsetPercent, backendStats[k].StartedAt, backendStats[k].LastBeat)
+													EventsInfoLogger.Printf("[Events] Not adding miner (%v), they did not meet the mining percent criteria: %v . startedAt (%v) && lastBeat (%v)", k, offsetPercent, backendStats[k].StartedAt, backendStats[k].LastBeat)
 												}
 											}
 										}
@@ -323,8 +323,8 @@ func (e *Events) Start() {
 											EventsInfoLogger.Printf("[Events] Choosing the winner for yesterday: %v", yesterdaysdate)
 											rand.Seed(time.Now().Unix())
 											n := rand.Int() % len(tempMinerArr)
-											log.Printf("[Events] Chosen address string: %v , int: %v . Rewarding: %v", tempMinerArr[n], n, uint64(e.EventsConfig.RandomRewardEventConfig.RewardValueInDERO*e.CoinUnits))
-											EventsInfoLogger.Printf("[Events] Chosen address string: %v , int: %v . Rewarding: %v", tempMinerArr[n], n, uint64(e.EventsConfig.RandomRewardEventConfig.RewardValueInDERO*e.CoinUnits))
+											log.Printf("[Events] Chosen address string: %v , int: %v / %v . Rewarding: %v", tempMinerArr[n], n, len(tempMinerArr), uint64(e.EventsConfig.RandomRewardEventConfig.RewardValueInDERO*e.CoinUnits))
+											EventsInfoLogger.Printf("[Events] Chosen address string: %v , int: %v / %v . Rewarding: %v", tempMinerArr[n], n, len(tempMinerArr), uint64(e.EventsConfig.RandomRewardEventConfig.RewardValueInDERO*e.CoinUnits))
 
 											info := &PaymentPending{}
 											info.Address = tempMinerArr[n]
@@ -419,12 +419,12 @@ func (e *Events) Start() {
 									minerOffsetFloat := float64(minerOffset)
 									offsetPercent := minerOffsetFloat / yesterdayTimeWindowFloat
 									if offsetPercent >= e.EventsConfig.RandomRewardEventConfig.MinerPercentCriteria {
-										log.Printf("[Events] Adding miner. Meets criteria: %v", offsetPercent)
-										EventsInfoLogger.Printf("[Events] Adding miner. Meets criteria: %v", offsetPercent)
+										log.Printf("[Events] Adding miner (%v). Meets criteria: %v . startedAt (%v) && lastBeat (%v)", k, offsetPercent, backendStats[k].StartedAt, backendStats[k].LastBeat)
+										EventsInfoLogger.Printf("[Events] Adding miner (%v). Meets criteria: %v . startedAt (%v) && lastBeat (%v)", k, offsetPercent, backendStats[k].StartedAt, backendStats[k].LastBeat)
 										tempMinerArr = append(tempMinerArr, k)
 									} else {
-										log.Printf("[Events] Not adding miner (%v), they did not meet the mining percent criteria: %v", k, offsetPercent)
-										EventsInfoLogger.Printf("[Events] Not adding miner (%v), they did not meet the mining percent criteria: %v", k, offsetPercent)
+										log.Printf("[Events] Not adding miner (%v), they did not meet the mining percent criteria: %v . startedAt (%v) && lastBeat (%v)", k, offsetPercent, backendStats[k].StartedAt, backendStats[k].LastBeat)
+										EventsInfoLogger.Printf("[Events] Not adding miner (%v), they did not meet the mining percent criteria: %v . startedAt (%v) && lastBeat (%v)", k, offsetPercent, backendStats[k].StartedAt, backendStats[k].LastBeat)
 									}
 								}
 							}
@@ -434,8 +434,8 @@ func (e *Events) Start() {
 								EventsInfoLogger.Printf("[Events] Choosing the winner for yesterday: %v", yesterdaysdate)
 								rand.Seed(time.Now().Unix())
 								n := rand.Int() % len(tempMinerArr)
-								log.Printf("[Events] Chosen address string: %v , int: %v . Rewarding: %v", tempMinerArr[n], n, uint64(e.EventsConfig.RandomRewardEventConfig.RewardValueInDERO*e.CoinUnits))
-								EventsInfoLogger.Printf("[Events] Chosen address string: %v , int: %v . Rewarding: %v", tempMinerArr[n], n, uint64(e.EventsConfig.RandomRewardEventConfig.RewardValueInDERO*e.CoinUnits))
+								log.Printf("[Events] Chosen address string: %v , int: %v / %v . Rewarding: %v", tempMinerArr[n], n, len(tempMinerArr), uint64(e.EventsConfig.RandomRewardEventConfig.RewardValueInDERO*e.CoinUnits))
+								EventsInfoLogger.Printf("[Events] Chosen address string: %v , int: %v / %v. Rewarding: %v", tempMinerArr[n], n, len(tempMinerArr), uint64(e.EventsConfig.RandomRewardEventConfig.RewardValueInDERO*e.CoinUnits))
 
 								info := &PaymentPending{}
 								info.Address = tempMinerArr[n]
@@ -500,12 +500,12 @@ func (e *Events) Start() {
 									unixStartTime := thisHourStartWindow.UnixNano() / int64(time.Millisecond) / 1000
 
 									if backendStats[k].LastBeat >= unixStartTime {
-										log.Printf("[Events] Adding miner. LastBeat is within the hour (%v).", thisHourStartWindow)
-										EventsInfoLogger.Printf("[Events] Adding miner. LastBeat is within the hour (%v).", thisHourStartWindow)
+										log.Printf("[Events] Adding miner (%v). LastBeat is within the hour (%v : %v).", k, thisHourStartWindow, backendStats[k].LastBeat)
+										EventsInfoLogger.Printf("[Events] Adding miner (%v). LastBeat is within the hour (%v : %v).", k, thisHourStartWindow, backendStats[k].LastBeat)
 										tempMinerArr = append(tempMinerArr, k)
 									} else {
-										log.Printf("[Events] Not adding miner (%v), lastbeat is not within this hour (%v).", k, thisHourStartWindow)
-										EventsInfoLogger.Printf("[Events] Not adding miner (%v), lastbeat is not within this hour (%v).", k, thisHourStartWindow)
+										log.Printf("[Events] Not adding miner (%v), lastbeat is not within this hour (%v : %v).", k, thisHourStartWindow, backendStats[k].LastBeat)
+										EventsInfoLogger.Printf("[Events] Not adding miner (%v), lastbeat is not within this hour (%v : %v).", k, thisHourStartWindow, backendStats[k].LastBeat)
 									}
 								}
 							}
@@ -515,8 +515,8 @@ func (e *Events) Start() {
 								EventsInfoLogger.Printf("[Events] Choosing the winner for this hour: %v", lastHourBonusDate)
 								rand.Seed(time.Now().Unix())
 								n := rand.Int() % len(tempMinerArr)
-								log.Printf("[Events] Chosen address string: %v , int: %v . Rewarding: %v", tempMinerArr[n], n, uint64(e.EventsConfig.RandomRewardEventConfig.RewardValueInDERO*e.CoinUnits))
-								EventsInfoLogger.Printf("[Events] Chosen address string: %v , int: %v . Rewarding: %v", tempMinerArr[n], n, uint64(e.EventsConfig.RandomRewardEventConfig.RewardValueInDERO*e.CoinUnits))
+								log.Printf("[Events] Chosen address string: %v , int: %v / %v . Rewarding: %v", tempMinerArr[n], n, len(tempMinerArr), uint64(e.EventsConfig.RandomRewardEventConfig.RewardValueInDERO*e.CoinUnits))
+								EventsInfoLogger.Printf("[Events] Chosen address string: %v , int: %v / %v . Rewarding: %v", tempMinerArr[n], n, len(tempMinerArr), uint64(e.EventsConfig.RandomRewardEventConfig.RewardValueInDERO*e.CoinUnits))
 
 								info := &PaymentPending{}
 								info.Address = tempMinerArr[n]
