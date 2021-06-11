@@ -10,6 +10,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"sync/atomic"
 	"time"
 
 	"github.com/Nelbert442/dero-golang-pool/pool"
@@ -1494,8 +1495,10 @@ func (g *GravitonStore) NextRound(roundHeight int64, hashrateExpiration time.Dur
 			}
 
 			if currMiner.RoundShares != 0 || currMiner.LastRoundShares != 0 {
-				currMiner.RoundShares = 0
-				currMiner.LastRoundShares = 0
+				currMiner.Lock()
+				atomic.StoreInt64(&currMiner.RoundShares, 0)
+				atomic.StoreInt64(&currMiner.LastRoundShares, 0)
+				currMiner.Unlock()
 				err := g.WriteMinerStatsByID(currMiner, hashrateExpiration)
 
 				if err != nil {

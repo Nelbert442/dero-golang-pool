@@ -9,6 +9,7 @@ import (
 	"log"
 	"math/big"
 	"os"
+	"sort"
 	"strconv"
 	"sync"
 	"sync/atomic"
@@ -166,8 +167,7 @@ func (cs *Session) getJob(t *BlockTemplate, s *StratumServer, diff int64) *JobRe
 			targetHex = util.GetTargetHex(cs.endpoint.config.MinDiff)
 		}
 	} else { // If vardiff is enabled, otherwise use the default value of the session
-		if s.config.Stratum.VarDiff.Enabled == true {
-
+		if s.config.Stratum.VarDiff.Enabled {
 			targetHex = util.GetTargetHex(diff)
 		} else { // If not fixed diff and vardiff is not enabled, use default config difficulty and targetHex
 			targetHex = cs.endpoint.targetHex
@@ -237,26 +237,37 @@ func (m *Miner) storeShare(diff, minershares, templateHeight int64, hashrateExpi
 		var resetVars bool
 
 		if blockHeightArr != nil {
-			for height := range blockHeightArr.Heights {
-				if atomic.LoadInt64(&m.RoundHeight) != 0 && atomic.LoadInt64(&m.RoundHeight) <= height {
-					// Miner round height is less than a pre-found block [usually happens for disconnected miners && new rounds]. Reset counters
-					m.Lock()
-					atomic.StoreInt64(&m.RoundHeight, templateHeight)
-					// No need to add blank diff shares to m.Shares. Usually only 0 if running NextRound from storage.go
-					if diff != 0 {
-						m.Shares[now] += diff
+			// Create slice of heights that do not include solo blocks. This will be used to compare the last block found against miner heights below
+			var heights []int64
+			for height, isSolo := range blockHeightArr.Heights {
+				if !isSolo {
+					heights = append(heights, height)
+				}
+			}
+			// Sort heights so most recent is index 0 [if preferred reverse, just swap > with <]
+			sort.SliceStable(heights, func(i, j int) bool {
+				return heights[i] > heights[j]
+			})
 
-						for k := range m.Shares {
-							if k < now-hashExpiration {
-								delete(m.Shares, k)
-							}
+			if atomic.LoadInt64(&m.RoundHeight) != 0 && atomic.LoadInt64(&m.RoundHeight) <= heights[0] {
+				// Miner round height is less than a pre-found block [usually happens for disconnected miners && new rounds]. Reset counters
+				m.Lock()
+				atomic.StoreInt64(&m.RoundHeight, templateHeight)
+				// No need to add blank diff shares to m.Shares. Usually only 0 if running NextRound from storage.go
+				if diff != 0 {
+					m.Shares[now] += diff
+
+					for k := range m.Shares {
+						if k < now-hashExpiration {
+							delete(m.Shares, k)
 						}
 					}
-					atomic.StoreInt64(&m.LastRoundShares, atomic.LoadInt64(&m.RoundShares))
-					atomic.StoreInt64(&m.RoundShares, minershares)
-					m.Unlock()
-					resetVars = true
 				}
+				//atomic.StoreInt64(&m.LastRoundShares, atomic.LoadInt64(&m.RoundShares))
+				atomic.StoreInt64(&m.LastRoundShares, 0)
+				atomic.StoreInt64(&m.RoundShares, minershares)
+				m.Unlock()
+				resetVars = true
 			}
 		}
 
@@ -352,12 +363,12 @@ func (m *Miner) processShare(s *StratumServer, cs *Session, job *Job, t *BlockTe
 	} else {
 		switch s.algo {
 		case "astrobwt":
-			checkPowHashBig, success = util.AstroBWTHash(shareBuff, diff, setDiff)
+			checkPowHashBig, success = util.AstroBWTHash(shareBuff[:], diff, setDiff)
 
 			if !success {
 				minerOutput := "Bad hash. If you see often [> 1/10 shares on avg], check input on miner software."
-				log.Printf("[Miner] Bad hash from miner %v@%v", m.Id, cs.ip)
-				MinerErrorLogger.Printf("[Miner] Bad hash from miner %v@%v", m.Id, cs.ip)
+				log.Printf("[Miner] Bad hash, check input on miner software, from miner %v@%v", m.Id, cs.ip)
+				MinerErrorLogger.Printf("[Miner] Bad hash, check input on miner software,  from miner %v@%v", m.Id, cs.ip)
 
 				if shareType == "Trusted" {
 					log.Printf("[Miner] Miner is no longer submitting trusted shares: %v@%v", m.Id, cs.ip)
@@ -387,8 +398,8 @@ func (m *Miner) processShare(s *StratumServer, cs *Session, job *Job, t *BlockTe
 	hashDiff, ok := util.GetHashDifficulty(hashBytes)
 	if !ok {
 		minerOutput := "Bad hash"
-		log.Printf("[Miner] Bad hash from miner %v@%v", m.Id, cs.ip)
-		MinerErrorLogger.Printf("[Miner] Bad hash from miner %v@%v", m.Id, cs.ip)
+		log.Printf("[Miner] Bad hash from miner %v@%v . Could not get hash difficulty.", m.Id, cs.ip)
+		MinerErrorLogger.Printf("[Miner] Bad hash from miner %v@%v . Could not get hash difficulty.", m.Id, cs.ip)
 		atomic.AddInt64(&m.InvalidShares, 1)
 		return false, minerOutput
 	}
@@ -434,6 +445,10 @@ func (m *Miner) processShare(s *StratumServer, cs *Session, job *Job, t *BlockTe
 				log.Printf("[BLOCK] POOL Block found at height %d, diff: %v, blid: %s, by miner: %v@%v", t.Height, t.Difficulty, blockSubmitReply.BLID, m.Id, cs.ip)
 				MinerInfoLogger.Printf("[BLOCK] POOL Block found at height %d, diff: %v, blid: %s, by miner: %v@%v", t.Height, t.Difficulty, blockSubmitReply.BLID, m.Id, cs.ip)
 			}
+
+			Graviton_backend.Writing = 1
+			_ = Graviton_backend.WriteMinerStats(s.miners, s.hashrateExpiration)
+			Graviton_backend.Writing = 0
 
 			// Immediately refresh current BT and send new jobs
 			s.refreshBlockTemplate(true)
@@ -496,7 +511,10 @@ func (m *Miner) processShare(s *StratumServer, cs *Session, job *Job, t *BlockTe
 				m.Shares[now] += cs.difficulty
 			}
 
-			atomic.AddInt64(&m.LastRoundShares, atomic.LoadInt64(&m.RoundShares)+minerShare)
+			// TODO: Rare case, however if someone has old hashes from previous rounds and the first hash they submit solves the block,
+			// then it'll be their old round + the minerShare they submitted rather than just this round (only minerShare since 1 submission).
+			// Can work into storeShare function or just compare against the heights of the blocks quickly and determine adding to m.RoundShares or not
+			atomic.StoreInt64(&m.LastRoundShares, atomic.LoadInt64(&m.RoundShares)+minerShare)
 			atomic.StoreInt64(&m.RoundShares, 0)
 			m.Unlock()
 
@@ -524,8 +542,8 @@ func (m *Miner) processShare(s *StratumServer, cs *Session, job *Job, t *BlockTe
 		}
 	} else if hashDiff.Cmp(&setDiff) < 0 {
 		minerOutput := "Low difficulty share"
-		log.Printf("[Miner] Rejected low difficulty share of %v from %v@%v", hashDiff, m.Id, cs.ip)
-		MinerErrorLogger.Printf("[Miner] Rejected low difficulty share of %v from %v@%v", hashDiff, m.Id, cs.ip)
+		log.Printf("[Miner] Rejected low difficulty share of %v / %v from %v@%v", hashDiff, setDiff, m.Id, cs.ip)
+		MinerErrorLogger.Printf("[Miner] Rejected low difficulty share of %v / %v from %v@%v", hashDiff, setDiff, m.Id, cs.ip)
 		atomic.AddInt64(&m.InvalidShares, 1)
 		return false, minerOutput
 	}
