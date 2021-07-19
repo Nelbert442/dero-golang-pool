@@ -127,7 +127,7 @@ func AstroBWTHash(shareBuff []byte, diff, setDiff big.Int) (bool, bool) {
 	var data astrobwt.Data
 
 	//hash, success := astrobwt.POW_optimized_v2(shareBuff, max_pow_size, &data)
-	hash, _ := astrobwt.POW_optimized_v2(shareBuff, astrobwt.MAX_LENGTH, &data)
+	hash, _ := astrobwt.POW_optimized_v2(shareBuff[:], astrobwt.MAX_LENGTH, &data)
 	/*
 		if !success || hash[len(hash)-1] != 0 {
 			return false, false

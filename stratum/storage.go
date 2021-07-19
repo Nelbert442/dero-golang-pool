@@ -1100,36 +1100,42 @@ func (g *GravitonStore) CompareMinerStats(storedMiner, miner *Miner, hashrateExp
 	if storedMiner != nil {
 		if updatedMiner != nil {
 			// Sync donationtotal for all-time stats
-			if storedMiner.DonationTotal >= updatedMiner.DonationTotal {
-				diff := storedMiner.DonationTotal - updatedMiner.DonationTotal
+			if atomic.LoadInt64(&storedMiner.DonationTotal) >= atomic.LoadInt64(&updatedMiner.DonationTotal) {
+				diff := atomic.LoadInt64(&storedMiner.DonationTotal) - atomic.LoadInt64(&updatedMiner.DonationTotal)
 				if diff < 0 {
 					diff = 0
 				}
-				updatedMiner.DonationTotal += diff
+				updatedMiner.Lock()
+				atomic.AddInt64(&updatedMiner.DonationTotal, diff)
+				updatedMiner.Unlock()
 			}
 
 			// Sync accepts for all-time stats
-			if storedMiner.Accepts >= updatedMiner.Accepts {
-				diff := storedMiner.Accepts - updatedMiner.Accepts
+			if atomic.LoadInt64(&storedMiner.Accepts) >= atomic.LoadInt64(&updatedMiner.Accepts) {
+				diff := atomic.LoadInt64(&storedMiner.Accepts) - atomic.LoadInt64(&updatedMiner.Accepts)
 				if diff < 0 {
 					diff = 0
 				}
-				updatedMiner.Accepts += diff
+				updatedMiner.Lock()
+				atomic.AddInt64(&updatedMiner.Accepts, diff)
+				updatedMiner.Unlock()
 			}
 
 			// Sync rejects for all-time stats
-			if storedMiner.Rejects >= updatedMiner.Rejects {
-				diff := storedMiner.Rejects - updatedMiner.Rejects
+			if atomic.LoadInt64(&storedMiner.Rejects) >= atomic.LoadInt64(&updatedMiner.Rejects) {
+				diff := atomic.LoadInt64(&storedMiner.Rejects) - atomic.LoadInt64(&updatedMiner.Rejects)
 				if diff < 0 {
 					diff = 0
 				}
-				updatedMiner.Rejects += diff
+				updatedMiner.Lock()
+				atomic.AddInt64(&updatedMiner.Rejects, diff)
+				updatedMiner.Unlock()
 			}
 		}
 
 		if blockHeightArr != nil {
 			for height, solo := range blockHeightArr.Heights {
-				if storedMiner.RoundHeight <= height && !solo {
+				if atomic.LoadInt64(&storedMiner.RoundHeight) <= height && !solo {
 					// Miner round height is less than a pre-found block [usually happens for disconnected miners]. Reset counters
 					oldHashes = true
 					oldHashesHeight = height
@@ -1139,12 +1145,14 @@ func (g *GravitonStore) CompareMinerStats(storedMiner, miner *Miner, hashrateExp
 
 		if !oldHashes && updatedMiner != nil {
 			// In the event that the stored shares is greater than mem shares, stored shares = mem shares + stored shares (difference of)
-			if storedMiner.RoundShares >= updatedMiner.RoundShares { //|| storedMiner.RoundHeight <= updatedMiner.RoundHeight {
-				diff := storedMiner.RoundShares - updatedMiner.RoundShares
+			if atomic.LoadInt64(&storedMiner.RoundShares) >= atomic.LoadInt64(&updatedMiner.RoundShares) { //|| storedMiner.RoundHeight <= updatedMiner.RoundHeight {
+				diff := atomic.LoadInt64(&storedMiner.RoundShares) - atomic.LoadInt64(&updatedMiner.RoundShares)
 				if diff < 0 {
 					diff = 0
 				}
-				updatedMiner.RoundShares += diff
+				updatedMiner.Lock()
+				atomic.AddInt64(&updatedMiner.RoundShares, diff)
+				updatedMiner.Unlock()
 
 				/* // Commenting out since I could potentially get fatal error: concurrent map iteration and map write. Need to use separate func/cleanup maybe from api to get rid of old hashes
 				// Remove old shares from backend - older than hashrate expiration of pool config
@@ -1163,9 +1171,9 @@ func (g *GravitonStore) CompareMinerStats(storedMiner, miner *Miner, hashrateExp
 			// If no current miner, but new round is defined, set roundShares to 0 since their stored shares are not counted anymore
 			updatedMiner := storedMiner
 			updatedMiner.Lock()
-			if updatedMiner.RoundShares != 0 {
-				updatedMiner.RoundHeight = oldHashesHeight
-				updatedMiner.RoundShares = 0
+			if atomic.LoadInt64(&updatedMiner.RoundShares) != 0 {
+				atomic.StoreInt64(&updatedMiner.RoundHeight, oldHashesHeight)
+				atomic.StoreInt64(&updatedMiner.RoundShares, 0)
 			}
 
 			/* // Commenting out since I could potentially get fatal error: concurrent map iteration and map write. Need to use separate func/cleanup maybe from api to get rid of old hashes
@@ -1225,8 +1233,12 @@ func (g *GravitonStore) WriteMinerStats(miners MinersMap, hashrateExpiration tim
 			currMiner, _ := miners.Get(storedMiner.Id)
 			updatedMiner, changes := g.CompareMinerStats(storedMiner, currMiner, hashrateExpiration)
 
+			// Set the mmap object of the updated miner
+			miners.Set(storedMiner.Id, updatedMiner)
+
 			// Sometimes can run into concurrent read/write with updatedMiner. Possible misuse of same memory space, investigate further through testing might be required.]
 			// Initial thought is the memory index of the map for shares is still linked back to in-use miner struct on each share submission, however that's just used to calc hashrate, so np missing one
+			// This will only impact 1 block at a time, as roundShares would go to 0 immediately following the submission.
 			if changes {
 				Commit = true
 				updatedMiner.Lock()
@@ -1484,22 +1496,34 @@ func (g *GravitonStore) NextRound(roundHeight int64, hashrateExpiration time.Dur
 		if currMiner != nil {
 			// If there have been blocks found, check to ensure that miner's roundheight is greater than the highest previously found height (shows their hashes are in current round)
 			if len(heights) > 1 {
-				if currMiner.RoundHeight > heights[1] {
-					roundShares[currMiner.Address] += currMiner.RoundShares
-					roundShares[currMiner.Address] += currMiner.LastRoundShares
+				if atomic.LoadInt64(&currMiner.RoundHeight) > heights[1] {
+					roundShares[currMiner.Address] += atomic.LoadInt64(&currMiner.RoundShares)
+					roundShares[currMiner.Address] += atomic.LoadInt64(&currMiner.LastRoundShares)
 				}
 			} else {
 				// If there have been no previous blocks found, we are adding roundshares/lastroundshares regardless of miner's roundheight since it's the first
-				roundShares[currMiner.Address] += currMiner.RoundShares
-				roundShares[currMiner.Address] += currMiner.LastRoundShares
+				roundShares[currMiner.Address] += atomic.LoadInt64(&currMiner.RoundShares)
+				roundShares[currMiner.Address] += atomic.LoadInt64(&currMiner.LastRoundShares)
 			}
 
-			if currMiner.RoundShares != 0 || currMiner.LastRoundShares != 0 {
+			if atomic.LoadInt64(&currMiner.RoundShares) != 0 || atomic.LoadInt64(&currMiner.LastRoundShares) != 0 {
+				log.Printf("[Graviton-NextRound] %s actual values BEFORE reset: lastRoundShares (%v) and RoundShares (%v)", currMiner.Id, atomic.LoadInt64(&currMiner.LastRoundShares), atomic.LoadInt64(&currMiner.RoundShares))
+				StorageInfoLogger.Printf("[Graviton-NextRound] %s actual values BEFORE reset: lastRoundShares (%v) and RoundShares (%v)", currMiner.Id, atomic.LoadInt64(&currMiner.LastRoundShares), atomic.LoadInt64(&currMiner.RoundShares))
+
 				currMiner.Lock()
 				atomic.StoreInt64(&currMiner.RoundShares, 0)
 				atomic.StoreInt64(&currMiner.LastRoundShares, 0)
 				currMiner.Unlock()
+
+				log.Printf("[Graviton-NextRound] %s actual values AFTER reset: lastRoundShares (%v) and RoundShares (%v)", currMiner.Id, atomic.LoadInt64(&currMiner.LastRoundShares), atomic.LoadInt64(&currMiner.RoundShares))
+				StorageInfoLogger.Printf("[Graviton-NextRound] %s actual values AFTER reset: lastRoundShares (%v) and RoundShares (%v)", currMiner.Id, atomic.LoadInt64(&currMiner.LastRoundShares), atomic.LoadInt64(&currMiner.RoundShares))
+
 				err := g.WriteMinerStatsByID(currMiner, hashrateExpiration)
+
+				lookupMiner := g.GetMinerStatsByID(currMiner.Id)
+
+				log.Printf("[Graviton-NextRound] %s actual values AFTER storage writing: lastRoundShares (%v) and RoundShares (%v)", currMiner.Id, atomic.LoadInt64(&lookupMiner.LastRoundShares), atomic.LoadInt64(&lookupMiner.RoundShares))
+				StorageInfoLogger.Printf("[Graviton-NextRound] %s actual values AFTER storage writing: lastRoundShares (%v) and RoundShares (%v)", currMiner.Id, atomic.LoadInt64(&lookupMiner.LastRoundShares), atomic.LoadInt64(&lookupMiner.RoundShares))
 
 				if err != nil {
 					log.Printf("[Graviton-NextRound] Error when writing miner stats (%v) to DB for next round: %v", currMiner.Id, err)
