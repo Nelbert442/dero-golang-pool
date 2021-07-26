@@ -234,7 +234,6 @@ func (m *Miner) storeShare(diff, minershares, templateHeight int64, hashrateExpi
 	} else {
 
 		blockHeightArr := Graviton_backend.GetBlocksFoundByHeightArr()
-		var resetVars bool
 
 		if blockHeightArr != nil {
 			// Create slice of heights that do not include solo blocks. This will be used to compare the last block found against miner heights below
@@ -248,45 +247,20 @@ func (m *Miner) storeShare(diff, minershares, templateHeight int64, hashrateExpi
 			sort.SliceStable(heights, func(i, j int) bool {
 				return heights[i] > heights[j]
 			})
-
-			if atomic.LoadInt64(&m.RoundHeight) != 0 && atomic.LoadInt64(&m.RoundHeight) <= heights[0] {
-				// Miner round height is less than a pre-found block [usually happens for disconnected miners && new rounds]. Reset counters
-				m.Lock()
-				atomic.StoreInt64(&m.RoundHeight, templateHeight)
-				// No need to add blank diff shares to m.Shares. Usually only 0 if running NextRound from storage.go
-				if diff != 0 {
-					m.Shares[now] += diff
-
-					for k := range m.Shares {
-						if k < now-hashExpiration {
-							delete(m.Shares, k)
-						}
-					}
-				}
-				//atomic.StoreInt64(&m.LastRoundShares, atomic.LoadInt64(&m.RoundShares))
-				atomic.StoreInt64(&m.LastRoundShares, 0)
-				atomic.StoreInt64(&m.RoundShares, minershares)
-				m.Unlock()
-				resetVars = true
-			}
 		}
 
-		if !resetVars {
-			m.Lock()
-			atomic.StoreInt64(&m.RoundHeight, templateHeight)
-			// No need to add blank diff shares to m.Shares. Usually only 0 if running NextRound from storage.go
-			if diff != 0 {
-				m.Shares[now] += diff
+		m.Lock()
+		// No need to add blank diff shares to m.Shares. Usually only 0 if running NextRound from storage.go
+		if diff != 0 {
+			m.Shares[now] += diff
 
-				for k := range m.Shares {
-					if k < now-hashExpiration {
-						delete(m.Shares, k)
-					}
+			for k := range m.Shares {
+				if k < now-hashExpiration {
+					delete(m.Shares, k)
 				}
 			}
-			atomic.AddInt64(&m.RoundShares, minershares)
-			m.Unlock()
 		}
+		m.Unlock()
 	}
 }
 
@@ -446,13 +420,6 @@ func (m *Miner) processShare(s *StratumServer, cs *Session, job *Job, t *BlockTe
 				MinerInfoLogger.Printf("[BLOCK] POOL Block found at height %d, diff: %v, blid: %s, by miner: %v@%v", t.Height, t.Difficulty, blockSubmitReply.BLID, m.Id, cs.ip)
 			}
 
-			Graviton_backend.Writing = 1
-			_ = Graviton_backend.WriteMinerStats(s.miners, s.hashrateExpiration)
-			Graviton_backend.Writing = 0
-
-			// Immediately refresh current BT and send new jobs
-			s.refreshBlockTemplate(true)
-
 			// Graviton store of successful block
 			// This could be 'cleaned' to one-liners etc., but just depends on how you feel. Upon build/testing was simpler to view in-line for spec values
 			ts := util.MakeTimestamp() / 1000
@@ -470,21 +437,6 @@ func (m *Miner) processShare(s *StratumServer, cs *Session, job *Job, t *BlockTe
 			info.Address = m.Address
 			info.BlockState = "candidate"
 
-			writeWait, _ := time.ParseDuration("10ms")
-			for Graviton_backend.Writing == 1 {
-				//log.Printf("[Miner-processShare] GravitonDB is writing... sleeping for %v...", writeWait)
-				//StorageInfoLogger.Printf("[Miner-processShare] GravitonDB is writing... sleeping for %v...", writeWait)
-				time.Sleep(writeWait)
-			}
-			Graviton_backend.Writing = 1
-			infoErr := Graviton_backend.WriteBlocks(info, info.BlockState)
-			Graviton_backend.Writing = 0
-			if infoErr != nil {
-				log.Printf("[BLOCK] Graviton DB err: %v", infoErr)
-				MinerErrorLogger.Printf("[BLOCK] Graviton DB err: %v", infoErr)
-			}
-
-			var minerShare int64
 			if m.DonatePercent > 0 && m.Address != s.donateID {
 				donation = float64(m.DonatePercent) / 100 * float64(cs.difficulty)
 				atomic.AddInt64(&m.DonationTotal, int64(donation))
@@ -498,24 +450,13 @@ func (m *Miner) processShare(s *StratumServer, cs *Session, job *Job, t *BlockTe
 					MinerInfoLogger.Printf("[Miner] Miner %v@%v donated %v shares.", params.Id, cs.ip, int64(donation))
 					donateMiner.storeShare(cs.difficulty, int64(donation), int64(t.Height), s.hashrateExpiration)
 				}
-
-				minerShare = cs.difficulty - int64(donation)
-			} else {
-				minerShare = cs.difficulty
 			}
 
 			m.Lock()
-			atomic.StoreInt64(&m.RoundHeight, int64(t.Height))
 			// No need to add blank diff shares to m.Shares. Usually only 0 if running NextRound from storage.go
 			if cs.difficulty != 0 {
 				m.Shares[now] += cs.difficulty
 			}
-
-			// TODO: Rare case, however if someone has old hashes from previous rounds and the first hash they submit solves the block,
-			// then it'll be their old round + the minerShare they submitted rather than just this round (only minerShare since 1 submission).
-			// Can work into storeShare function or just compare against the heights of the blocks quickly and determine adding to m.RoundShares or not
-			atomic.StoreInt64(&m.LastRoundShares, atomic.LoadInt64(&m.RoundShares)+minerShare)
-			atomic.StoreInt64(&m.RoundShares, 0)
 			m.Unlock()
 
 			// Only update next round miner stats if a pool block is found, so can determine this by the miner who found the block's solo status
@@ -531,14 +472,36 @@ func (m *Miner) processShare(s *StratumServer, cs *Session, job *Job, t *BlockTe
 				}
 				Graviton_backend.Writing = 1
 				_ = Graviton_backend.WriteMinerStats(s.miners, s.hashrateExpiration)
+				_ = Graviton_backend.UpdatePoolRoundStats(s.miners)
 
-				log.Printf("[Miner] Updating miner stats for the next round...")
-				MinerInfoLogger.Printf("[Miner] Updating miner stats for the next round...")
-				Graviton_backend.NextRound(int64(t.Height), s.hashrateExpiration)
+				//Graviton_backend.Writing = 1
+				log.Printf("[Miner] Adding block to graviton...")
+				MinerInfoLogger.Printf("[Miner] Adding block to graviton...")
+				infoErr := Graviton_backend.WriteBlocks(info, info.BlockState)
+				//Graviton_backend.Writing = 0
+				if infoErr != nil {
+					log.Printf("[BLOCK] Graviton DB err: %v", infoErr)
+					MinerErrorLogger.Printf("[BLOCK] Graviton DB err: %v", infoErr)
+				}
 				Graviton_backend.Writing = 0
+			} else {
+				writeWait, _ := time.ParseDuration("10ms")
+				for Graviton_backend.Writing == 1 {
+					//log.Printf("[Miner-processShare] GravitonDB is writing... sleeping for %v...", writeWait)
+					//StorageInfoLogger.Printf("[Miner-processShare] GravitonDB is writing... sleeping for %v...", writeWait)
+					time.Sleep(writeWait)
+				}
+				Graviton_backend.Writing = 1
+				infoErr := Graviton_backend.WriteBlocks(info, info.BlockState)
+				Graviton_backend.Writing = 0
+				if infoErr != nil {
+					log.Printf("[BLOCK] Graviton DB err: %v", infoErr)
+					MinerErrorLogger.Printf("[BLOCK] Graviton DB err: %v", infoErr)
+				}
 			}
 
-			//atomic.StoreInt64(&m.LastRoundShares, 0)	// Don't believe this is necessary, happens in nextround
+			// Refresh current BT and send new jobs
+			s.refreshBlockTemplate(true)
 		}
 	} else if hashDiff.Cmp(&setDiff) < 0 {
 		minerOutput := "Low difficulty share"

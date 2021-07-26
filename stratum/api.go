@@ -48,17 +48,16 @@ type ApiEventPayments struct {
 }
 
 type ApiMiner struct {
-	LastBeat        int64
-	StartedAt       int64
-	ValidShares     int64
-	InvalidShares   int64
-	StaleShares     int64
-	Accepts         int64
-	Rejects         int64
-	LastRoundShares int64
-	RoundShares     int64
-	Hashrate        int64
-	Offline         bool
+	LastBeat      int64
+	StartedAt     int64
+	ValidShares   int64
+	InvalidShares int64
+	StaleShares   int64
+	Accepts       int64
+	Rejects       int64
+	RoundShares   int64
+	Hashrate      int64
+	Offline       bool
 	sync.RWMutex
 	Id            string
 	Address       string
@@ -402,18 +401,17 @@ func (apiServer *ApiServer) convertMinerResults(miners []*Miner) ([]*ApiMiner, i
 		})
 	}
 
+	currRoundShares := apiServer.backend.GetPoolRoundStats()
+	if currRoundShares != nil {
+		for _, v := range currRoundShares.RoundShares {
+			totalRoundShares += v
+		}
+	}
+
 	for _, currMiner := range miners {
 		reply := &ApiMiner{}
 		if miners != nil {
 			if currMiner != nil {
-				// If there have been blocks found, check to ensure that miner's roundheight is greater than the highest previously found height (shows their hashes are in current round)
-				if len(heights) >= 1 {
-					if currMiner.RoundHeight > heights[0] {
-						totalRoundShares += currMiner.RoundShares
-					}
-				} else {
-					totalRoundShares += currMiner.RoundShares
-				}
 				var tempDuration time.Duration
 				now := util.MakeTimestamp() / 1000
 				var windowHashes bool
@@ -452,22 +450,21 @@ func (apiServer *ApiServer) convertMinerResults(miners []*Miner) ([]*ApiMiner, i
 
 					// Generate struct for miner stats
 					reply = &ApiMiner{
-						LastBeat:        currMiner.LastBeat,
-						StartedAt:       currMiner.StartedAt,
-						ValidShares:     currMiner.ValidShares,
-						InvalidShares:   currMiner.InvalidShares,
-						StaleShares:     currMiner.StaleShares,
-						Accepts:         currMiner.Accepts,
-						Rejects:         currMiner.Rejects,
-						LastRoundShares: currMiner.LastRoundShares,
-						RoundShares:     currMiner.RoundShares,
-						Hashrate:        Hashrate,
-						Offline:         Offline,
-						Id:              ID,
-						Address:         currMiner.Address[0:7] + "..." + currMiner.Address[len(currMiner.Address)-5:len(currMiner.Address)],
-						IsSolo:          currMiner.IsSolo,
-						DonatePercent:   currMiner.DonatePercent,
-						DonationTotal:   currMiner.DonationTotal,
+						LastBeat:      currMiner.LastBeat,
+						StartedAt:     currMiner.StartedAt,
+						ValidShares:   currMiner.ValidShares,
+						InvalidShares: currMiner.InvalidShares,
+						StaleShares:   currMiner.StaleShares,
+						Accepts:       currMiner.Accepts,
+						Rejects:       currMiner.Rejects,
+						RoundShares:   currRoundShares.RoundShares[currMiner.Id],
+						Hashrate:      Hashrate,
+						Offline:       Offline,
+						Id:            ID,
+						Address:       currMiner.Address[0:7] + "..." + currMiner.Address[len(currMiner.Address)-5:len(currMiner.Address)],
+						IsSolo:        currMiner.IsSolo,
+						DonatePercent: currMiner.DonatePercent,
+						DonationTotal: currMiner.DonationTotal,
 					}
 
 					apiMiners[ID+currMiner.Address] = reply

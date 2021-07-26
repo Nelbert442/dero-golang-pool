@@ -17,6 +17,13 @@ import (
 	"github.com/deroproject/graviton"
 )
 
+type PoolRound struct {
+	StartTimestamp  int64
+	Timestamp       int64
+	LastBlockHeight int64
+	RoundShares     map[string]int64
+}
+
 type MiningShare struct {
 	MinerID             string
 	MinerJobID          string
@@ -1092,10 +1099,7 @@ func (g *GravitonStore) CompareMinerStats(storedMiner, miner *Miner, hashrateExp
 	// Get existing, compare the roundShares of each...
 	// Check online etc.
 	// Compare storedMiner to miner input, update the stored miner with a few 'appends'
-	blockHeightArr := Graviton_backend.GetBlocksFoundByHeightArr()
 	updatedMiner := miner
-	var oldHashes bool
-	var oldHashesHeight int64
 
 	if storedMiner != nil {
 		if updatedMiner != nil {
@@ -1131,64 +1135,6 @@ func (g *GravitonStore) CompareMinerStats(storedMiner, miner *Miner, hashrateExp
 				atomic.AddInt64(&updatedMiner.Rejects, diff)
 				updatedMiner.Unlock()
 			}
-		}
-
-		if blockHeightArr != nil {
-			for height, solo := range blockHeightArr.Heights {
-				if atomic.LoadInt64(&storedMiner.RoundHeight) <= height && !solo {
-					// Miner round height is less than a pre-found block [usually happens for disconnected miners]. Reset counters
-					oldHashes = true
-					oldHashesHeight = height
-				}
-			}
-		}
-
-		if !oldHashes && updatedMiner != nil {
-			// In the event that the stored shares is greater than mem shares, stored shares = mem shares + stored shares (difference of)
-			if atomic.LoadInt64(&storedMiner.RoundShares) >= atomic.LoadInt64(&updatedMiner.RoundShares) { //|| storedMiner.RoundHeight <= updatedMiner.RoundHeight {
-				diff := atomic.LoadInt64(&storedMiner.RoundShares) - atomic.LoadInt64(&updatedMiner.RoundShares)
-				if diff < 0 {
-					diff = 0
-				}
-				updatedMiner.Lock()
-				atomic.AddInt64(&updatedMiner.RoundShares, diff)
-				updatedMiner.Unlock()
-
-				/* // Commenting out since I could potentially get fatal error: concurrent map iteration and map write. Need to use separate func/cleanup maybe from api to get rid of old hashes
-				// Remove old shares from backend - older than hashrate expiration of pool config
-				now := util.MakeTimestamp() / 1000
-				hashExpiration := int64(hashrateExpiration / time.Second)
-
-
-				for k, _ := range updatedMiner.Shares {
-					if k < now-hashExpiration {
-						delete(updatedMiner.Shares, k)
-					}
-				}
-				*/
-			}
-		} else if oldHashes && updatedMiner == nil {
-			// If no current miner, but new round is defined, set roundShares to 0 since their stored shares are not counted anymore
-			updatedMiner := storedMiner
-			updatedMiner.Lock()
-			if atomic.LoadInt64(&updatedMiner.RoundShares) != 0 {
-				atomic.StoreInt64(&updatedMiner.RoundHeight, oldHashesHeight)
-				atomic.StoreInt64(&updatedMiner.RoundShares, 0)
-			}
-
-			/* // Commenting out since I could potentially get fatal error: concurrent map iteration and map write. Need to use separate func/cleanup maybe from api to get rid of old hashes
-			// Remove old shares from backend - older than hashrate expiration of pool config
-			now := util.MakeTimestamp() / 1000
-			hashExpiration := int64(hashrateExpiration / time.Second)
-
-			for k, _ := range updatedMiner.Shares {
-				if k < now-hashExpiration {
-					delete(updatedMiner.Shares, k)
-				}
-			}
-			*/
-
-			updatedMiner.Unlock()
 		}
 	}
 
@@ -1436,6 +1382,219 @@ func (g *GravitonStore) GetRoundShares(roundHeight int64) (map[string]int64, int
 	return result, totalRoundShares, nil
 }
 
+func (g *GravitonStore) UpdatePoolRoundStats(miners MinersMap) error {
+	storedMinerSlice := g.GetAllMinerStats()
+	poolRoundStats := g.GetPoolRoundStats()
+	candidatePoolBlocksFound := g.GetBlocksFound("candidate")
+	immaturePoolBlocksFound := g.GetBlocksFound("immature")
+	maturePoolBlocksFound := g.GetBlocksFound("matured")
+
+	currentPoolRoundStats := &PoolRound{StartTimestamp: int64(0), Timestamp: int64(0), RoundShares: make(map[string]int64), LastBlockHeight: int64(0)}
+	var referenceBlock *BlockDataGrav
+
+	// Create slice of heights that do not include solo blocks. This will be used to compare the last block found against miner heights below
+	blockHeightArr := g.GetBlocksFoundByHeightArr()
+
+	var heights []int64
+	if blockHeightArr != nil {
+		for height, isSolo := range blockHeightArr.Heights {
+			if !isSolo {
+				heights = append(heights, height)
+			}
+		}
+		// Sort heights so most recent is index 0 [if preferred reverse, just swap > with <]
+		sort.SliceStable(heights, func(i, j int) bool {
+			return heights[i] > heights[j]
+		})
+	}
+
+	// If heights length is > 1 then block(s) exist. Get the latest block from candidate/immature/matured variables [annoying procedure, however don't currently have a getBlock(x height) - TODO]
+	if len(heights) >= 1 {
+		for _, value := range candidatePoolBlocksFound.MinedBlocks {
+			if value.Height == heights[0] {
+				referenceBlock = value
+				break
+			}
+		}
+
+		// Ensure referenceBlock hadn't already been found to save cycles
+		if referenceBlock != nil {
+			for _, value := range immaturePoolBlocksFound.MinedBlocks {
+				if value.Height == heights[0] {
+					referenceBlock = value
+					break
+				}
+			}
+		}
+
+		// Ensure referenceBlock hadn't already been found to save cycles
+		if referenceBlock != nil {
+			for _, value := range maturePoolBlocksFound.MinedBlocks {
+				if value.Height == heights[0] {
+					referenceBlock = value
+					break
+				}
+			}
+		}
+	}
+
+	now := (time.Now().UnixNano() / int64(time.Millisecond)) / 1000
+
+	// We need to define StartTimestamp and Timestamp
+	var nextRound bool
+	if poolRoundStats != nil {
+		if referenceBlock != nil {
+			if poolRoundStats.StartTimestamp < referenceBlock.Timestamp || poolRoundStats.LastBlockHeight < referenceBlock.Height {
+				nextRound = true
+				currentPoolRoundStats.StartTimestamp = poolRoundStats.Timestamp
+				currentPoolRoundStats.Timestamp = referenceBlock.Timestamp
+				currentPoolRoundStats.RoundShares = poolRoundStats.RoundShares
+				currentPoolRoundStats.LastBlockHeight = referenceBlock.Height
+			} else {
+				currentPoolRoundStats.StartTimestamp = poolRoundStats.Timestamp
+				currentPoolRoundStats.Timestamp = now
+				currentPoolRoundStats.RoundShares = poolRoundStats.RoundShares
+				currentPoolRoundStats.LastBlockHeight = poolRoundStats.LastBlockHeight
+			}
+		} else {
+			currentPoolRoundStats.StartTimestamp = poolRoundStats.Timestamp
+			currentPoolRoundStats.Timestamp = now
+			currentPoolRoundStats.RoundShares = poolRoundStats.RoundShares
+		}
+	} else {
+		if referenceBlock != nil {
+			currentPoolRoundStats.StartTimestamp = referenceBlock.Timestamp
+			currentPoolRoundStats.Timestamp = now
+			currentPoolRoundStats.RoundShares = make(map[string]int64)
+			currentPoolRoundStats.LastBlockHeight = referenceBlock.Height
+		} else {
+			currentPoolRoundStats.StartTimestamp = 0
+			currentPoolRoundStats.Timestamp = now
+			currentPoolRoundStats.RoundShares = make(map[string]int64)
+		}
+	}
+
+	// If storedMinerMap is empty, no round stats to add
+	if storedMinerSlice != nil {
+		for _, storedMiner := range storedMinerSlice {
+			currMiner, ok := miners.Get(storedMiner.Id)
+
+			if ok {
+				for k, v := range currMiner.Shares {
+					if k > currentPoolRoundStats.StartTimestamp && k <= currentPoolRoundStats.Timestamp {
+						currentPoolRoundStats.RoundShares[storedMiner.Id] += v
+					}
+				}
+			} else {
+				//log.Printf("[UpdatePoolRoundStats] No active miner under %v, no need to update roundshares from this miner.", storedMiner.Id)
+				//StorageInfoLogger.Printf("[UpdatePoolRoundStats] No active miner under %v, no need to update roundshares from this miner.", storedMiner.Id)
+			}
+		}
+	}
+
+	if nextRound {
+		// If nextRound is triggered, we clear the stored pool stats and then we store nextRound details
+		log.Printf("[UpdatePoolRoundStats] Starting next round...")
+		StorageInfoLogger.Printf("[UpdatePoolRoundStats] Starting next round...")
+		log.Printf("[UpdatePoolRoundStats] Storing previous round: RoundShares (%v) , Height (%v)", currentPoolRoundStats.RoundShares, referenceBlock.Height)
+		StorageInfoLogger.Printf("[UpdatePoolRoundStats] Storing previous round: RoundShares (%v) , Height (%v)", currentPoolRoundStats.RoundShares, referenceBlock.Height)
+
+		g.WriteRoundShares(referenceBlock.Height, currentPoolRoundStats.RoundShares)
+
+		log.Printf("[UpdatePoolRoundStats] Clearing out stored values and storing clean roundshares object")
+		StorageInfoLogger.Printf("[UpdatePoolRoundStats] Clearing out stored values and storing clean roundshares object")
+		currentPoolRoundStats.StartTimestamp = referenceBlock.Timestamp
+		currentPoolRoundStats.Timestamp = referenceBlock.Timestamp
+		currentPoolRoundStats.RoundShares = make(map[string]int64)
+	}
+
+	err := g.OverwritePoolRoundStats(currentPoolRoundStats)
+	if err != nil {
+		log.Printf("[UpdatePoolRoundStats] Err on overwriting pool stats: %v", err)
+		StorageErrorLogger.Printf("[UpdatePoolRoundStats] Err on overwriting pool stats: %v", err)
+	} else {
+		if nextRound {
+			log.Printf("[UpdatePoolRoundStats] Updated pool round stats for next round.")
+			StorageInfoLogger.Printf("[UpdatePoolRoundStats] Updated pool round stats for next round.")
+		} else {
+			log.Printf("[UpdatePoolRoundStats] Updated pool round stats.")
+			StorageInfoLogger.Printf("[UpdatePoolRoundStats] Updated pool round stats.")
+		}
+	}
+
+	return nil
+}
+
+// This function is to overwrite pool round stats which will retain *current* pool round details and updated to blank out at each new round / nextRound storage function
+func (g *GravitonStore) OverwritePoolRoundStats(info *PoolRound) error {
+	confBytes, err := json.Marshal(info)
+	if err != nil {
+		StorageErrorLogger.Printf("[Graviton] could not marshal pendingpayments info: %v", err)
+		return fmt.Errorf("[Graviton] could not marshal pendingpayments info: %v", err)
+	}
+
+	store := g.DB
+	ss, _ := store.LoadSnapshot(0) // load most recent snapshot
+
+	// Swap DB at g.DBMaxSnapshot+ commits. Check for g.migrating, if so sleep for g.DBMigrateWait ms
+	for g.migrating == 1 {
+		log.Printf("[OverwritePoolRoundStats] G is migrating... sleeping for %v...", g.DBMigrateWait)
+		StorageInfoLogger.Printf("[OverwritePoolRoundStats] G is migrating... sleeping for %v...", g.DBMigrateWait)
+		time.Sleep(g.DBMigrateWait)
+		store = g.DB
+		ss, _ = store.LoadSnapshot(0) // load most recent snapshot
+	}
+	if ss.GetVersion() >= g.DBMaxSnapshot {
+		Graviton_backend.SwapGravDB(Graviton_backend.DBTree, Graviton_backend.DBFolder)
+
+		store = g.DB
+		ss, _ = store.LoadSnapshot(0) // load most recent snapshot
+	}
+
+	tree, _ := ss.GetTree(g.DBTree) // use or create tree named by poolhost in config
+	key := "pool:currentround"
+
+	tree.Put([]byte(key), confBytes)
+	_, cerr := graviton.Commit(tree)
+	if cerr != nil {
+		log.Printf("[Graviton] ERROR: %v", cerr)
+		StorageErrorLogger.Printf("[Graviton] ERROR: %v", cerr)
+	}
+	return nil
+}
+
+func (g *GravitonStore) GetPoolRoundStats() *PoolRound {
+	store := g.DB
+	ss, _ := store.LoadSnapshot(0) // load most recent snapshot
+
+	// Swap DB at g.DBMaxSnapshot+ commits. Check for g.migrating, if so sleep for g.DBMigrateWait ms
+	for g.migrating == 1 {
+		log.Printf("[GetPoolRoundStats] G is migrating... sleeping for %v...", g.DBMigrateWait)
+		StorageInfoLogger.Printf("[GetPoolRoundStats] G is migrating... sleeping for %v...", g.DBMigrateWait)
+		time.Sleep(g.DBMigrateWait)
+		store = g.DB
+		ss, _ = store.LoadSnapshot(0) // load most recent snapshot
+	}
+	if ss.GetVersion() >= g.DBMaxSnapshot {
+		Graviton_backend.SwapGravDB(Graviton_backend.DBTree, Graviton_backend.DBFolder)
+
+		store = g.DB
+		ss, _ = store.LoadSnapshot(0) // load most recent snapshot
+	}
+
+	tree, _ := ss.GetTree(g.DBTree) // use or create tree named by poolhost in config
+	key := "pool:currentround"
+
+	var result *PoolRound
+
+	v, _ := tree.Get([]byte(key))
+	if v != nil {
+		_ = json.Unmarshal(v, &result)
+	}
+
+	return result
+}
+
 func (g *GravitonStore) WriteRoundShares(roundHeight int64, roundShares map[string]int64) error {
 	confBytes, err := json.Marshal(roundShares)
 	if err != nil {
@@ -1471,71 +1630,6 @@ func (g *GravitonStore) WriteRoundShares(roundHeight int64, roundShares map[stri
 		log.Printf("[Graviton] ERROR: %v", cerr)
 		StorageErrorLogger.Printf("[Graviton] ERROR: %v", cerr)
 	}
-	return nil
-}
-
-func (g *GravitonStore) NextRound(roundHeight int64, hashrateExpiration time.Duration) error {
-	miners := g.GetAllMinerStats()
-	blockHeightArr := g.GetBlocksFoundByHeightArr()
-	roundShares := make(map[string]int64)
-
-	// Create slice of heights that do not include solo blocks. This will be used to compare the last block found against miner heights below
-	var heights []int64
-	for height, isSolo := range blockHeightArr.Heights {
-		if !isSolo {
-			heights = append(heights, height)
-		}
-	}
-	// Sort heights so most recent is index 0 [if preferred reverse, just swap > with <]
-	sort.SliceStable(heights, func(i, j int) bool {
-		return heights[i] > heights[j]
-	})
-
-	for _, currMiner := range miners {
-		//currMiner, _ := miners.Get(value.Id)
-		if currMiner != nil {
-			// If there have been blocks found, check to ensure that miner's roundheight is greater than the highest previously found height (shows their hashes are in current round)
-			if len(heights) > 1 {
-				if atomic.LoadInt64(&currMiner.RoundHeight) > heights[1] {
-					roundShares[currMiner.Address] += atomic.LoadInt64(&currMiner.RoundShares)
-					roundShares[currMiner.Address] += atomic.LoadInt64(&currMiner.LastRoundShares)
-				}
-			} else {
-				// If there have been no previous blocks found, we are adding roundshares/lastroundshares regardless of miner's roundheight since it's the first
-				roundShares[currMiner.Address] += atomic.LoadInt64(&currMiner.RoundShares)
-				roundShares[currMiner.Address] += atomic.LoadInt64(&currMiner.LastRoundShares)
-			}
-
-			if atomic.LoadInt64(&currMiner.RoundShares) != 0 || atomic.LoadInt64(&currMiner.LastRoundShares) != 0 {
-				log.Printf("[Graviton-NextRound] %s actual values BEFORE reset: lastRoundShares (%v) and RoundShares (%v)", currMiner.Id, atomic.LoadInt64(&currMiner.LastRoundShares), atomic.LoadInt64(&currMiner.RoundShares))
-				StorageInfoLogger.Printf("[Graviton-NextRound] %s actual values BEFORE reset: lastRoundShares (%v) and RoundShares (%v)", currMiner.Id, atomic.LoadInt64(&currMiner.LastRoundShares), atomic.LoadInt64(&currMiner.RoundShares))
-
-				currMiner.Lock()
-				atomic.StoreInt64(&currMiner.RoundShares, 0)
-				atomic.StoreInt64(&currMiner.LastRoundShares, 0)
-				currMiner.Unlock()
-
-				log.Printf("[Graviton-NextRound] %s actual values AFTER reset: lastRoundShares (%v) and RoundShares (%v)", currMiner.Id, atomic.LoadInt64(&currMiner.LastRoundShares), atomic.LoadInt64(&currMiner.RoundShares))
-				StorageInfoLogger.Printf("[Graviton-NextRound] %s actual values AFTER reset: lastRoundShares (%v) and RoundShares (%v)", currMiner.Id, atomic.LoadInt64(&currMiner.LastRoundShares), atomic.LoadInt64(&currMiner.RoundShares))
-
-				err := g.WriteMinerStatsByID(currMiner, hashrateExpiration)
-
-				lookupMiner := g.GetMinerStatsByID(currMiner.Id)
-
-				log.Printf("[Graviton-NextRound] %s actual values AFTER storage writing: lastRoundShares (%v) and RoundShares (%v)", currMiner.Id, atomic.LoadInt64(&lookupMiner.LastRoundShares), atomic.LoadInt64(&lookupMiner.RoundShares))
-				StorageInfoLogger.Printf("[Graviton-NextRound] %s actual values AFTER storage writing: lastRoundShares (%v) and RoundShares (%v)", currMiner.Id, atomic.LoadInt64(&lookupMiner.LastRoundShares), atomic.LoadInt64(&lookupMiner.RoundShares))
-
-				if err != nil {
-					log.Printf("[Graviton-NextRound] Error when writing miner stats (%v) to DB for next round: %v", currMiner.Id, err)
-					StorageErrorLogger.Printf("[Graviton-NextRound] Error when writing miner stats (%v) to DB for next round: %v", currMiner.Id, err)
-				}
-			}
-		}
-	}
-
-	// Writes the round shares for all of the miners
-	g.WriteRoundShares(roundHeight, roundShares)
-
 	return nil
 }
 

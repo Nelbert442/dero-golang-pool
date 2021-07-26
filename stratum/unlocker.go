@@ -303,8 +303,8 @@ func (u *BlockUnlocker) unlockCandidatesGrav(candidates []*BlockDataGrav, blockT
 			return nil, err
 		}
 		if block == nil {
-			return nil, fmt.Errorf("[Unlocker] Error while retrieving block %s from node, wrong node hash", hash)
 			UnlockerErrorLogger.Printf("[Unlocker] Error while retrieving block %s from node, wrong node hash", hash)
+			return nil, fmt.Errorf("[Unlocker] Error while retrieving block %s from node, wrong node hash", hash)
 		}
 
 		if matchCandidateGrav(block, candidate) {
@@ -365,10 +365,15 @@ func (u *BlockUnlocker) calculateRewardsGrav(s *StratumServer, block *BlockDataG
 	}
 	Graviton_backend.Writing = 1
 	err := Graviton_backend.WriteMinerStats(s.miners, s.hashrateExpiration)
+	err2 := Graviton_backend.UpdatePoolRoundStats(s.miners)
 	Graviton_backend.Writing = 0
 	if err != nil {
 		log.Printf("[Unlocker] Err storing miner stats: %v", err)
 		UnlockerErrorLogger.Printf("[Unlocker] Err storing miner stats: %v", err)
+	}
+	if err2 != nil {
+		log.Printf("[Unlocker] Err storing miner round stats: %v", err2)
+		UnlockerErrorLogger.Printf("[Unlocker] Err storing miner round stats: %v", err2)
 	}
 	revenue := new(big.Rat).SetUint64(block.Reward)
 	minersProfit, poolProfit := chargeFee(revenue, u.config.PoolFee)

@@ -244,10 +244,15 @@ func NewStratum(cfg *pool.Config) *StratumServer {
 				}
 				Graviton_backend.Writing = 1
 				err := Graviton_backend.WriteMinerStats(stratum.miners, stratum.hashrateExpiration)
+				err2 := Graviton_backend.UpdatePoolRoundStats(stratum.miners)
 				Graviton_backend.Writing = 0
 				if err != nil {
 					log.Printf("[Stratum] Err storing miner stats: %v", err)
 					StratumErrorLogger.Printf("[Stratum] Err storing miner stats: %v", err)
+				}
+				if err2 != nil {
+					log.Printf("[Stratum] Err storing miner round stats: %v", err2)
+					StratumErrorLogger.Printf("[Stratum] Err storing miner round stats: %v", err2)
 				}
 				minerStatsTimer.Reset(minerStatsIntv)
 			}
@@ -597,10 +602,15 @@ func (s *StratumServer) SetupCloseHandler() {
 		}
 		Graviton_backend.Writing = 1
 		err := Graviton_backend.WriteMinerStats(s.miners, s.hashrateExpiration)
+		err2 := Graviton_backend.UpdatePoolRoundStats(s.miners)
 		Graviton_backend.Writing = 0
 		if err != nil {
 			log.Printf("[Stratum] Err storing miner stats: %v", err)
 			StratumErrorLogger.Printf("[Stratum] Err storing miner stats: %v", err)
+		}
+		if err2 != nil {
+			log.Printf("[Stratum] Err storing miner round stats: %v", err2)
+			StratumErrorLogger.Printf("[Stratum] Err storing miner round stats: %v", err2)
 		}
 		// Add 1 second sleep prior to closing to prevent writeminerstats issues
 		time.Sleep(time.Second)

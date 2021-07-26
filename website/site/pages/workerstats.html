@@ -176,8 +176,8 @@
 	function getWorkerRowElement(worker, jsonString){
 		var row = document.createElement('tr');
 		row.setAttribute('data-json', jsonString);
-		row.setAttribute('data-totalRoundHashes', worker.totalRoundHashes);
-		row.setAttribute('id', 'workerRow' + worker.totalRoundHashes);
+		row.setAttribute('data-workername', worker.workername);
+		row.setAttribute('id', 'workerRow' + worker.workername);
 
 		row.innerHTML = getWorkerCells(worker);
 
@@ -292,7 +292,7 @@
             for (var j = 0; j < workerResults.length; j++){
                 var worker = parseWorker(workerResults[j]);
                 var workerJson = JSON.stringify(worker);
-                var existingRow = document.getElementById('workerRow' + worker.totalRoundHashes)
+                var existingRow = document.getElementById('workerRow' + worker.workername)
 
                 if (existingRow && existingRow.getAttribute('data-json') !== workerJson){
                     $(existingRow).replaceWith(getWorkerRowElement(worker, workerJson))
@@ -304,8 +304,8 @@
                     var rows = $workerRows.children().get();
 
                     for (var u = 0; u < rows.length; u++) {
-                        var wTime = parseInt(rows[u].getAttribute('data-totalRoundHashes'));
-                        if (wTime < worker.totalRoundHashes){
+                        var wTime = rows[u].getAttribute('data-workername');
+                        if (wTime == worker.workername){
                             inserted = true;
                             $(rows[u]).replaceWith(workerElement);
                             break;
