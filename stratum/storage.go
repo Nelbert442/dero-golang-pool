@@ -1517,8 +1517,8 @@ func (g *GravitonStore) UpdatePoolRoundStats(miners MinersMap) error {
 			log.Printf("[UpdatePoolRoundStats] Updated pool round stats for next round.")
 			StorageInfoLogger.Printf("[UpdatePoolRoundStats] Updated pool round stats for next round.")
 		} else {
-			log.Printf("[UpdatePoolRoundStats] Updated pool round stats.")
-			StorageInfoLogger.Printf("[UpdatePoolRoundStats] Updated pool round stats.")
+			//log.Printf("[UpdatePoolRoundStats] Updated pool round stats.")
+			//StorageInfoLogger.Printf("[UpdatePoolRoundStats] Updated pool round stats.")
 		}
 	}
 

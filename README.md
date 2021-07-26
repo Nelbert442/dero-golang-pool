@@ -428,5 +428,6 @@ Credits
 
 * [sammy007](https://github.com/sammy007) - Developer on [monero-stratum](https://github.com/sammy007/monero-stratum) which started the basis for stratum building for this project.
 * [JKKGBE](https://github.com/JKKGBE) - Developer on [open-zcash-pool](https://github.com/JKKGBE/open-zcash-pool) which is forked from [sammy007](https://github.com/sammy007) project [open-ethereum-pool](https://github.com/sammy007/open-ethereum-pool) for some additional ideas/thoughts throughout dev when REDIS was utilized, but later migrated to Graviton from scratch with other implementations.
+* [dvandal](https://github.com/dvandal/cryptonote-nodejs-pool) - FrontEnd baseline, css and ideas leveraged for current frontend of pool. 
 * [Graviton](https://github.com/deroproject/graviton) - Graviton DB which is leveraged within this project for backend data storage.
 * [Derosuite](https://github.com/deroproject/derosuite) - Derosuite (DERO) which is the cryptocurrency in which this pool was originally built for and focused for.
