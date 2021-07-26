@@ -3,8 +3,6 @@ DERO Golang Pool is currently in alpha stages and feedback/fixes are always welc
 
 ## Pools Using this Codebase
 * [pool.dero.network](https://pool.dero.network)
-* [dero.xmrminers.club](https://dero.xmrminers.club/)
-* [letshash.it/dero](https://letshash.it/dero)
 
 ## Features
 * Developed in Golang
