@@ -1479,7 +1479,7 @@ func (g *GravitonStore) UpdatePoolRoundStats(miners MinersMap) error {
 		for _, storedMiner := range storedMinerSlice {
 			currMiner, ok := miners.Get(storedMiner.Id)
 
-			if ok {
+			if ok && !currMiner.IsSolo {
 				for k, v := range currMiner.Shares {
 					if k > currentPoolRoundStats.StartTimestamp && k <= currentPoolRoundStats.Timestamp {
 						currentPoolRoundStats.RoundShares[storedMiner.Id] += v
