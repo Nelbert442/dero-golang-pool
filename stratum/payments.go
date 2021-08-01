@@ -339,13 +339,25 @@ func (u *PayoutsProcessor) process(s *StratumServer) {
 		}
 		currPayout.Destinations = nil
 
+		var hasIntegratedAddr bool
+
 		// Payout non-paymentID addresses, max at a time according to maxAddresses in config
 		for i, value := range payoutList {
 			currPayout.Payment_ID = ""
 			currPayout.Destinations = append(currPayout.Destinations, value)
 
-			// Payout if maxAddresses is reached or the payout list ending is reached
-			if len(currPayout.Destinations) >= int(maxAddresses) || i+1 == len(payoutList) {
+			// Check if current list of destinations has an integrated address (we cannot have more than 1). TOOD: Can re-do this to get to max addresses and include 1 integrated address rather than immediately sending when integrated is found
+			for _, v := range currPayout.Destinations {
+				vAddr, _ := address.NewAddress(v.Address)
+
+				if vAddr.IsIntegratedAddress() {
+					hasIntegratedAddr = true
+				}
+			}
+
+			// Payout if maxAddresses is reached or the payout list ending is reached or there is an integrated address within the list of recipients, send the tx
+			if len(currPayout.Destinations) >= int(maxAddresses) || i+1 == len(payoutList) || hasIntegratedAddr {
+				hasIntegratedAddr = false
 				paymentOutput, err := u.rpc.SendTransaction(walletURL, currPayout)
 
 				if err != nil {
