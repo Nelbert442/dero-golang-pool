@@ -365,7 +365,7 @@ func (u *BlockUnlocker) calculateRewardsGrav(s *StratumServer, block *BlockDataG
 	}
 	Graviton_backend.Writing = 1
 	err := Graviton_backend.WriteMinerStats(s.miners, s.hashrateExpiration)
-	err2 := Graviton_backend.UpdatePoolRoundStats(s.miners)
+	err2 := Graviton_backend.UpdatePoolRoundStats(s.miners, false)
 	Graviton_backend.Writing = 0
 	if err != nil {
 		log.Printf("[Unlocker] Err storing miner stats: %v", err)

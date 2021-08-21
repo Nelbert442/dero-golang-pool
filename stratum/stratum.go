@@ -244,7 +244,7 @@ func NewStratum(cfg *pool.Config) *StratumServer {
 				}
 				Graviton_backend.Writing = 1
 				err := Graviton_backend.WriteMinerStats(stratum.miners, stratum.hashrateExpiration)
-				err2 := Graviton_backend.UpdatePoolRoundStats(stratum.miners)
+				err2 := Graviton_backend.UpdatePoolRoundStats(stratum.miners, false)
 				Graviton_backend.Writing = 0
 				if err != nil {
 					log.Printf("[Stratum] Err storing miner stats: %v", err)
@@ -602,7 +602,7 @@ func (s *StratumServer) SetupCloseHandler() {
 		}
 		Graviton_backend.Writing = 1
 		err := Graviton_backend.WriteMinerStats(s.miners, s.hashrateExpiration)
-		err2 := Graviton_backend.UpdatePoolRoundStats(s.miners)
+		err2 := Graviton_backend.UpdatePoolRoundStats(s.miners, false)
 		Graviton_backend.Writing = 0
 		if err != nil {
 			log.Printf("[Stratum] Err storing miner stats: %v", err)

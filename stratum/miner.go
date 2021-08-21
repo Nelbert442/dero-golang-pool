@@ -472,7 +472,6 @@ func (m *Miner) processShare(s *StratumServer, cs *Session, job *Job, t *BlockTe
 				}
 				Graviton_backend.Writing = 1
 				_ = Graviton_backend.WriteMinerStats(s.miners, s.hashrateExpiration)
-				_ = Graviton_backend.UpdatePoolRoundStats(s.miners)
 
 				//Graviton_backend.Writing = 1
 				log.Printf("[Miner] Adding block to graviton...")
@@ -483,6 +482,8 @@ func (m *Miner) processShare(s *StratumServer, cs *Session, job *Job, t *BlockTe
 					log.Printf("[BLOCK] Graviton DB err: %v", infoErr)
 					MinerErrorLogger.Printf("[BLOCK] Graviton DB err: %v", infoErr)
 				}
+
+				_ = Graviton_backend.UpdatePoolRoundStats(s.miners, true)
 				Graviton_backend.Writing = 0
 			} else {
 				writeWait, _ := time.ParseDuration("10ms")

@@ -1382,7 +1382,7 @@ func (g *GravitonStore) GetRoundShares(roundHeight int64) (map[string]int64, int
 	return result, totalRoundShares, nil
 }
 
-func (g *GravitonStore) UpdatePoolRoundStats(miners MinersMap) error {
+func (g *GravitonStore) UpdatePoolRoundStats(miners MinersMap, blockFound bool) error {
 	storedMinerSlice := g.GetAllMinerStats()
 	poolRoundStats := g.GetPoolRoundStats()
 	candidatePoolBlocksFound := g.GetBlocksFound("candidate")
@@ -1418,7 +1418,7 @@ func (g *GravitonStore) UpdatePoolRoundStats(miners MinersMap) error {
 		}
 
 		// Ensure referenceBlock hadn't already been found to save cycles
-		if referenceBlock != nil {
+		if referenceBlock == nil {
 			for _, value := range immaturePoolBlocksFound.MinedBlocks {
 				if value.Height == heights[0] {
 					referenceBlock = value
@@ -1428,7 +1428,7 @@ func (g *GravitonStore) UpdatePoolRoundStats(miners MinersMap) error {
 		}
 
 		// Ensure referenceBlock hadn't already been found to save cycles
-		if referenceBlock != nil {
+		if referenceBlock == nil {
 			for _, value := range maturePoolBlocksFound.MinedBlocks {
 				if value.Height == heights[0] {
 					referenceBlock = value
@@ -1444,7 +1444,7 @@ func (g *GravitonStore) UpdatePoolRoundStats(miners MinersMap) error {
 	var nextRound bool
 	if poolRoundStats != nil {
 		if referenceBlock != nil {
-			if poolRoundStats.StartTimestamp < referenceBlock.Timestamp || poolRoundStats.LastBlockHeight < referenceBlock.Height {
+			if poolRoundStats.StartTimestamp < referenceBlock.Timestamp || poolRoundStats.LastBlockHeight < referenceBlock.Height || blockFound {
 				nextRound = true
 				currentPoolRoundStats.StartTimestamp = poolRoundStats.Timestamp
 				currentPoolRoundStats.Timestamp = referenceBlock.Timestamp
@@ -1472,6 +1472,11 @@ func (g *GravitonStore) UpdatePoolRoundStats(miners MinersMap) error {
 			currentPoolRoundStats.Timestamp = now
 			currentPoolRoundStats.RoundShares = make(map[string]int64)
 		}
+	}
+
+	// Edge catch for if blockFound is defined (from miner.go after finding a block) and nextRound some reason isn't set to true, set it to true
+	if blockFound && !nextRound && referenceBlock != nil {
+		nextRound = true
 	}
 
 	// If storedMinerMap is empty, no round stats to add
